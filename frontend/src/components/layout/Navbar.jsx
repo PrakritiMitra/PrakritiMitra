@@ -1,0 +1,144 @@
+// src/components/layout/Navbar.jsx
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { getMyOrganization } from "../../api/organization";
+
+export default function Navbar() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  const [orgExists, setOrgExists] = useState(null); // null = unknown, true/false = resolved
+
+  useEffect(() => {
+    const checkOrganization = async () => {
+      if (user?.role !== "organizer") return;
+      try {
+        const res = await getMyOrganization();
+
+        if (res.data && res.data._id) setOrgExists(true);
+        else setOrgExists(false);
+      } catch (err) {
+        setOrgExists(false);
+      }
+    };
+
+    if (token && user?.role === "organizer") {
+      checkOrganization();
+    }
+  }, [token, user]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  const isActive = (path) => pathname === path;
+
+  const getDashboardPath = () => {
+    if (user?.role === "organizer") return "/organizer/dashboard";
+    if (user?.role === "volunteer") return "/volunteer/dashboard";
+    return "/";
+  };
+
+  return (
+    <nav className="bg-white shadow-md fixed top-0 w-full z-50">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+        <Link to="/" className="text-2xl font-bold text-blue-700">
+          MumbaiMitra
+        </Link>
+
+        <div className="flex space-x-6">
+          {!token ? (
+            <>
+              <Link
+                to="/signup"
+                className={`font-medium text-sm ${
+                  isActive("/signup")
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-500"
+                }`}
+              >
+                Sign Up
+              </Link>
+              <Link
+                to="/login"
+                className={`font-medium text-sm ${
+                  isActive("/login")
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-500"
+                }`}
+              >
+                Login
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to={getDashboardPath()}
+                className={`font-medium text-sm ${
+                  isActive(getDashboardPath())
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-500"
+                }`}
+              >
+                Dashboard
+              </Link>
+
+              {/* Show for all organizers: Your Organizations */}
+              {user?.role === "organizer" && (
+                <Link
+                  to="/your-organizations"
+                  className={`font-medium text-sm ${
+                    isActive("/your-organizations")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Your Organizations
+                </Link>
+              )}
+
+              {user?.role === "organizer" && orgExists === false && (
+                <Link
+                  to="/register-organization"
+                  className={`font-medium text-sm ${
+                    isActive("/register-organization")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Register Org
+                </Link>
+              )}
+
+              {user?.role === "volunteer" && (
+                <Link
+                  to="/events"
+                  className={`font-medium text-sm ${
+                    isActive("/events")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Browse Events
+                </Link>
+              )}
+
+              <button
+                onClick={handleLogout}
+                className="font-medium text-sm text-gray-700 hover:text-red-500"
+              >
+                Logout
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
