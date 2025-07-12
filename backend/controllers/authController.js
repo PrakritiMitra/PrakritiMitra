@@ -11,17 +11,36 @@ const generateToken = (userId) => {
 // Volunteer Signup
 exports.signupVolunteer = async (req, res) => {
   try {
-    console.log("🔹 Volunteer Signup Request:", req.body);
+    console.log("🔹 Volunteer Signup Request (multipart):", req.body);
 
-    const { name, email, password, dateOfBirth, phone, interests, gender } = req.body;
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+      dateOfBirth,
+      phone,
+      interests,
+      gender,
+      city
+    } = req.body;
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
 
     const existing = await User.findOne({ email });
     if (existing) {
-      console.warn("⚠️ Email already exists:", email);
       return res.status(400).json({ message: "Email already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const interestsArray = Array.isArray(interests)
+      ? interests
+      : typeof interests === 'string'
+      ? [interests]
+      : [];
 
     const user = await User.create({
       name,
@@ -30,8 +49,10 @@ exports.signupVolunteer = async (req, res) => {
       password: hashedPassword,
       dateOfBirth,
       gender,
-      interests,
+      interests: interestsArray,
+      city,
       role: "volunteer",
+      profileImage: req.file ? req.file.filename : null,
     });
 
     console.log("✅ Volunteer created:", user.email);
@@ -52,12 +73,17 @@ exports.signupOrganizer = async (req, res) => {
       name,
       email,
       password,
+      confirmPassword,
       dateOfBirth,
       phone,
       gender,
-      govtIdProofUrl,
+      city,
       organization,
     } = req.body;
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -67,6 +93,9 @@ exports.signupOrganizer = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const profileImage = req.files?.profileImage?.[0]?.filename || null;
+    const govtIdProof = req.files?.govtIdProof?.[0]?.filename || null;
+
     const userData = {
       name,
       email,
@@ -74,7 +103,9 @@ exports.signupOrganizer = async (req, res) => {
       password: hashedPassword,
       dateOfBirth,
       gender,
-      govtIdProofUrl,
+      city,
+      profileImage,
+      govtIdProofUrl: govtIdProof,
       role: "organizer",
     };
 

@@ -1,5 +1,3 @@
-//src/components/auth/OrganizerForm.jsx
-
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -9,33 +7,58 @@ export default function OrganizerForm() {
     name: "",
     email: "",
     password: "",
+    confirmPassword: "",
     phone: "",
+    age: "",
+    city: "",
     dateOfBirth: "",
     gender: "",
-    govtIdProofUrl: "",
+    profileImage: null,
+    govtIdProof: null,
     organization: "",
   });
 
   const navigate = useNavigate();
+  const cityOptions = ["Mumbai", "Pune", "Delhi", "Bangalore", "Hyderabad", "Chennai"];
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, files } = e.target;
+    if (type === "file") {
+      setFormData((prev) => ({ ...prev, [name]: files[0] }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
+
     try {
-      const dataToSend = { ...formData };
-      if (!dataToSend.organization) delete dataToSend.organization;
+      const data = new FormData();
+      for (const key in formData) {
+        if (formData[key]) {
+          data.append(key, formData[key]);
+        }
+      }
 
       const response = await axios.post(
         "http://localhost:5000/api/auth/signup-organizer",
-        dataToSend
+        data,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
+
       alert("Signup successful!");
       console.log(response.data);
-      navigate("/login"); // ✅ Redirect to login
+      navigate("/login");
     } catch (err) {
       alert("Signup failed.");
       console.error(err);
@@ -52,6 +75,7 @@ export default function OrganizerForm() {
         className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         required
       />
+
       <input
         name="email"
         type="email"
@@ -61,6 +85,7 @@ export default function OrganizerForm() {
         className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         required
       />
+
       <input
         name="password"
         type="password"
@@ -70,6 +95,17 @@ export default function OrganizerForm() {
         className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         required
       />
+
+      <input
+        name="confirmPassword"
+        type="password"
+        value={formData.confirmPassword}
+        onChange={handleChange}
+        placeholder="Confirm Password"
+        className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        required
+      />
+
       <input
         name="phone"
         value={formData.phone}
@@ -78,6 +114,30 @@ export default function OrganizerForm() {
         className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
         required
       />
+
+      <input
+        name="age"
+        type="number"
+        value={formData.age}
+        onChange={handleChange}
+        placeholder="Age"
+        className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        required
+      />
+
+      <select
+        name="city"
+        value={formData.city}
+        onChange={handleChange}
+        className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        required
+      >
+        <option value="">Select City</option>
+        {cityOptions.map((city) => (
+          <option key={city} value={city}>{city}</option>
+        ))}
+      </select>
+
       <input
         name="dateOfBirth"
         type="date"
@@ -100,17 +160,18 @@ export default function OrganizerForm() {
         <option value="other">Other</option>
       </select>
 
-      <input
-        name="govtIdProofUrl"
-        value={formData.govtIdProofUrl}
-        onChange={handleChange}
-        placeholder="Govt ID Proof URL"
-        className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-        required
-      />
+      <div>
+        <label className="block font-medium mb-1">Upload Profile Image</label>
+        <input type="file" accept="image/*" name="profileImage" onChange={handleChange} className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
 
-      {/* Optional: Add organization field here or in a separate "Register Organization" page */}
-      {/* <input name="organization" value={formData.organization} onChange={handleChange} placeholder="Organization ID (optional)" className="input" /> */}
+      <div>
+        <label className="block font-medium mb-1">Upload Govt ID Proof</label>
+        <input type="file" accept="image/*,.pdf" name="govtIdProof" onChange={handleChange} className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+
+      {/* Optional: Add organization input */}
+      {/* <input name="organization" value={formData.organization} onChange={handleChange} placeholder="Organization ID (optional)" className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" /> */}
 
       <button
         type="submit"

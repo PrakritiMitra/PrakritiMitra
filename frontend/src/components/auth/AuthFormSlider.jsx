@@ -26,7 +26,7 @@ export default function AuthFormSlider() {
         </button>
       </div>
 
-      <div className="relative h-[500px] overflow-hidden">
+      <div className="relative h-[800px] overflow-hidden">
         <div
           className="flex w-[200%] transition-transform duration-500 ease-in-out"
           style={{ transform: activeForm === 'volunteer' ? 'translateX(0)' : 'translateX(-50%)' }}
