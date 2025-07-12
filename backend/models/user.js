@@ -1,4 +1,4 @@
-//backend/models/user.js
+// backend/models/user.js
 
 const mongoose = require('mongoose');
 
@@ -36,8 +36,12 @@ const userSchema = new mongoose.Schema({
     required: true
   },
 
-  profileImageUrl: {
+  city: {
     type: String,
+  },
+
+  profileImage: {
+    type: String, // stores filename (e.g., "1720775600000-avatar.png")
   },
 
   isEmailVerified: {
