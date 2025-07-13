@@ -18,6 +18,9 @@
   "author": "Sidhik and Amrut",
   "license": "ISC",
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.2.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -26,6 +29,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "multer": "^2.0.1"
+    "mongoose": "^7.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
