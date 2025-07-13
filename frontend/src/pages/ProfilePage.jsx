@@ -217,7 +217,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in transition-all duration-700" className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in transition-all duration-700">
           {/* Profile Photo Section */}
           {editing && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-300 hover:shadow-md hover:scale-[1.01]">
