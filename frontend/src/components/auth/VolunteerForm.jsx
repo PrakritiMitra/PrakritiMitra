@@ -81,9 +81,7 @@ export default function VolunteerForm() {
       <input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Email"  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
       <input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="Password"  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
       <input name="confirmPassword" type="password" value={formData.confirmPassword} onChange={handleChange} placeholder="Confirm Password"  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-      <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone Number"  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-      <input name="age" type="number" value={formData.age} onChange={handleChange} placeholder="Age"  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />
-      
+      <input name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone Number"  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required />      
       <select name="city" value={formData.city} onChange={handleChange}  className="input w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400" required>
         <option value="">Select City</option>
         {cityOptions.map((city) => (
