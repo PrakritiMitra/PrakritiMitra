@@ -83,6 +83,23 @@ const userSchema = new mongoose.Schema({
     type: String,
   },
 
+  // Additional fields for profile
+  emergencyPhone: {
+    type: String,
+  },
+
+  socials: {
+    instagram: { type: String },
+    linkedin: { type: String },
+    twitter: { type: String },
+    facebook: { type: String },
+  },
+
+  aboutMe: {
+    type: String,
+    default: "",
+  },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
