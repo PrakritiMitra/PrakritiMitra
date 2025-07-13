@@ -12,6 +12,7 @@ import OrganizationPage from "./pages/OrganizationPage";
 import JoinOrganizationPage from "./pages/JoinOrganizationPage";
 import YourOrganizations from "./pages/YourOrganizations";
 import MyRequests from "./pages/MyRequests";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
   return (
@@ -62,6 +63,14 @@ function App() {
           element={
             <PrivateRoute>
               <MyRequests />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
             </PrivateRoute>
           }
         />

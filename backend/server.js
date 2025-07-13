@@ -21,6 +21,8 @@ app.use(cors({
   exposedHeaders: ['Authorization'],
 }));
 
+app.use('/api/users', require('./routes/userRoutes'));
+
 // ✅ Parse incoming JSON requests
 app.use(express.json());
 

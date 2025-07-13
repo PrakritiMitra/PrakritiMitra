@@ -56,16 +56,6 @@ export default function Navbar() {
           {!token ? (
             <>
               <Link
-                to="/signup"
-                className={`font-medium text-sm ${
-                  isActive("/signup")
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-500"
-                }`}
-              >
-                Sign Up
-              </Link>
-              <Link
                 to="/login"
                 className={`font-medium text-sm ${
                   isActive("/login")
@@ -128,6 +118,26 @@ export default function Navbar() {
                   Browse Events
                 </Link>
               )}
+
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 text-gray-700 hover:text-blue-500 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                  {user.profileImage ? (
+                    <img
+                      src={`http://localhost:5000/uploads/${user.profileImage}`}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-sm font-bold text-blue-600">
+                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
+                </div>
+                <span className="font-medium text-sm"></span>
+              </Link>
 
               <button
                 onClick={handleLogout}
