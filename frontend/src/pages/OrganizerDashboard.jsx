@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
-import EventForm from "../components/event/EventForm";
+import EventForm from "../components/event/EventStepOne";
 
 export default function OrganizerDashboard() {
   const [user, setUser] = useState(null);

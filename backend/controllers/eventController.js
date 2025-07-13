@@ -7,10 +7,76 @@ const mongoose = require('mongoose');
 exports.createEvent = async (req, res) => {
   try {
     console.log("🔹 Create Event Request Body:", req.body);
+    console.log("🖼️ Uploaded Files:", req.files);
 
+    const {
+      title,
+      description,
+      location,
+      startDateTime,
+      endDateTime,
+      eventType,
+      maxVolunteers,
+      unlimitedVolunteers,
+      instructions,
+      groupRegistration,
+      recurringEvent,
+      recurringType,
+      recurringValue,
+      organization,
+      equipmentNeeded,
+      otherEquipment,
+
+      // Questionnaire fields
+      waterProvided,
+      medicalSupport,
+      ageGroup,
+      precautions,
+      publicTransport,
+      contactPerson,
+    } = req.body;
+
+    // Handle equipment array
+    const equipmentArray = Array.isArray(equipmentNeeded)
+      ? equipmentNeeded
+      : equipmentNeeded
+      ? [equipmentNeeded]
+      : [];
+
+    if (otherEquipment) equipmentArray.push(otherEquipment);
+
+    // File handling
+    const images = req.files?.eventImages?.map((f) => f.filename) || [];
+    const approvalLetter = req.files?.govtApprovalLetter?.[0]?.filename || null;
+
+    // Build the event object
     const eventData = {
-      ...req.body,
-      createdBy: req.user._id, // ✅ Add the user creating the event
+      title,
+      description,
+      location,
+      startDateTime,
+      endDateTime,
+      eventType,
+      maxVolunteers: unlimitedVolunteers === 'true' ? -1 : parseInt(maxVolunteers),
+      unlimitedVolunteers: unlimitedVolunteers === 'true',
+      instructions,
+      groupRegistration: groupRegistration === 'true',
+      recurringEvent: recurringEvent === 'true',
+      recurringType: recurringEvent === 'true' ? recurringType : null,
+      recurringValue: recurringEvent === 'true' ? recurringValue : null,
+      equipmentNeeded: equipmentArray,
+      eventImages: images,
+      govtApprovalLetter: approvalLetter,
+      organization,
+      createdBy: req.user._id,
+
+      // Include questionnaire fields
+      waterProvided: waterProvided === 'true',
+      medicalSupport: medicalSupport === 'true',
+      ageGroup: ageGroup || null,
+      precautions: precautions || "",
+      publicTransport: publicTransport || "",
+      contactPerson: contactPerson || "",
     };
 
     const event = new Event(eventData);

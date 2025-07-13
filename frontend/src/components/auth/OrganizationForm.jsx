@@ -1,7 +1,11 @@
-// src/components/auth/OrganizationForm.jsx
-
 import React, { useState } from 'react';
 import axios from 'axios';
+import {
+  Box,
+  TextField,
+  Button,
+  Typography
+} from '@mui/material';
 
 export default function OrganizationForm() {
   const [formData, setFormData] = useState({
@@ -52,64 +56,77 @@ export default function OrganizationForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-xl font-bold mb-4 text-blue-700">Register New Organization</h2>
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{
+        maxWidth: 600,
+        mx: 'auto',
+        p: 4,
+        backgroundColor: 'white',
+        borderRadius: 2,
+        boxShadow: 3,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2
+      }}
+    >
+      <Typography variant="h5" fontWeight="bold" color="primary">
+        Register New Organization
+      </Typography>
 
-      <input
-        type="text"
+      <TextField
+        label="Organization Name"
         name="name"
         value={formData.name}
         onChange={handleChange}
-        placeholder="Organization Name"
         required
-        className="input w-full mb-4 px-4 py-2 border rounded"
       />
 
-      <textarea
+      <TextField
+        label="Brief Description"
         name="description"
         value={formData.description}
         onChange={handleChange}
-        placeholder="Brief Description"
+        multiline
+        rows={3}
         required
-        className="input w-full mb-4 px-4 py-2 border rounded"
       />
 
-      <input
-        type="url"
+      <TextField
+        label="Logo URL (optional)"
         name="logoUrl"
         value={formData.logoUrl}
         onChange={handleChange}
-        placeholder="Logo URL (optional)"
-        className="input w-full mb-4 px-4 py-2 border rounded"
+        type="url"
       />
 
-      <input
-        type="url"
+      <TextField
+        label="Website URL (optional)"
         name="website"
         value={formData.website}
         onChange={handleChange}
-        placeholder="Website URL (optional)"
-        className="input w-full mb-4 px-4 py-2 border rounded"
+        type="url"
       />
 
-      <label className="font-medium block mb-2">Social Media Links</label>
+      <Typography fontWeight="medium">Social Media Links</Typography>
       {formData.socialLinks.map((link, index) => (
-        <input
+        <TextField
           key={index}
-          type="url"
+          label={`Link #${index + 1}`}
           value={link}
           onChange={(e) => handleSocialLinkChange(index, e.target.value)}
-          placeholder={`Link #${index + 1}`}
-          className="input w-full mb-2 px-4 py-2 border rounded"
+          type="url"
         />
       ))}
-      <button type="button" onClick={addSocialLink} className="text-blue-600 text-sm mb-4">
-        + Add Another Link
-      </button>
 
-      <button type="submit" className="bg-blue-500 text-white px-6 py-2 rounded">
+      <Button onClick={addSocialLink} variant="text" color="primary">
+        + Add Another Link
+      </Button>
+
+      <Button type="submit" variant="contained" color="primary">
         Submit
-      </button>
-    </form>
+      </Button>
+    </Box>
   );
 }

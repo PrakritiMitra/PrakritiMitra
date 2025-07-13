@@ -1,18 +1,16 @@
 //backend/routes/eventRoutes.js
-
+const protect = require('../middlewares/authMiddleware'); // ✅ Add this
 const express = require('express');
 const router = express.Router();
-const {
-  createEvent,
-  getAllEvents,
-  getEventsByOrganization,
-  getUpcomingEvents
-} = require('../controllers/eventController');
-
-const protect = require('../middlewares/authMiddleware'); // ✅ Add this
+const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents} = require('../controllers/eventController');
+const upload = require('../middlewares/upload');
 
 // @route   POST /api/events/create
-router.post('/create', protect, createEvent); // ✅ Secure the route
+router.post( '/create', protect, upload.fields([
+    { name: 'eventImages', maxCount: 5 },
+    { name: 'govtApprovalLetter', maxCount: 1 },
+  ]), createEvent
+);
 
 // @route   GET /api/events
 router.get('/', getAllEvents);

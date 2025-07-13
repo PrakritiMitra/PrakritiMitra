@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import {
+  TextField,
+  Button,
+  Box,
+  Typography,
+  Alert,
+} from '@mui/material';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const navigate = useNavigate(); // ⬅️ Needed for redirection
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', {
         email,
-        password
+        password,
       });
 
-      console.log('Logged in:', res.data);
-
-      // Save token and user
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
 
-      // Redirect based on role
       if (res.data.user.role === 'organizer') {
         navigate('/organizer/dashboard');
       } else {
@@ -34,29 +37,56 @@ export default function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleLogin} className="w-full max-w-xl mx-auto mt-10">
-      <h2 className="text-xl font-semibold mb-4">Login</h2>
-      {error && <div className="text-red-500">{error}</div>}
+    <Box
+      component="form"
+      onSubmit={handleLogin}
+      maxWidth={400}
+      mx="auto"
+      mt={5}
+      p={3}
+      boxShadow={3}
+      borderRadius={2}
+      bgcolor="white"
+    >
+      <Typography variant="h5" mb={2} fontWeight="bold" color="primary">
+        Login
+      </Typography>
 
-      <input
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <TextField
+        label="Email"
         type="email"
-        placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="input w-full px-4 py-2 my-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        fullWidth
         required
+        margin="normal"
       />
-      <input
+
+      <TextField
+        label="Password"
         type="password"
-        placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="input w-full px-4 py-2 my-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        fullWidth
         required
+        margin="normal"
       />
-      <button type="submit" className="w-full bg-blue-500 text-white p-2 my-2 rounded">
+
+      <Button
+        type="submit"
+        variant="contained"
+        color="primary"
+        fullWidth
+        sx={{ mt: 2 }}
+      >
         Login
-      </button>
-    </form>
+      </Button>
+    </Box>
   );
 }
