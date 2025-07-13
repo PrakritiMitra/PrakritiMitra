@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
-import EventForm from "../components/event/EventForm";
 import { approveTeamMember, rejectTeamMember } from "../api/organization";
+import EventCreationWrapper from "../components/event/EventCreationWrapper";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -109,8 +109,8 @@ export default function OrganizationPage() {
   };
 
   const now = new Date();
-  const upcoming = events.filter((e) => new Date(e.date) >= now);
-  const past = events.filter((e) => new Date(e.date) < now);
+  const upcoming = events.filter((e) => new Date(e.startDateTime) >= now);
+  const past = events.filter((e) => new Date(e.startDateTime) < now);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -143,30 +143,20 @@ export default function OrganizationPage() {
               Verified Status: {organization.verifiedStatus}
             </p>
 
-            {/* Join request status or button */}
+            {/* Join status UI */}
             {user?.role === "organizer" && (
               <div className="mb-6">
                 {isAdmin ? (
                   <p className="text-green-600 font-medium">
-                    Joined as admin
-                    {memberEntry?.updatedAt && (
-                      <>
-                        {" "}
-                        on{" "}
-                        {new Date(memberEntry.updatedAt).toLocaleDateString()}
-                      </>
-                    )}
+                    Joined as admin{" "}
+                    {memberEntry?.updatedAt &&
+                      `on ${new Date(memberEntry.updatedAt).toLocaleDateString()}`}
                   </p>
                 ) : isMember ? (
                   <p className="text-green-600 font-medium">
-                    Joined as member
-                    {memberEntry?.updatedAt && (
-                      <>
-                        {" "}
-                        on{" "}
-                        {new Date(memberEntry.updatedAt).toLocaleDateString()}
-                      </>
-                    )}
+                    Joined as member{" "}
+                    {memberEntry?.updatedAt &&
+                      `on ${new Date(memberEntry.updatedAt).toLocaleDateString()}`}
                   </p>
                 ) : hasRequested ? (
                   <p className="text-yellow-600 font-medium">
@@ -184,7 +174,6 @@ export default function OrganizationPage() {
               </div>
             )}
 
-            {/* Create Event for Admins and Members */}
             {(isAdmin || isMember) && (
               <button
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4"
@@ -194,7 +183,6 @@ export default function OrganizationPage() {
               </button>
             )}
 
-            {/* Show join request controls only for Admin */}
             {isAdmin && pendingRequests.length > 0 && (
               <ul className="space-y-2">
                 {pendingRequests.map((req) => (
@@ -240,7 +228,10 @@ export default function OrganizationPage() {
                     <h3 className="text-lg font-bold text-blue-700">
                       {e.title}
                     </h3>
-                    <p>{new Date(e.date).toLocaleString()}</p>
+                    <p>
+                      {new Date(e.startDateTime).toLocaleString()} —{" "}
+                      {new Date(e.endDateTime).toLocaleString()}
+                    </p>
                     <p className="text-sm text-gray-600">{e.location}</p>
                   </div>
                 ))}
@@ -261,7 +252,10 @@ export default function OrganizationPage() {
                     className="bg-white border p-4 rounded shadow"
                   >
                     <h3 className="text-lg font-bold">{e.title}</h3>
-                    <p>{new Date(e.date).toLocaleString()}</p>
+                    <p>
+                      {new Date(e.startDateTime).toLocaleString()} —{" "}
+                      {new Date(e.endDateTime).toLocaleString()}
+                    </p>
                     <p className="text-sm text-gray-600">{e.location}</p>
                   </div>
                 ))}
@@ -273,22 +267,19 @@ export default function OrganizationPage() {
         )}
       </div>
 
-      {/* Modal for Event Form */}
+      {/* Event creation modal */}
       {showEventForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-xl relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-xl relative my-10 max-h-[90vh] overflow-y-auto">
             <button
-              className="absolute top-2 right-3 text-gray-500 hover:text-red-600 text-lg"
+              className="absolute top-4 right-8 text-gray-500 hover:text-red-600 text-[30px]"
               onClick={() => setShowEventForm(false)}
             >
               ×
             </button>
-            <EventForm
+            <EventCreationWrapper
               selectedOrgId={id}
-              onSuccess={() => {
-                setShowEventForm(false);
-                window.location.reload(); // simple refresh
-              }}
+              onClose={() => setShowEventForm(false)}
             />
           </div>
         </div>
