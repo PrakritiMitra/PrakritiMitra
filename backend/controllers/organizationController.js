@@ -17,10 +17,14 @@ exports.registerOrganization = async (req, res) => {
       category,
       verifiedStatus,
       createdBy: userId,
-      team: [{
-        userId,
-        status: 'approved'
-      }],
+      team: [
+        {
+          userId,
+          status: 'approved',
+          isAdmin: true, // ✅ Grant admin privileges to the creator
+          position: 'Founder', // optional
+        },
+      ],
     });
 
     console.log("✅ Organization registered:", organization._id);
