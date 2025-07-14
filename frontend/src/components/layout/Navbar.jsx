@@ -9,9 +9,19 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
 
   const [orgExists, setOrgExists] = useState(null); // null = unknown, true/false = resolved
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setUser(JSON.parse(localStorage.getItem("user")));
+    };
+    window.addEventListener("storage", handleStorage);
+    // Also update on mount and on route change
+    handleStorage();
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [pathname]);
 
   useEffect(() => {
     const checkOrganization = async () => {
@@ -123,8 +133,8 @@ export default function Navbar() {
                 to="/profile"
                 className="flex items-center space-x-2 text-gray-700 hover:text-blue-500 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  {user.profileImage ? (
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                  {user && user.profileImage ? (
                     <img
                       src={`http://localhost:5000/uploads/${user.profileImage}`}
                       alt="Profile"
@@ -132,7 +142,7 @@ export default function Navbar() {
                     />
                   ) : (
                     <div className="text-sm font-bold text-blue-600">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      {user && user.name ? user.name.charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
                 </div>

@@ -9,7 +9,10 @@ router.get('/profile', protect, (req, res) => {
   res.json({ user: req.user });
 });
 
-router.put('/profile', protect, upload.single('profileImage'), async (req, res) => {
+router.put('/profile', protect, upload.fields([
+  { name: 'profileImage', maxCount: 1 },
+  { name: 'govtIdProof', maxCount: 1 }
+]), async (req, res) => {
   try {
     const userId = req.user._id;
     const updateData = { ...req.body };
@@ -29,8 +32,11 @@ router.put('/profile', protect, upload.single('profileImage'), async (req, res) 
     delete updateData.email; // (optional) if you don't want email to be changed
 
     // Handle profile image upload
-    if (req.file) {
-      updateData.profileImage = req.file.filename;
+    if (req.files?.profileImage?.[0]) {
+      updateData.profileImage = req.files.profileImage[0].filename;
+    }
+    if (req.files?.govtIdProof?.[0]) {
+      updateData.govtIdProofUrl = req.files.govtIdProof[0].filename;
     }
 
     // Remove password from update data if it's not being changed
