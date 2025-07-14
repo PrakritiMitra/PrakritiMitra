@@ -6,40 +6,59 @@ import EventStepTwo from "./EventStepTwo";
 import EventPreview from "./EventPreview";
 import axios from "axios";
 
-export default function EventCreationWrapper({ selectedOrgId, organizationOptions = [], onClose }) {
+export default function EventCreationWrapper({
+  selectedOrgId,
+  organizationOptions = [],
+  onClose,
+  isEdit = false,
+  eventId = null,
+  initialFormData = null,
+  initialQuestionnaireData = null,
+}) {
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    location: "",
-    startDateTime: "",
-    endDateTime: "",
-    maxVolunteers: "",
-    unlimitedVolunteers: false,
-    equipmentNeeded: [],
-    otherEquipment: "",
-    eventType: "",
-    instructions: "",
-    groupRegistration: false,
-    recurringEvent: false,
-    recurringType: "",
-    recurringValue: "",
-    organization: selectedOrgId || "",
-    eventImages: [],
-    govtApprovalLetter: null,
-  });
+  const [formData, setFormData] = useState(
+    initialFormData || {
+      title: "",
+      description: "",
+      location: "",
+      startDateTime: "",
+      endDateTime: "",
+      maxVolunteers: "",
+      unlimitedVolunteers: false,
+      equipmentNeeded: [],
+      otherEquipment: "",
+      eventType: "",
+      instructions: "",
+      groupRegistration: false,
+      recurringEvent: false,
+      recurringType: "",
+      recurringValue: "",
+      organization: selectedOrgId || "",
+      eventImages: [],
+      govtApprovalLetter: null,
+    }
+  );
 
-  const [questionnaireData, setQuestionnaireData] = useState({
-    waterProvided: false,
-    medicalSupport: false,
-    ageGroup: "",
-    precautions: "",
-    publicTransport: "",
-    contactPerson: "",
-  });
+  const [questionnaireData, setQuestionnaireData] = useState(
+    initialQuestionnaireData || {
+      waterProvided: false,
+      medicalSupport: false,
+      ageGroup: "",
+      precautions: "",
+      publicTransport: "",
+      contactPerson: "",
+    }
+  );
+
+  const [existingImages, setExistingImages] = useState(
+    initialFormData?.existingImages || []
+  );
+  const [existingLetter, setExistingLetter] = useState(
+    initialFormData?.existingLetter || null
+  );
 
   const handleFormUpdate = (updater) => {
-    if (typeof updater === 'function') {
+    if (typeof updater === "function") {
       setFormData(updater);
     } else {
       setFormData((prev) => ({ ...prev, ...updater }));
@@ -54,14 +73,26 @@ export default function EventCreationWrapper({ selectedOrgId, organizationOption
     setFormData((prev) => ({ ...prev, govtApprovalLetter: file }));
   };
 
+  const handleRemoveExistingImage = (filename) => {
+    setExistingImages((prev) => prev.filter((img) => img !== filename));
+  };
+
+  const handleRemoveExistingLetter = () => {
+    setExistingLetter(null);
+  };
+
   const handleSubmit = async () => {
     const data = new FormData();
 
     for (const key in formData) {
       if (key === "equipmentNeeded") {
-        formData.equipmentNeeded.forEach((item) => data.append("equipmentNeeded", item));
+        formData.equipmentNeeded.forEach((item) =>
+          data.append("equipmentNeeded", item)
+        );
       } else if (key === "eventImages") {
-        formData.eventImages.forEach((file) => data.append("eventImages", file));
+        formData.eventImages.forEach((file) =>
+          data.append("eventImages", file)
+        );
       } else if (key === "govtApprovalLetter") {
         if (formData.govtApprovalLetter) {
           data.append("govtApprovalLetter", formData.govtApprovalLetter);
@@ -71,26 +102,46 @@ export default function EventCreationWrapper({ selectedOrgId, organizationOption
       }
     }
 
-    // Append questionnaire data
     for (const key in questionnaireData) {
       data.append(key, questionnaireData[key]);
     }
 
+    // Append deleted files
+    existingImages.forEach((filename) =>
+      data.append("existingImages", filename)
+    );
+    if (existingLetter) {
+      data.append("existingLetter", existingLetter);
+    }
+
     try {
       const token = localStorage.getItem("token");
-      await axios.post("/api/events/create", data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-        withCredentials: true,
-      });
-      alert("Event created successfully!");
-      if (onClose) onClose(); // e.g. to close modal
+
+      if (isEdit && eventId) {
+        await axios.put(`/api/events/${eventId}`, data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+          withCredentials: true,
+        });
+        alert("Event updated successfully!");
+      } else {
+        await axios.post("/api/events/create", data, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data",
+          },
+          withCredentials: true,
+        });
+        alert("Event created successfully!");
+      }
+
+      if (onClose) onClose();
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert("Failed to create event.");
+      alert("Failed to submit event.");
     }
   };
 
@@ -102,9 +153,14 @@ export default function EventCreationWrapper({ selectedOrgId, organizationOption
           setFormData={handleFormUpdate}
           setImageFiles={handleImageUpdate}
           setLetterFile={handleLetterUpdate}
-          selectedOrgId={selectedOrgId}
+          selectedOrgId={formData.organization}
           organizationOptions={organizationOptions}
           onNext={() => setStep(2)}
+          existingImages={existingImages}
+          existingLetter={existingLetter}
+          onRemoveImage={handleRemoveExistingImage}
+          onRemoveLetter={handleRemoveExistingLetter}
+          isEditMode={isEdit}
         />
       )}
       {step === 2 && (

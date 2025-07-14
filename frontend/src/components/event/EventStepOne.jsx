@@ -23,9 +23,12 @@ export default function EventStepOne({
   selectedOrgId,
   organizationOptions = [],
   onNext,
+  existingImages = [],
+  existingLetter = null,
+  onRemoveExistingImage,
+  onRemoveExistingLetter
 }) {
   const equipmentOptions = ["Gloves", "Bags", "Masks", "Tools"];
-  // Only include event types that have images available
   const eventTypes = [
     "Beach Cleanup",
     "Tree Plantation",
@@ -36,7 +39,6 @@ export default function EventStepOne({
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-
     if (type === "checkbox") {
       if (name === "equipmentNeeded") {
         setFormData((prev) => ({
@@ -63,7 +65,7 @@ export default function EventStepOne({
 
   const handleProceed = (e) => {
     e.preventDefault();
-    onNext(); // Go to step 2
+    onNext();
   };
 
   return (
@@ -150,7 +152,6 @@ export default function EventStepOne({
       </Box>
 
       <TextField fullWidth margin="normal" name="otherEquipment" label="Other Equipment" value={formData.otherEquipment} onChange={handleChange} />
-
       <TextField fullWidth multiline rows={2} margin="normal" name="instructions" label="Additional Instructions" value={formData.instructions} onChange={handleChange} />
 
       <Box mt={2}>
@@ -202,6 +203,17 @@ export default function EventStepOne({
         <Typography variant="subtitle1" gutterBottom>
           Event Images (optional)
         </Typography>
+        {existingImages.length > 0 && (
+          <Box mb={1}>
+            <Typography variant="body2">Existing Images:</Typography>
+            {existingImages.map((img, index) => (
+              <Box key={index} display="flex" alignItems="center" gap={1} mt={1}>
+                <img src={`http://localhost:5000/uploads/${img}`} alt="Preview" width="100" style={{ borderRadius: 4 }} />
+                <Button size="small" color="error" onClick={() => onRemoveExistingImage(img)}>Remove</Button>
+              </Box>
+            ))}
+          </Box>
+        )}
         <input type="file" multiple accept="image/*" onChange={handleImageChange} />
       </Box>
 
@@ -209,6 +221,14 @@ export default function EventStepOne({
         <Typography variant="subtitle1" gutterBottom>
           Govt Approval Letter (Image/PDF)
         </Typography>
+        {existingLetter && (
+          <Box display="flex" alignItems="center" gap={2}>
+            <a href={`http://localhost:5000/uploads/${existingLetter}`} target="_blank" rel="noopener noreferrer">
+              {existingLetter}
+            </a>
+            <Button size="small" color="error" onClick={onRemoveExistingLetter}>Remove</Button>
+          </Box>
+        )}
         <input type="file" accept="image/*,application/pdf" onChange={handleLetterChange} />
       </Box>
 
