@@ -69,7 +69,7 @@ export default function JoinOrganizationPage() {
           (org) => org.status !== "approved" && org.status !== "creator"
         );
         setOrganizations(filtered);
-        setRequestedOrgIds(pending);
+       
       } catch (err) {
         console.error("❌ Failed to load organizations:", err);
       } finally {

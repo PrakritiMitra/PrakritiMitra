@@ -14,6 +14,7 @@ import YourOrganizations from "./pages/YourOrganizations";
 import MyRequests from "./pages/MyRequests";
 import ProfilePage from "./pages/ProfilePage";
 import EventDetailsPage from "./pages/EventDetailsPage";
+import MyEvents from "./pages/MyEvents";
 import EditEventPage from "./pages/EditEventPage";
 
 function App() {
@@ -65,6 +66,14 @@ function App() {
           element={
             <PrivateRoute>
               <MyRequests />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/my-events"
+          element={
+            <PrivateRoute>
+              <MyEvents />
             </PrivateRoute>
           }
         />

@@ -39,7 +39,12 @@ exports.registerOrganization = async (req, res) => {
 exports.getMyOrganization = async (req, res) => {
   try {
     console.log("🔹 Fetching org for user:", req.user._id);
-    const org = await Organization.findOne({ createdBy: req.user._id });
+    const org = await Organization.findOne({
+      $or: [
+        { createdBy: req.user._id },
+        { "team.userId": req.user._id }
+      ]
+    });
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
     console.log("✅ Organization found:", org._id);

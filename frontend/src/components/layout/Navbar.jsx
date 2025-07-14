@@ -103,6 +103,20 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {/* My Events link for organizers */}
+              {user?.role === "organizer" && (
+                <Link
+                  to="/my-events"
+                  className={`font-medium text-sm ${
+                    isActive("/my-events")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  My Events
+                </Link>
+              )}
+
               {user?.role === "organizer" && orgExists === false && (
                 <Link
                   to="/register-organization"
