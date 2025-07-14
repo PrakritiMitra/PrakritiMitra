@@ -96,8 +96,8 @@ exports.getAllEvents = async (req, res) => {
     const now = new Date();
     console.log("🔹 Fetching upcoming events after:", now);
 
-    const events = await Event.find({ date: { $gte: now } })
-      .sort({ date: 1 }) // Optional: sort by soonest first
+    const events = await Event.find({ startDateTime: { $exists: true, $gte: now } })
+      .sort({ startDateTime: 1 }) // Optional: sort by soonest first
       .populate("organization");
 
     console.log(`✅ ${events.length} upcoming events found`);
@@ -130,12 +130,12 @@ exports.getUpcomingEvents = async (req, res) => {
     const now = new Date();
     console.log("🔹 Fetching upcoming events after:", now);
 
-    const events = await Event.find({ date: { $gte: now } })
-      .sort({ date: 1 }) // Optional: sort by soonest first
+    const upcomingEvents = await Event.find({ startDateTime: { $exists: true, $gte: now } })
+      .sort({ startDateTime: 1 }) // Optional: sort by soonest first
       .populate("organization");
 
-    console.log(`✅ ${events.length} upcoming events found`);
-    res.status(200).json(events);
+    console.log(`✅ ${upcomingEvents.length} upcoming events found`);
+    res.status(200).json(upcomingEvents);
   } catch (err) {
     console.error("❌ Failed to fetch upcoming events:", err);
     res.status(500).json({ message: err.message });

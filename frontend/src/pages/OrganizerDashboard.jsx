@@ -4,12 +4,17 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import EventForm from "../components/event/EventStepOne";
+import EventCard from "../components/event/EventCard";
 
 export default function OrganizerDashboard() {
   const [user, setUser] = useState(null);
   const [organizations, setOrganizations] = useState([]);
   const [showEventModal, setShowEventModal] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
+  const [events, setEvents] = useState([]);
+  const [upcomingVisible, setUpcomingVisible] = useState(3);
+  const [pastVisible, setPastVisible] = useState(3);
+  const [loadingEvents, setLoadingEvents] = useState(true);
 
   useEffect(() => {
     // Fetch user profile
@@ -23,6 +28,25 @@ export default function OrganizerDashboard() {
       .then((res) => setUser(res.data.user))
       .catch((err) => console.error(err));
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoadingEvents(true);
+    axios
+      .get("/api/events", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+      .then((res) => {
+        setEvents(res.data);
+        setLoadingEvents(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching events:", err);
+        setLoadingEvents(false);
+      });
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -43,6 +67,16 @@ export default function OrganizerDashboard() {
         setLoadingOrgs(false);
       });
   }, [user]);
+
+  // Helper to get the event's date for filtering
+  const getEventDate = (event) => {
+    return (
+      event.startDateTime ? new Date(event.startDateTime) :
+      event.date ? new Date(event.date) :
+      event.endDateTime ? new Date(event.endDateTime) :
+      null
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -89,6 +123,84 @@ export default function OrganizerDashboard() {
           </div>
         ) : (
           <p>Loading user data...</p>
+        )}
+      </div>
+
+      {/* Events Section */}
+      <div className="mt-10">
+        <h2 className="text-xl font-semibold mb-2">Upcoming Events</h2>
+        {loadingEvents ? (
+          <p>Loading events...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {events
+                .filter(e => {
+                  const d = getEventDate(e);
+                  return d && d >= new Date();
+                })
+                .sort((a, b) => {
+                  const da = getEventDate(a);
+                  const db = getEventDate(b);
+                  return da - db;
+                })
+                .slice(0, upcomingVisible)
+                .map(event => (
+                  <EventCard key={event._id} event={event} />
+                ))}
+            </div>
+            {events.filter(e => {
+              const d = getEventDate(e);
+              return d && d >= new Date();
+            }).length > upcomingVisible && (
+              <div className="flex justify-center mt-4">
+                <button
+                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  onClick={() => setUpcomingVisible(v => v + 3)}
+                >
+                  See More
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <div className="mt-10">
+        <h2 className="text-xl font-semibold mb-2">Past Events</h2>
+        {loadingEvents ? (
+          <p>Loading events...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {events
+                .filter(e => {
+                  const d = getEventDate(e);
+                  return d && d < new Date();
+                })
+                .sort((a, b) => {
+                  const da = getEventDate(a);
+                  const db = getEventDate(b);
+                  return db - da;
+                })
+                .slice(0, pastVisible)
+                .map(event => (
+                  <EventCard key={event._id} event={event} />
+                ))}
+            </div>
+            {events.filter(e => {
+              const d = getEventDate(e);
+              return d && d < new Date();
+            }).length > pastVisible && (
+              <div className="flex justify-center mt-4">
+                <button
+                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                  onClick={() => setPastVisible(v => v + 3)}
+                >
+                  See More
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
