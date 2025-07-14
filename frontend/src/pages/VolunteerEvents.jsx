@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
+import Footer from "./Footer";
 
 export default function VolunteerEvents() {
   const [events, setEvents] = useState([]);
@@ -109,6 +110,7 @@ export default function VolunteerEvents() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 }

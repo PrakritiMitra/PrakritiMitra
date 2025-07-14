@@ -66,6 +66,26 @@ export default function Navbar() {
           {!token ? (
             <>
               <Link
+                to="/"
+                className={`font-medium text-sm ${
+                  isActive("/")
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-500"
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/signup"
+                className={`font-medium text-sm ${
+                  isActive("/signup")
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-500"
+                }`}
+              >
+                Sign-up
+              </Link>
+              <Link
                 to="/login"
                 className={`font-medium text-sm ${
                   isActive("/login")
@@ -156,7 +176,9 @@ export default function Navbar() {
                     />
                   ) : (
                     <div className="text-sm font-bold text-blue-600">
-                      {user && user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      {user && user.name
+                        ? user.name.charAt(0).toUpperCase()
+                        : "U"}
                     </div>
                   )}
                 </div>

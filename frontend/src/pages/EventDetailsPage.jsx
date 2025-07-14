@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
+import Footer from "./Footer";
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -215,6 +216,7 @@ export default function EventDetailsPage() {
           </a>
         )}
       </div>
+      <Footer />
     </div>
   );
 }
