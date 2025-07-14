@@ -13,6 +13,7 @@ import JoinOrganizationPage from "./pages/JoinOrganizationPage";
 import YourOrganizations from "./pages/YourOrganizations";
 import MyRequests from "./pages/MyRequests";
 import ProfilePage from "./pages/ProfilePage";
+import EventDetailsPage from "./pages/EventDetailsPage";
 
 function App() {
   return (
@@ -74,6 +75,7 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route path="/events/:id" element={<EventDetailsPage />} />
       </Routes>
     </Router>
   );

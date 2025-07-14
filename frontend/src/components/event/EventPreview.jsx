@@ -53,9 +53,13 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
             primary="Equipment Needed"
             secondary={
               formData.equipmentNeeded.length > 0
-                ? formData.equipmentNeeded.map((eq) => (
-                    <Chip key={eq} label={eq} sx={{ mr: 1 }} />
-                  ))
+                ? (
+                    <span>
+                      {formData.equipmentNeeded.map((eq) => (
+                        <Chip key={eq} label={eq} sx={{ mr: 1 }} />
+                      ))}
+                    </span>
+                  )
                 : "None"
             }
             primaryTypographyProps={{ fontWeight: "bold" }}

@@ -114,7 +114,7 @@ exports.getEventsByOrganization = async (req, res) => {
     const orgId = req.params.orgId;
     console.log(`🔹 Fetching events for organization: ${orgId}`);
 
-    const events = await Event.find({ organization: orgId });
+    const events = await Event.find({ organization: orgId }).populate("organization");
 
     console.log(`✅ ${events.length} events found for org: ${orgId}`);
     res.status(200).json(events);
@@ -139,5 +139,21 @@ exports.getUpcomingEvents = async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to fetch upcoming events:", err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Get single event by ID
+exports.getEventById = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" });
+    }
+
+    res.json(event);
+  } catch (err) {
+    console.error("❌ Failed to fetch event by ID:", err);
+    res.status(500).json({ message: "Server error fetching event" });
   }
 };

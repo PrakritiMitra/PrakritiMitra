@@ -25,7 +25,14 @@ export default function EventStepOne({
   onNext,
 }) {
   const equipmentOptions = ["Gloves", "Bags", "Masks", "Tools"];
-  const eventTypes = ["Beach", "Lake", "Awareness", "Tree Plantation"];
+  // Only include event types that have images available
+  const eventTypes = [
+    "Beach Cleanup",
+    "Tree Plantation",
+    "Awareness Drive",
+    "Animal Rescue",
+    "Education"
+  ];
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

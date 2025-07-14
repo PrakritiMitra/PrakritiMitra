@@ -6,6 +6,7 @@ import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import { approveTeamMember, rejectTeamMember } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
+import EventCard from "../components/event/EventCard";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -150,13 +151,17 @@ export default function OrganizationPage() {
                   <p className="text-green-600 font-medium">
                     Joined as admin{" "}
                     {memberEntry?.updatedAt &&
-                      `on ${new Date(memberEntry.updatedAt).toLocaleDateString()}`}
+                      `on ${new Date(
+                        memberEntry.updatedAt
+                      ).toLocaleDateString()}`}
                   </p>
                 ) : isMember ? (
                   <p className="text-green-600 font-medium">
                     Joined as member{" "}
                     {memberEntry?.updatedAt &&
-                      `on ${new Date(memberEntry.updatedAt).toLocaleDateString()}`}
+                      `on ${new Date(
+                        memberEntry.updatedAt
+                      ).toLocaleDateString()}`}
                   </p>
                 ) : hasRequested ? (
                   <p className="text-yellow-600 font-medium">
@@ -221,19 +226,7 @@ export default function OrganizationPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {upcoming.map((e) => (
-                  <div
-                    key={e._id}
-                    className="bg-white border p-4 rounded shadow"
-                  >
-                    <h3 className="text-lg font-bold text-blue-700">
-                      {e.title}
-                    </h3>
-                    <p>
-                      {new Date(e.startDateTime).toLocaleString()} —{" "}
-                      {new Date(e.endDateTime).toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-600">{e.location}</p>
-                  </div>
+                  <EventCard key={e._id} event={e} />
                 ))}
               </div>
             )}
@@ -247,17 +240,7 @@ export default function OrganizationPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {past.map((e) => (
-                  <div
-                    key={e._id}
-                    className="bg-white border p-4 rounded shadow"
-                  >
-                    <h3 className="text-lg font-bold">{e.title}</h3>
-                    <p>
-                      {new Date(e.startDateTime).toLocaleString()} —{" "}
-                      {new Date(e.endDateTime).toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-600">{e.location}</p>
-                  </div>
+                  <EventCard key={e._id} event={e} />
                 ))}
               </div>
             )}
