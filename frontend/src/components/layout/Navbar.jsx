@@ -109,20 +109,6 @@ export default function Navbar() {
                 Dashboard
               </Link>
 
-              {/* Show for all organizers: Your Organizations */}
-              {user?.role === "organizer" && (
-                <Link
-                  to="/your-organizations"
-                  className={`font-medium text-sm ${
-                    isActive("/your-organizations")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  Your Organizations
-                </Link>
-              )}
-
               {/* My Events link for organizers */}
               {user?.role === "organizer" && (
                 <Link
@@ -134,6 +120,34 @@ export default function Navbar() {
                   }`}
                 >
                   My Events
+                </Link>
+              )}
+
+              {/* Show for all organizers: Your Organizations */}
+              {user?.role === "organizer" && (
+                <Link
+                  to="/your-organizations"
+                  className={`font-medium text-sm ${
+                    isActive("/your-organizations")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  My Organizations
+                </Link>
+              )}
+
+              {/* Explore other organizations */}
+              {user?.role === "organizer" && (
+                <Link
+                  to="/join-organization"
+                  className={`font-medium text-sm ${
+                    isActive("/join-organization")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Explore Organizations
                 </Link>
               )}
 

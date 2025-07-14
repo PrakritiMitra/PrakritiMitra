@@ -34,7 +34,7 @@ export default function OrganizerDashboard() {
     if (!user) return;
     setLoadingEvents(true);
     axios
-      .get("/api/events", {
+      .get("/api/events/all-events", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -70,14 +70,11 @@ export default function OrganizerDashboard() {
   }, [user]);
 
   // Helper to get the event's date for filtering
-  const getEventDate = (event) => {
-    return (
-      event.startDateTime ? new Date(event.startDateTime) :
-      event.date ? new Date(event.date) :
-      event.endDateTime ? new Date(event.endDateTime) :
-      null
-    );
-  };
+  // Only consider events with valid startDateTime
+  const now = new Date();
+  const validEvents = events.filter(e => e.startDateTime && !isNaN(new Date(e.startDateTime)));
+  const upcoming = validEvents.filter(e => new Date(e.startDateTime) >= now).sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+  const past = validEvents.filter(e => new Date(e.startDateTime) < now).sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -120,25 +117,11 @@ export default function OrganizerDashboard() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {events
-                .filter(e => {
-                  const d = getEventDate(e);
-                  return d && d >= new Date();
-                })
-                .sort((a, b) => {
-                  const da = getEventDate(a);
-                  const db = getEventDate(b);
-                  return da - db;
-                })
-                .slice(0, upcomingVisible)
-                .map(event => (
-                  <EventCard key={event._id} event={event} />
-                ))}
+              {upcoming.slice(0, upcomingVisible).map(event => (
+                <EventCard key={event._id} event={event} />
+              ))}
             </div>
-            {events.filter(e => {
-              const d = getEventDate(e);
-              return d && d >= new Date();
-            }).length > upcomingVisible && (
+            {upcoming.length > upcomingVisible && (
               <div className="flex justify-center mt-4">
                 <button
                   className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
@@ -157,26 +140,12 @@ export default function OrganizerDashboard() {
           <p>Loading events...</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {events
-                .filter(e => {
-                  const d = getEventDate(e);
-                  return d && d < new Date();
-                })
-                .sort((a, b) => {
-                  const da = getEventDate(a);
-                  const db = getEventDate(b);
-                  return db - da;
-                })
-                .slice(0, pastVisible)
-                .map(event => (
-                  <EventCard key={event._id} event={event} />
-                ))}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+              {past.slice(0, pastVisible).map(event => (
+                <EventCard key={event._id} event={event} />
+              ))}
             </div>
-            {events.filter(e => {
-              const d = getEventDate(e);
-              return d && d < new Date();
-            }).length > pastVisible && (
+            {past.length > pastVisible && (
               <div className="flex justify-center mt-4">
                 <button
                   className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"

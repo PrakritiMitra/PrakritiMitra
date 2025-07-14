@@ -15,14 +15,13 @@ export default function MyEvents() {
     if (!user) return;
     setLoading(true);
     axios
-      .get("/api/events", {
+      .get("/api/events/my-events", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       })
       .then((res) => {
-        // Only keep events created by this organizer
-        setEvents(res.data.filter(e => e.createdBy === user._id || (e.createdBy && e.createdBy._id === user._id)));
+        setEvents(res.data);
         setLoading(false);
       })
       .catch((err) => {
@@ -31,32 +30,11 @@ export default function MyEvents() {
   }, [user]);
 
   // Helper to get the event's date for filtering
-  const getEventDate = (event) => {
-    return (
-      event.startDateTime ? new Date(event.startDateTime) :
-      event.date ? new Date(event.date) :
-      event.endDateTime ? new Date(event.endDateTime) :
-      null
-    );
-  };
-
+  // Only consider events with valid startDateTime
   const now = new Date();
-  const upcoming = events.filter(e => {
-    const d = getEventDate(e);
-    return d && d >= now;
-  }).sort((a, b) => getEventDate(a) - getEventDate(b));
-  // Past events: endDateTime < now, or if no endDateTime, startDateTime < now
-  const past = events.filter(e => {
-    const start = e.startDateTime ? new Date(e.startDateTime) : null;
-    const end = e.endDateTime ? new Date(e.endDateTime) : null;
-    if (end) return end < now;
-    if (start && !end) return start < now;
-    return false;
-  }).sort((a, b) => {
-    const da = getEventDate(a);
-    const db = getEventDate(b);
-    return db - da;
-  });
+  const validEvents = events.filter(e => e.startDateTime && !isNaN(new Date(e.startDateTime)));
+  const upcoming = validEvents.filter(e => new Date(e.startDateTime) >= now).sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
+  const past = validEvents.filter(e => new Date(e.startDateTime) < now).sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
   // Debug output
   console.log("All events:", events);
   console.log("Past events:", past);
@@ -94,10 +72,10 @@ export default function MyEvents() {
         {loading ? (
           <p>Loading events...</p>
         ) : past.length === 0 ? (
-          <p className="text-gray-500">No past events.</p>
+          <p className="text-gray-500 mb-10">No past events.</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               {past.slice(0, pastVisible).map(event => (
                 <EventCard key={event._id} event={event} />
               ))}

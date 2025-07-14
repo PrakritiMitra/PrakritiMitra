@@ -11,6 +11,31 @@ router.post( '/create', protect, upload.fields([{ name: 'eventImages', maxCount:
 // @route   GET /api/events
 router.get('/', getAllEvents);
 
+// @route   GET /api/events/my-events
+router.get('/my-events', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const events = await require('../models/event').find({ createdBy: userId })
+      .sort({ startDateTime: -1 })
+      .populate('organization');
+    res.status(200).json(events);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   GET /api/events/all-events
+router.get('/all-events', protect, async (req, res) => {
+  try {
+    const events = await require('../models/event').find({})
+      .sort({ startDateTime: -1 })
+      .populate('organization');
+    res.status(200).json(events);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Get event by ID /api/events/:id
 router.get('/:id', getEventById);
 router.put('/:id', protect, upload.fields([{ name: 'eventImages', maxCount: 5 }, { name: 'govtApprovalLetter', maxCount: 1 },]), updateEvent);

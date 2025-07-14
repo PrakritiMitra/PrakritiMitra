@@ -101,15 +101,15 @@ export default function JoinOrganizationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 px-6">
+    <div className="min-h-screen bg-gray-50 pt-20 ">
       <Navbar />
-      <h1 className="text-2xl font-bold mb-4">Explore Organizations</h1>
+      <h1 className="text-2xl font-bold mb-4 px-6">Explore Organizations</h1>
       {loading ? (
         <p>Loading...</p>
       ) : organizations.length === 0 ? (
         <p>No new organizations available to join.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 mb-10">
           {organizations.map((org) => (
             <div
               key={org._id}
