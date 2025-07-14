@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { updateProfile } from "../api/auth";
 import { getMyOrganization } from "../api/organization";
+import Navbar from "../components/layout/Navbar";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -174,6 +175,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
+        <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Profile Not Found</h1>
@@ -186,6 +188,7 @@ export default function ProfilePage() {
 
   return (
     <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
+      <Navbar />
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header Section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
