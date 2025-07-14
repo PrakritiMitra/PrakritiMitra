@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const path = require('path');
 
 const cors = require('cors');
 
@@ -25,6 +26,9 @@ app.use('/api/users', require('./routes/userRoutes'));
 
 // ✅ Parse incoming JSON requests
 app.use(express.json());
+
+// Make the 'uploads' folder publicly accessible
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ Routes
 app.use('/api/auth', authRoutes);

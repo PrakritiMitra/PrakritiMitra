@@ -7,7 +7,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [organization, setOrganization] = useState(null);
   const [loading, setLoading] = useState(true);
-  const editing = true;
+  const [editing, setEditing] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({});
   const navigate = useNavigate();
