@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar"; // ✅ Import Navbar
+import Footer from "./Footer";
 
 export default function VolunteerDashboard() {
   const [user, setUser] = useState(null);
@@ -35,6 +36,7 @@ export default function VolunteerDashboard() {
           <p>Loading user data...</p>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

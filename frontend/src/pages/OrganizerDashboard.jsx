@@ -5,6 +5,7 @@ import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import EventForm from "../components/event/EventStepOne";
 import EventCard from "../components/event/EventCard";
+import Footer from "./Footer";
 
 export default function OrganizerDashboard() {
   const [user, setUser] = useState(null);
@@ -12,8 +13,8 @@ export default function OrganizerDashboard() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [events, setEvents] = useState([]);
-  const [upcomingVisible, setUpcomingVisible] = useState(3);
-  const [pastVisible, setPastVisible] = useState(3);
+  const [upcomingVisible, setUpcomingVisible] = useState(4);
+  const [pastVisible, setPastVisible] = useState(4);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function OrganizerDashboard() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <div className="pt-24 px-6">
+      <div className="pt-24 px-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">Organizer Dashboard</h1>
 
         {user ? (
@@ -100,21 +101,6 @@ export default function OrganizerDashboard() {
               Explore & Join Organizations
             </Link>
 
-            <button
-              className="ml-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              onClick={() => setShowEventModal(true)}
-              disabled={loadingOrgs || organizations.length === 0}
-              title={
-                loadingOrgs
-                  ? "Loading..."
-                  : organizations.length === 0
-                  ? "Join an organization first"
-                  : "Create Event"
-              }
-            >
-              + Create Event
-            </button>
-
             {organizations.length === 0 && !loadingOrgs && (
               <p className="text-sm text-red-500">
                 You must be an approved member of an organization to create events.
@@ -127,13 +113,13 @@ export default function OrganizerDashboard() {
       </div>
 
       {/* Events Section */}
-      <div className="mt-10">
+      <div className="pt-24 px-6 max-w-7xl mx-auto">
         <h2 className="text-xl font-semibold mb-2">Upcoming Events</h2>
         {loadingEvents ? (
           <p>Loading events...</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {events
                 .filter(e => {
                   const d = getEventDate(e);
@@ -156,7 +142,7 @@ export default function OrganizerDashboard() {
               <div className="flex justify-center mt-4">
                 <button
                   className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                  onClick={() => setUpcomingVisible(v => v + 3)}
+                  onClick={() => setUpcomingVisible(v => v + 4)}
                 >
                   See More
                 </button>
@@ -165,13 +151,13 @@ export default function OrganizerDashboard() {
           </>
         )}
       </div>
-      <div className="mt-10">
+      <div className="pt-24 px-6 max-w-7xl mx-auto">
         <h2 className="text-xl font-semibold mb-2">Past Events</h2>
         {loadingEvents ? (
           <p>Loading events...</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {events
                 .filter(e => {
                   const d = getEventDate(e);
@@ -194,7 +180,7 @@ export default function OrganizerDashboard() {
               <div className="flex justify-center mt-4">
                 <button
                   className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                  onClick={() => setPastVisible(v => v + 3)}
+                  onClick={() => setPastVisible(v => v + 4)}
                 >
                   See More
                 </button>
@@ -221,6 +207,7 @@ export default function OrganizerDashboard() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 }

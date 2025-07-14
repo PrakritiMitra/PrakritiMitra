@@ -4,11 +4,29 @@ import Navbar from '../components/layout/Navbar';
 import Footer from './Footer';
 
 export default function HomePage() {
+  // Get user from localStorage
+  const user = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user'));
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Determine dashboard link based on user role
+  let dashboardLink = null;
+  if (user) {
+    if (user.role === 'organizer') {
+      dashboardLink = '/organizer/dashboard';
+    } else if (user.role === 'volunteer') {
+      dashboardLink = '/volunteer/dashboard';
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <Navbar />
 
-      {/* Hero Section */}
       {/* Hero Section */}
       <section className="pt-20 pb-16 px-4 min-h-screen flex flex-col justify-between">
         <div className="max-w-7xl mx-auto flex-1 flex flex-col justify-center">
@@ -33,18 +51,29 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
-              <a
-                href="/signup"
-                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg"
-              >
-                Join as Volunteer/Organizer
-              </a>
-              <a
-                href="/login"
-                className="px-8 py-4 bg-white text-blue-700 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg border-2 border-blue-200 hover:border-blue-300"
-              >
-                Already Registered? Login
-              </a>
+              {user && dashboardLink ? (
+                <a
+                  href={dashboardLink}
+                  className="px-8 py-4 bg-gradient-to-r from-green-600 to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg"
+                >
+                  Go to Dashboard
+                </a>
+              ) : (
+                <>
+                  <a
+                    href="/signup"
+                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg"
+                  >
+                    Join as Volunteer/Organizer
+                  </a>
+                  <a
+                    href="/login"
+                    className="px-8 py-4 bg-white text-blue-700 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg border-2 border-blue-200 hover:border-blue-300"
+                  >
+                    Already Registered? Login
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>

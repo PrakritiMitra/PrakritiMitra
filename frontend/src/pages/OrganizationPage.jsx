@@ -7,6 +7,7 @@ import Navbar from "../components/layout/Navbar";
 import { approveTeamMember, rejectTeamMember } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
+import Footer from "./Footer";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -224,7 +225,7 @@ export default function OrganizationPage() {
             {upcoming.length === 0 ? (
               <p className="text-gray-500">No upcoming events.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {upcoming.map((e) => (
                   <EventCard key={e._id} event={e} />
                 ))}
@@ -238,7 +239,7 @@ export default function OrganizationPage() {
             {past.length === 0 ? (
               <p className="text-gray-500">No past events.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {past.map((e) => (
                   <EventCard key={e._id} event={e} />
                 ))}
@@ -267,6 +268,7 @@ export default function OrganizationPage() {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 }

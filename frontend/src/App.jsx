@@ -50,9 +50,30 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route path="/events" element={<VolunteerEvents />} />
-        <Route path="/organization/:id" element={<OrganizationPage />} />
-        <Route path="/join-organization" element={<JoinOrganizationPage />} />
+        <Route
+          path="/events"
+          element={
+            <PrivateRoute>
+              <VolunteerEvents />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/organization/:id"
+          element={
+            <PrivateRoute>
+              <OrganizationPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/join-organization"
+          element={
+            <PrivateRoute>
+              <JoinOrganizationPage />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/your-organizations"
           element={
@@ -85,8 +106,22 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route path="/events/:id" element={<EventDetailsPage />} />
-        <Route path="/events/:id/edit" element={<EditEventPage />} />
+        <Route
+          path="/events/:id"
+          element={
+            <PrivateRoute>
+              <EventDetailsPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/events/:id/edit"
+          element={
+            <PrivateRoute>
+              <EditEventPage />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </Router>
   );
