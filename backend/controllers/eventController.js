@@ -2,6 +2,9 @@
 
 const Event = require('../models/event');
 const mongoose = require('mongoose');
+const fs = require("fs");
+const path = require("path");
+const Organization = require("../models/organization");
 
 // Create new event
 exports.createEvent = async (req, res) => {
@@ -145,7 +148,14 @@ exports.getUpcomingEvents = async (req, res) => {
 // Get single event by ID
 exports.getEventById = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id);
+    const event = await Event.findById(req.params.id)
+      .populate({
+        path: 'organization',
+        populate: {
+          path: 'team.userId',
+          model: 'User'
+        }
+      });
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -155,5 +165,154 @@ exports.getEventById = async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to fetch event by ID:", err);
     res.status(500).json({ message: "Server error fetching event" });
+  }
+};
+
+// Update Event Controller
+exports.updateEvent = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    const org = await Organization.findById(event.organization);
+    if (!org) return res.status(404).json({ message: "Organization not found" });
+
+    const isCreator = event.createdBy.toString() === userId.toString();
+    const isAdmin = org.team.some(
+      (m) => m.userId.toString() === userId.toString() && m.status === "approved" && m.isAdmin
+    );
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ message: "You are not authorized to edit this event." });
+    }
+
+    // ✅ Remove specific existing images if requested
+    const removedImages = req.body.removedImages;
+    if (removedImages) {
+      const toRemove = Array.isArray(removedImages) ? removedImages : [removedImages];
+      event.eventImages = event.eventImages.filter((img) => {
+        if (toRemove.includes(img)) {
+          const imgPath = path.join(__dirname, "../uploads", img);
+          if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // ✅ Remove letter file if requested
+    if (req.body.removedLetter === "true" && event.govtApprovalLetter) {
+      const letterPath = path.join(__dirname, "../uploads", event.govtApprovalLetter);
+      if (fs.existsSync(letterPath)) fs.unlinkSync(letterPath);
+      event.govtApprovalLetter = null;
+    }
+
+    // ✅ Add new uploaded images (if any)
+    if (req.files?.eventImages) {
+      const newImages = req.files.eventImages.map((f) => f.filename);
+      event.eventImages = [...event.eventImages, ...newImages];
+    }
+
+    // ✅ Add new approval letter (if uploaded)
+    if (req.files?.govtApprovalLetter?.length) {
+      event.govtApprovalLetter = req.files.govtApprovalLetter[0].filename;
+    }
+
+    // Form fields
+    const {
+      title,
+      description,
+      location,
+      startDateTime,
+      endDateTime,
+      eventType,
+      maxVolunteers,
+      unlimitedVolunteers,
+      instructions,
+      groupRegistration,
+      recurringEvent,
+      recurringType,
+      recurringValue,
+      equipmentNeeded,
+      otherEquipment,
+      waterProvided,
+      medicalSupport,
+      ageGroup,
+      precautions,
+      publicTransport,
+      contactPerson,
+    } = req.body;
+
+    // Update fields
+    event.title = title || event.title;
+    event.description = description || event.description;
+    event.location = location || event.location;
+    event.startDateTime = startDateTime || event.startDateTime;
+    event.endDateTime = endDateTime || event.endDateTime;
+    event.eventType = eventType || event.eventType;
+    event.maxVolunteers =
+      unlimitedVolunteers === "true" ? -1 : parseInt(maxVolunteers) || event.maxVolunteers;
+    event.unlimitedVolunteers = unlimitedVolunteers === "true";
+    event.instructions = instructions || event.instructions;
+    event.groupRegistration = groupRegistration === "true";
+    event.recurringEvent = recurringEvent === "true";
+    event.recurringType = event.recurringEvent ? recurringType : null;
+    event.recurringValue = event.recurringEvent ? recurringValue : null;
+
+    // Equipment
+    let equipmentArray = Array.isArray(equipmentNeeded)
+      ? equipmentNeeded
+      : equipmentNeeded
+      ? [equipmentNeeded]
+      : [];
+    if (otherEquipment) equipmentArray.push(otherEquipment);
+    event.equipmentNeeded = equipmentArray;
+
+    // Questionnaire
+    event.waterProvided = waterProvided === "true";
+    event.medicalSupport = medicalSupport === "true";
+    event.ageGroup = ageGroup || event.ageGroup;
+    event.precautions = precautions || event.precautions;
+    event.publicTransport = publicTransport || event.publicTransport;
+    event.contactPerson = contactPerson || event.contactPerson;
+
+    await event.save();
+    res.status(200).json(event);
+  } catch (err) {
+    console.error("❌ Failed to update event:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Delete Event
+exports.deleteEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id).populate('organization');
+
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const userId = req.user._id.toString();
+    const isCreator = event.createdBy.toString() === userId;
+
+    const isAdmin = event.organization?.team?.some(
+      (member) => member.userId.toString() === userId && member.isAdmin
+    );
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ message: 'You are not authorized to delete this event' });
+    }
+
+    // ✅ Use this to ensure full deletion
+    await Event.findByIdAndDelete(req.params.id);
+
+    return res.status(200).json({ message: 'Event deleted successfully' });
+  } catch (err) {
+    console.error('❌ Failed to delete event:', err);
+    res.status(500).json({ message: 'Server error while deleting event' });
   }
 };

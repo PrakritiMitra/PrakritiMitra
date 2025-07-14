@@ -15,6 +15,7 @@ import MyRequests from "./pages/MyRequests";
 import ProfilePage from "./pages/ProfilePage";
 import EventDetailsPage from "./pages/EventDetailsPage";
 import MyEvents from "./pages/MyEvents";
+import EditEventPage from "./pages/EditEventPage";
 
 function App() {
   return (
@@ -85,6 +86,7 @@ function App() {
           }
         />
         <Route path="/events/:id" element={<EventDetailsPage />} />
+        <Route path="/events/:id/edit" element={<EditEventPage />} />
       </Routes>
     </Router>
   );

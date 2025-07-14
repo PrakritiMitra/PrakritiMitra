@@ -1,3 +1,4 @@
+// src/pages/EventDetailsPage.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
@@ -10,6 +11,30 @@ export default function EventDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const imageBaseUrl = "http://localhost:5000/uploads/";
+  const currentUser = JSON.parse(localStorage.getItem("user"));
+  const isCreator = (() => {
+    if (!event || !currentUser) return false;
+
+    // Handles both string and object form of createdBy
+    const createdById =
+      typeof event.createdBy === "string"
+        ? event.createdBy
+        : event.createdBy?._id;
+
+    return createdById?.toString() === currentUser._id;
+  })();
+
+  const isOrgAdmin = (() => {
+    if (!event?.organization?.team || !currentUser) return false;
+
+    return event.organization.team.some((member) => {
+      const memberUserId =
+        typeof member.userId === "string" ? member.userId : member.userId?._id;
+      return memberUserId?.toString() === currentUser._id && member.isAdmin;
+    });
+  })();
+
+  const canEdit = isCreator || isOrgAdmin;
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -26,6 +51,19 @@ export default function EventDetailsPage() {
 
     fetchEvent();
   }, [id]);
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+
+    try {
+      await axiosInstance.delete(`/events/${id}`);
+      alert("Event deleted successfully.");
+      navigate(-1); // or navigate('/your-organizations') if you prefer
+    } catch (err) {
+      console.error("Failed to delete event:", err);
+      alert("Failed to delete event.");
+    }
+  };
 
   if (loading) {
     return (
@@ -53,6 +91,22 @@ export default function EventDetailsPage() {
         >
           ← Back
         </button>
+        {canEdit && (
+          <div className="mt-6 flex gap-4">
+            <button
+              onClick={() => navigate(`/events/${id}/edit`)}
+              className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+            >
+              ✏️ Edit Event
+            </button>
+            <button
+              onClick={handleDelete}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              🗑️ Delete Event
+            </button>
+          </div>
+        )}
 
         <h1 className="text-3xl font-bold text-blue-800 mb-3">{event.title}</h1>
         <p className="text-gray-700 mb-4">{event.description}</p>
