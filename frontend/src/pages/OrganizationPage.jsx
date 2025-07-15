@@ -7,7 +7,7 @@ import Navbar from "../components/layout/Navbar";
 import { approveTeamMember, rejectTeamMember } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
-import Footer from "./Footer";
+import Footer from "../components/layout/Footer";
 
 export default function OrganizationPage() {
   const { id } = useParams();

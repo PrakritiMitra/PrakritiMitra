@@ -5,7 +5,7 @@ import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import EventForm from "../components/event/EventStepOne";
 import EventCard from "../components/event/EventCard";
-import Footer from "./Footer";
+import Footer from "../components/layout/Footer";
 
 export default function OrganizerDashboard() {
   const [user, setUser] = useState(null);
