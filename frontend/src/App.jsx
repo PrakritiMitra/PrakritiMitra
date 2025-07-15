@@ -16,6 +16,8 @@ import ProfilePage from "./pages/ProfilePage";
 import EventDetailsPage from "./pages/EventDetailsPage";
 import MyEvents from "./pages/MyEvents";
 import EditEventPage from "./pages/EditEventPage";
+import VolunteerOrganizationPage from "./pages/VolunteerOrganizationPage";
+import VolunteerEventDetailsPage from "./pages/VolunteerEventDetailsPage";
 
 function App() {
   return (
@@ -119,6 +121,23 @@ function App() {
           element={
             <PrivateRoute>
               <EditEventPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/volunteer/events/:id"
+          element={
+            <PrivateRoute>
+              <VolunteerEventDetailsPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/volunteer/organization/:id"
+          element={
+            <PrivateRoute>
+              <VolunteerOrganizationPage />
             </PrivateRoute>
           }
         />

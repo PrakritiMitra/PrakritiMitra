@@ -155,6 +155,10 @@ exports.getEventById = async (req, res) => {
           path: 'team.userId',
           model: 'User'
         }
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name profileImage',
       });
 
     if (!event) {
