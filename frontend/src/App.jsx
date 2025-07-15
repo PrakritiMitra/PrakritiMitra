@@ -18,6 +18,7 @@ import MyEvents from "./pages/MyEvents";
 import EditEventPage from "./pages/EditEventPage";
 import VolunteerOrganizationPage from "./pages/VolunteerOrganizationPage";
 import VolunteerEventDetailsPage from "./pages/VolunteerEventDetailsPage";
+import UserProfilePage from "./pages/UserProfilePage";
 
 function App() {
   return (
@@ -141,6 +142,7 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route path="/organizer/:id" element={<UserProfilePage />} />
       </Routes>
     </Router>
   );
