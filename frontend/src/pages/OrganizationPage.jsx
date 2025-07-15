@@ -1,10 +1,10 @@
 // src/pages/OrganizationPage.jsx
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
-import { approveTeamMember, rejectTeamMember } from "../api/organization";
+import { approveTeamMember, rejectTeamMember, getOrganizationOrganizers } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
 import Footer from "../components/layout/Footer";
@@ -21,13 +21,18 @@ export default function OrganizationPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [organizers, setOrganizers] = useState([]);
+  const [organizersError, setOrganizersError] = useState("");
+  const [showOrganizers, setShowOrganizers] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setOrganizersError("");
 
         const [orgRes, eventRes] = await Promise.all([
           axiosInstance.get(`/organizations/${id}`),
@@ -66,6 +71,20 @@ export default function OrganizationPage() {
 
           const pending = team.filter((member) => member.status === "pending");
           setPendingRequests(pending);
+        }
+        // Fetch organizers for this org (all roles) only if token exists
+        const token = localStorage.getItem("token");
+        if (token) {
+          try {
+            const orgOrganizers = await getOrganizationOrganizers(id);
+            setOrganizers(orgOrganizers);
+          } catch (err) {
+            setOrganizersError("You must be logged in to see organizers.");
+            setOrganizers([]);
+          }
+        } else {
+          setOrganizersError("You must be logged in to see organizers.");
+          setOrganizers([]);
         }
       } catch (err) {
         console.error("Error loading organization:", err);
@@ -115,8 +134,50 @@ export default function OrganizationPage() {
   const past = events.filter((e) => new Date(e.startDateTime) < now);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       <Navbar />
+      {/* Show Organizers Button - fixed top right */}
+      {organizers.length > 0 && !organizersError && (
+        <button
+          className="fixed top-6 right-8 z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition"
+          onClick={() => setShowOrganizers((prev) => !prev)}
+        >
+          {showOrganizers ? 'Hide Organizers' : 'Show Organizers'}
+        </button>
+      )}
+      {/* Organizers Drawer */}
+      {organizers.length > 0 && !organizersError && (
+        <div
+          className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizers ? 'translate-x-0' : 'translate-x-full'}`}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b">
+            <h2 className="text-lg font-semibold text-blue-700">Organizers</h2>
+            <button
+              className="text-gray-500 hover:text-red-600 text-2xl font-bold"
+              onClick={() => setShowOrganizers(false)}
+              aria-label="Close organizers drawer"
+            >
+              ×
+            </button>
+          </div>
+          <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
+            {organizers.map((org) => (
+              <div
+                key={org.userId._id}
+                className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50"
+                onClick={() => navigate(`/organizer/${org.userId._id}`)}
+              >
+                <img
+                  src={org.userId.profileImage ? `/uploads/${org.userId.profileImage}` : '/images/default-profile.jpg'}
+                  alt={org.userId.name}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                />
+                <span className="font-medium text-blue-800 text-lg">{org.userId.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="pt-24 px-6 max-w-5xl mx-auto">
         {loading ? (
           <p>Loading...</p>
