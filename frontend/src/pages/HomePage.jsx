@@ -1,7 +1,7 @@
 // src/pages/HomePage.jsx
 import React from 'react';
 import Navbar from '../components/layout/Navbar';
-import Footer from './Footer';
+import Footer from '../components/layout/Footer';
 
 export default function HomePage() {
   // Get user from localStorage

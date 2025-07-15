@@ -161,7 +161,8 @@ exports.getOrganizationTeam = async (req, res) => {
   try {
     const orgId = req.params.id;
     console.log("🔹 Fetching team for org:", orgId);
-    const org = await Organization.findById(orgId).populate('team.userId', 'name email');
+    // Populate name, email, role, profileImage, and govtIdProofUrl for each user
+    const org = await Organization.findById(orgId).populate('team.userId', 'name email role profileImage govtIdProofUrl');
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
     console.log(`✅ Team of ${org.team.length} members fetched`);

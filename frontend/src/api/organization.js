@@ -27,3 +27,16 @@ export const approveTeamMember = (orgId, userId) =>
 
 export const rejectTeamMember = (orgId, userId) =>
   axios.delete(`/organizations/${orgId}/reject/${userId}`);
+
+// Helper: Fetch only approved organizers from the team
+export const getOrganizationOrganizers = async (id) => {
+  const res = await axios.get(`/organizations/${id}/team`);
+  // Only approved organizers
+  return res.data.filter(
+    (member) => member.status === 'approved' && member.userId.role === 'organizer'
+  );
+};
+
+// Fetch user by ID (for organizer profile)
+export const getUserById = (id) =>
+  axios.get(`/users/${id}`);
