@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const registrationRoutes = require("./routes/registrationRoutes");
 const path = require('path');
 
 const cors = require('cors');
@@ -29,12 +30,15 @@ app.use(express.json());
 
 // Make the 'uploads' folder publicly accessible
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads/qrcodes', express.static(path.join(__dirname, 'uploads/qrcodes')));
+
 
 // ✅ Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
+app.use("/api/registrations", registrationRoutes);
 
 // ✅ Sample home route
 app.get("/", (req, res) => {

@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent } = require('../controllers/eventController');
 const upload = require('../middlewares/upload');
+const Event = require("../models/event");
 
 // @route   POST /api/events/create
 router.post( '/create', protect, upload.fields([{ name: 'eventImages', maxCount: 5 }, { name: 'govtApprovalLetter', maxCount: 1 },]), createEvent);
@@ -33,6 +34,20 @@ router.get('/all-events', protect, async (req, res) => {
     res.status(200).json(events);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/events/batch - get details for multiple events by IDs
+router.post("/batch", protect, async (req, res) => {
+  try {
+    const { eventIds } = req.body;
+    if (!Array.isArray(eventIds) || eventIds.length === 0) {
+      return res.json([]);
+    }
+    const events = await Event.find({ _id: { $in: eventIds } }).populate('organization');
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
