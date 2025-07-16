@@ -139,7 +139,11 @@ export default function OrganizationPage() {
       {/* Show Organizers Button - fixed top right */}
       {organizers.length > 0 && !organizersError && (
         <button
-          className="fixed top-6 right-8 z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition"
+          className={`fixed z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition
+            top-[calc(2cm+1.5rem)]
+            ${showOrganizers ? 'right-[340px]' : 'right-8'}
+          `}
+          style={{ transition: 'right 0.3s cubic-bezier(0.4,0,0.2,1)' }}
           onClick={() => setShowOrganizers((prev) => !prev)}
         >
           {showOrganizers ? 'Hide Organizers' : 'Show Organizers'}
@@ -168,7 +172,7 @@ export default function OrganizationPage() {
                 onClick={() => navigate(`/organizer/${org.userId._id}`)}
               >
                 <img
-                  src={org.userId.profileImage ? `/uploads/${org.userId.profileImage}` : '/images/default-profile.jpg'}
+                  src={org.userId.profileImage ? `http://localhost:5000/uploads/${org.userId.profileImage}` : '/images/default-profile.jpg'}
                   alt={org.userId.name}
                   className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
                 />

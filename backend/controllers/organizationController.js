@@ -255,3 +255,17 @@ exports.rejectTeamMember = async (req, res) => {
     res.status(500).json({ message: 'Rejection failed', error: err });
   }
 };
+
+// Get all organizations for a given userId (public)
+exports.getOrganizationsByUserId = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    // Find orgs where user is in team (approved or pending)
+    const orgs = await Organization.find({
+      'team.userId': userId
+    }).select('name _id description');
+    res.json(orgs);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch organizations', error: err });
+  }
+};
