@@ -8,6 +8,8 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import defaultImages from "../utils/eventTypeImages";
 import { useState as useReactState } from "react";
+import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterModal";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -27,6 +29,11 @@ export default function VolunteerEventDetailsPage() {
   let handlePrev = () => {};
   let handleNext = () => {};
 
+  // Registration state
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registrationData, setRegistrationData] = useState(null);
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
@@ -42,6 +49,57 @@ export default function VolunteerEventDetailsPage() {
 
     fetchEvent();
   }, [id]);
+
+  // On event load, check with the backend if the user is actually registered for the event. If not, clear registration status and QR code from localStorage. Keep localStorage and UI in sync with backend.
+  useEffect(() => {
+    if (event && event._id && user) {
+      // Check with backend if user is registered
+      axiosInstance.get(`/registrations/${event._id}/check`)
+        .then(res => {
+          if (res.data.registered) {
+            setRegistrationSuccess(true);
+            // Load QR data from localStorage, or reconstruct if missing
+            const regDataStr = localStorage.getItem(`registrationData_${event._id}`);
+            if (regDataStr) {
+              setRegistrationData(JSON.parse(regDataStr));
+            } else {
+              // Reconstruct minimal registration data
+              const regData = {
+                eventTitle: event.title,
+                volunteer: {
+                  name: user.name,
+                  email: user.email,
+                  phone: user.phone,
+                },
+                groupMembers: [], // No group info, fallback to empty
+              };
+              setRegistrationData(regData);
+              localStorage.setItem(`registrationData_${event._id}`, JSON.stringify(regData));
+            }
+            // Also ensure event ID is in registeredEvents
+            const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
+            if (!registeredEvents.includes(event._id)) {
+              registeredEvents.push(event._id);
+              localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
+            }
+          } else {
+            setRegistrationSuccess(false);
+            setRegistrationData(null);
+            // Remove from localStorage if not registered
+            const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
+            const idx = registeredEvents.indexOf(event._id);
+            if (idx !== -1) {
+              registeredEvents.splice(idx, 1);
+              localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
+            }
+            localStorage.removeItem(`registrationData_${event._id}`);
+          }
+        })
+        .catch(() => {
+          // Optionally handle error
+        });
+    }
+  }, [event, user]);
 
   // Registration handler
   const handleRegister = async () => {
@@ -66,6 +124,42 @@ export default function VolunteerEventDetailsPage() {
     }
   };
 
+  const handleRegistrationSubmit = async ({ volunteerId, groupMembers }) => {
+    try {
+      const payload = {
+        eventId: event._id,
+        groupMembers,
+      };
+
+      const response = await axiosInstance.post("/registrations", payload);
+
+      const regData = {
+        eventTitle: event.title,
+        volunteer: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+        },
+        groupMembers,
+      };
+      setRegistrationData(regData);
+      setRegistrationSuccess(true);
+      setShowRegisterModal(false);
+
+      // Store registered event ID and QR data in localStorage
+      const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
+      if (!registeredEvents.includes(event._id)) {
+        registeredEvents.push(event._id);
+        localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
+      }
+      // Store QR data
+      localStorage.setItem(`registrationData_${event._id}`, JSON.stringify(regData));
+    } catch (err) {
+      console.error("Registration failed:", err);
+      alert("Failed to register. Please try again.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -87,6 +181,12 @@ export default function VolunteerEventDetailsPage() {
   hasImages = images.length > 0;
   handlePrev = () => setCarouselIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   handleNext = () => setCarouselIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+
+  // Check if event is in the past
+  const isPastEvent = new Date(event.endDateTime) < new Date();
+  // Check if event is live (ongoing)
+  const now = new Date();
+  const isLiveEvent = new Date(event.startDateTime) <= now && now < new Date(event.endDateTime);
 
   const createdBy = event.createdBy;
   const createdByName = typeof createdBy === "object" ? createdBy.name : "Organizer";
@@ -150,13 +250,33 @@ export default function VolunteerEventDetailsPage() {
             </div>
 
             {/* Register Button */}
-            {user?.role === "volunteer" && (
+            {isPastEvent ? (
+              <p className="text-red-600 font-semibold mt-6">This event has ended</p>
+            ) : isLiveEvent ? (
+              <p className="text-blue-700 font-semibold mt-6">Event is live</p>
+            ) : registrationSuccess ? (
+              <>
+                <p className="text-green-700 font-semibold mt-6">✅ Registered Successfully</p>
+                {registrationData && (
+                  <div className="mt-6 flex flex-col items-center">
+                    <h3 className="text-lg font-semibold mb-2">Your QR Code</h3>
+                    <QRCodeSVG
+                      value={JSON.stringify(registrationData)}
+                      size={200}
+                      className="border border-gray-300 p-2"
+                    />
+                    <p className="mt-3 text-blue-800 text-sm text-center max-w-xs">
+                      Please save this QR code. You will need to scan it at the event for attendance. This is your proof of registration.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
               <button
-                onClick={handleRegister}
-                className="mb-6 bg-green-600 text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-green-700 transition"
-                disabled={registering}
+                onClick={() => setShowRegisterModal(true)}
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mt-6"
               >
-                {registering ? "Registering..." : registerSuccess ? "Registered" : "Register"}
+                Register
               </button>
             )}
 
@@ -269,6 +389,14 @@ export default function VolunteerEventDetailsPage() {
         </div>
       </div>
       <Footer />
+      {!isPastEvent && (
+        <VolunteerRegisterModal
+          open={showRegisterModal}
+          onClose={() => setShowRegisterModal(false)}
+          volunteer={user}
+          onSubmit={handleRegistrationSubmit}
+        />
+      )}
     </div>
   );
 }

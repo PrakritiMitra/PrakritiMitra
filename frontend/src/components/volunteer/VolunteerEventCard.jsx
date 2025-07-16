@@ -1,12 +1,38 @@
 // src/components/volunteer/VolunteerEventCard.jsx
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { format } from "date-fns";
 import defaultImages from "../../utils/eventTypeImages";
 import { useNavigate } from "react-router-dom";
+import axiosInstance from "../../api/axiosInstance";
 
 const VolunteerEventCard = ({ event }) => {
   const navigate = useNavigate();
+  const [isRegistered, setIsRegistered] = useState(false);
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  useEffect(() => {
+    if (event && event._id && user) {
+      axiosInstance.get(`/registrations/${event._id}/check`)
+        .then(res => {
+          if (res.data.registered) {
+            setIsRegistered(true);
+          } else {
+            setIsRegistered(false);
+            // Remove from localStorage if not registered
+            const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
+            const idx = registeredEvents.indexOf(event._id);
+            if (idx !== -1) {
+              registeredEvents.splice(idx, 1);
+              localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
+            }
+          }
+        })
+        .catch(() => {
+          // Optionally handle error
+        });
+    }
+  }, [event._id, user]);
 
   const {
     _id,
@@ -33,10 +59,15 @@ const VolunteerEventCard = ({ event }) => {
   const eventImage = defaultImages[eventType?.toLowerCase()] || defaultImages["default"];
   const cityState = location?.split(",").slice(-2).join(", ").trim();
 
+  // Check if event is in the past
+  const isPastEvent = new Date(endDateTime) < new Date();
+  // Check if event is live (ongoing)
+  const now = new Date();
+  const isLiveEvent = new Date(startDateTime) <= now && now < new Date(endDateTime);
+
   const handleRegister = (e) => {
     e.stopPropagation(); // prevent card navigation
-    console.log("Register clicked for event:", _id);
-    // Registration logic to be added later
+    navigate(`/volunteer/events/${_id}`);
   };
 
   return (
@@ -64,12 +95,20 @@ const VolunteerEventCard = ({ event }) => {
           <strong>Location:</strong> {cityState || location}
         </p>
 
-        <button
-          onClick={handleRegister}
-          className="mt-4 bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700"
-        >
-          Register
-        </button>
+        {isPastEvent ? (
+          <p className="text-red-600 font-semibold mt-4">This event has ended</p>
+        ) : isLiveEvent ? (
+          <p className="text-blue-700 font-semibold mt-4">Event is live</p>
+        ) : isRegistered ? (
+          <p className="text-green-700 font-semibold">✅ Registered Successfully</p>
+        ) : (
+          <button
+            onClick={handleRegister}
+            className="mt-4 bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700"
+          >
+            Register
+          </button>
+        )}
       </div>
     </div>
   );
