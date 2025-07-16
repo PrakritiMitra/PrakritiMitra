@@ -47,4 +47,31 @@ router.get('/organization/:orgId', getEventsByOrganization);
 // @route   GET /api/events/upcoming
 router.get('/upcoming', getUpcomingEvents);
 
+// @route   GET /api/events/created-by/:userId
+router.get('/created-by/:userId', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const events = await require('../models/event').find({ createdBy: userId })
+      .sort({ startDateTime: -1 })
+      .populate('organization');
+    res.status(200).json(events);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   GET /api/events/by-organizer-and-org/:userId/:orgId
+router.get('/by-organizer-and-org/:userId/:orgId', async (req, res) => {
+  try {
+    const { userId, orgId } = req.params;
+    const events = await require('../models/event').find({
+      createdBy: userId,
+      organization: orgId
+    }).sort({ startDateTime: -1 }).populate('organization');
+    res.status(200).json(events);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

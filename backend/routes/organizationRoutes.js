@@ -35,4 +35,7 @@ router.get('/', orgCtrl.getAllOrganizations);
 // IMPORTANT: keep this as the last route to prevent conflicts
 router.get('/:id', orgCtrl.getOrganizationById);
 
+// @route   GET /api/organizations/user/:userId
+router.get('/user/:userId', orgCtrl.getOrganizationsByUserId);
+
 module.exports = router;
