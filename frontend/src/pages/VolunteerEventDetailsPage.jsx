@@ -52,8 +52,7 @@ export default function VolunteerEventDetailsPage() {
 
   // On event load, check with the backend if the user is actually registered for the event. If not, clear registration status and QR code from localStorage. Keep localStorage and UI in sync with backend.
   useEffect(() => {
-    if (event && event._id && user) {
-      // Check with backend if user is registered
+    if (event && event._id && user && user._id) {
       axiosInstance.get(`/registrations/${event._id}/check`)
         .then(res => {
           if (res.data.registered) {
@@ -71,7 +70,7 @@ export default function VolunteerEventDetailsPage() {
                   email: user.email,
                   phone: user.phone,
                 },
-                groupMembers: [], // No group info, fallback to empty
+                groupMembers: [],
               };
               setRegistrationData(regData);
               localStorage.setItem(`registrationData_${event._id}`, JSON.stringify(regData));
@@ -99,7 +98,7 @@ export default function VolunteerEventDetailsPage() {
           // Optionally handle error
         });
     }
-  }, [event, user]);
+  }, [event?._id, user?._id]);
 
   // Registration handler
   const handleRegister = async () => {
@@ -270,6 +269,31 @@ export default function VolunteerEventDetailsPage() {
                     </p>
                   </div>
                 )}
+                {/* Withdraw Registration Button */}
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('Are you sure you want to withdraw your registration?')) return;
+                    try {
+                      await axiosInstance.delete(`/registrations/${event._id}`);
+                      setRegistrationSuccess(false);
+                      setRegistrationData(null);
+                      // Remove from localStorage
+                      const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
+                      const idx = registeredEvents.indexOf(event._id);
+                      if (idx !== -1) {
+                        registeredEvents.splice(idx, 1);
+                        localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
+                      }
+                      localStorage.removeItem(`registrationData_${event._id}`);
+                      alert('You have withdrawn your registration.');
+                    } catch (err) {
+                      alert('Failed to withdraw registration. Please try again.');
+                    }
+                  }}
+                  className="mt-6 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                >
+                  Withdraw Registration
+                </button>
               </>
             ) : (
               <button

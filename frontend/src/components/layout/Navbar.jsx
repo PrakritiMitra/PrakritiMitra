@@ -123,6 +123,15 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {user?.role === "volunteer" && (
+                <Link
+                  to="/volunteer/my-events"
+                  className={`font-medium text-sm ${isActive("/volunteer/my-events") ? "text-blue-600" : "text-gray-700 hover:text-blue-500"}`}
+                >
+                  My Events
+                </Link>
+              )}
+
               {/* Show for all organizers: Your Organizations */}
               {user?.role === "organizer" && (
                 <Link

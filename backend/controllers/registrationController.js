@@ -64,3 +64,43 @@ exports.checkRegistration = async (req, res) => {
     res.status(500).json({ registered: false, error: "Server error" });
   }
 };
+
+// Withdraw registration for an event (delete registration and QR code)
+exports.withdrawRegistration = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const volunteerId = req.user._id;
+    const registration = await Registration.findOne({ eventId, volunteerId });
+    if (!registration) {
+      return res.status(404).json({ message: "Registration not found." });
+    }
+    // Delete QR code file if exists
+    if (registration.qrCodePath) {
+      const qrPath = path.join(__dirname, "..", registration.qrCodePath);
+      try {
+        if (fs.existsSync(qrPath)) {
+          fs.unlinkSync(qrPath);
+        }
+      } catch (err) {
+        // Log but don't block deletion
+        console.error("Failed to delete QR code file:", err);
+      }
+    }
+    await Registration.deleteOne({ _id: registration._id });
+    res.json({ message: "Registration withdrawn successfully." });
+  } catch (err) {
+    res.status(500).json({ message: "Server error during withdrawal." });
+  }
+};
+
+// Get all event IDs the current user is registered for
+exports.getMyRegisteredEvents = async (req, res) => {
+  try {
+    const volunteerId = req.user._id;
+    const registrations = await Registration.find({ volunteerId });
+    const registeredEventIds = registrations.map(r => r.eventId.toString());
+    res.json({ registeredEventIds });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};

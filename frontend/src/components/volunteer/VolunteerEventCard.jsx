@@ -80,7 +80,7 @@ const VolunteerEventCard = ({ event }) => {
         <h3 className="text-lg font-bold text-blue-800 mb-1">{title}</h3>
         <p className="text-sm text-gray-800 mb-1">{eventType}</p>
         <p className="text-sm text-gray-800 mb-1">
-          <strong>Organization:</strong> {organization?.name || "Unknown Org"}
+          <strong>Organization:</strong> {typeof organization === 'object' && organization?.name ? organization.name : typeof organization === 'string' ? organization : 'Unknown Org'}
         </p>
         <p className="text-sm text-gray-800 line-clamp-2">
           <strong>Description:</strong> {description}
