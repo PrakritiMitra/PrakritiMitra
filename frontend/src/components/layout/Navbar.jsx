@@ -164,19 +164,6 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {user?.role === "volunteer" && (
-                <Link
-                  to="/events"
-                  className={`font-medium text-sm ${
-                    isActive("/events")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  Browse Events
-                </Link>
-              )}
-
               <Link
                 to="/profile"
                 className="flex items-center space-x-2 text-gray-700 hover:text-blue-500 transition-colors"
