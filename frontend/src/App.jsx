@@ -19,6 +19,7 @@ import EditEventPage from "./pages/EditEventPage";
 import VolunteerOrganizationPage from "./pages/VolunteerOrganizationPage";
 import VolunteerEventDetailsPage from "./pages/VolunteerEventDetailsPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import VolunteerMyEvents from "./pages/VolunteerMyEvents";
 
 function App() {
   return (
@@ -98,6 +99,14 @@ function App() {
           element={
             <PrivateRoute>
               <MyEvents />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/volunteer/my-events"
+          element={
+            <PrivateRoute>
+              <VolunteerMyEvents />
             </PrivateRoute>
           }
         />
