@@ -152,7 +152,14 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route path="/organizer/:id" element={<OrganizerPublicPage />} />
+        <Route
+          path="/organizer/:id"
+          element={
+            <PrivateRoute>
+              <OrganizerPublicPage />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </Router>
   );

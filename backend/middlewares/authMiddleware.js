@@ -24,4 +24,11 @@ const protect = async (req, res, next) => {
   return res.status(401).json({ message: 'Not authorized, no token' });
 };
 
-module.exports = protect;
+const requireOrganizer = (req, res, next) => {
+  if (req.user && req.user.role === 'organizer') {
+    return next();
+  }
+  return res.status(403).json({ message: 'Access denied: Organizer role required' });
+};
+
+module.exports = { protect, requireOrganizer };

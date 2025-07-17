@@ -2,7 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
-const protect = require('../middlewares/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 const orgCtrl = require('../controllers/organizationController');
 
 // Register a new organization (organizer creates it)

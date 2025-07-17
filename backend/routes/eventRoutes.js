@@ -1,8 +1,8 @@
 //backend/routes/eventRoutes.js
-const protect = require('../middlewares/authMiddleware');
+const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
-const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent } = require('../controllers/eventController');
+const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam } = require('../controllers/eventController');
 const upload = require('../middlewares/upload');
 const Event = require("../models/event");
 
@@ -88,5 +88,11 @@ router.get('/by-organizer-and-org/:userId/:orgId', async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// Organizer joins an event as a team member
+router.post('/:eventId/join-organizer', protect, requireOrganizer, joinAsOrganizer);
+
+// Get the organizer team for an event
+router.get('/:eventId/organizer-team', protect, getOrganizerTeam);
 
 module.exports = router;

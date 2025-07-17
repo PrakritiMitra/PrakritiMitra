@@ -320,3 +320,44 @@ exports.deleteEvent = async (req, res) => {
     res.status(500).json({ message: 'Server error while deleting event' });
   }
 };
+
+// Organizer joins an event as a team member
+exports.joinAsOrganizer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+
+    // Prevent creator from joining as team (already main organizer)
+    if (event.createdBy.toString() === userId.toString()) {
+      return res.status(400).json({ message: 'You are already the main organizer of this event.' });
+    }
+
+    // Prevent duplicate join
+    if (event.organizerTeam.includes(userId)) {
+      return res.status(400).json({ message: 'You have already joined as an organizer for this event.' });
+    }
+
+    event.organizerTeam.push(userId);
+    await event.save();
+    res.status(200).json({ message: 'Successfully joined as organizer', event });
+  } catch (err) {
+    console.error('❌ Failed to join as organizer:', err);
+    res.status(500).json({ message: 'Server error while joining as organizer' });
+  }
+};
+
+// Get the organizer team for an event
+exports.getOrganizerTeam = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const event = await Event.findById(eventId).populate('organizerTeam', 'name email profileImage');
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    res.status(200).json({ organizerTeam: event.organizerTeam });
+  } catch (err) {
+    console.error('❌ Failed to fetch organizer team:', err);
+    res.status(500).json({ message: 'Server error while fetching organizer team' });
+  }
+};
