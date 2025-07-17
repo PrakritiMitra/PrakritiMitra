@@ -104,3 +104,48 @@ exports.getMyRegisteredEvents = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+// Get all volunteers registered for a specific event
+exports.getVolunteersForEvent = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    // Find all registrations for this event and populate volunteer details
+    const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name email phone profileImage role');
+    // Return only the user details
+    const volunteers = registrations.map(r => r.volunteerId);
+    res.json(volunteers);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error fetching volunteers', error: err });
+  }
+};
+
+// Get all events a volunteer is registered for
+exports.getEventsForVolunteer = async (req, res) => {
+  try {
+    const volunteerId = req.params.volunteerId;
+    // Find all registrations for this volunteer and populate event details
+    const registrations = await Registration.find({ volunteerId }).populate({
+      path: 'eventId',
+      populate: { path: 'organization' }
+    });
+    // Return only the event details
+    const events = registrations.map(r => r.eventId).filter(e => !!e);
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error fetching events', error: err });
+  }
+};
+
+// Get all registrations for a given volunteerId
+exports.getRegistrationsForVolunteer = async (req, res) => {
+  try {
+    const volunteerId = req.params.volunteerId;
+    console.log('[DEBUG] Fetching registrations for volunteerId:', volunteerId);
+    const registrations = await Registration.find({ volunteerId });
+    console.log('[DEBUG] Registrations found:', registrations.length, registrations.map(r => r.eventId));
+    res.json(registrations);
+  } catch (err) {
+    console.error('[DEBUG] Error fetching registrations:', err);
+    res.status(500).json({ message: 'Server error fetching registrations', error: err });
+  }
+};

@@ -34,9 +34,18 @@ export default function EventCard({ event }) {
   // Extract City, State (basic split)
   let cityState = location?.split(",").slice(-2).join(", ").trim();
 
+  // Determine if event is live
+  const now = new Date();
+  const isLive = new Date(startDateTime) <= now && now < new Date(endDateTime);
+
   return (
     <Link to={`/events/${_id}`}>
-      <div className="bg-white border rounded-lg shadow hover:shadow-md transition overflow-hidden">
+      <div className="bg-white border rounded-lg shadow hover:shadow-md transition overflow-hidden relative">
+        {isLive && (
+          <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10 animate-pulse">
+            LIVE
+          </div>
+        )}
         <img
           src={eventImage}
           alt={eventType}
