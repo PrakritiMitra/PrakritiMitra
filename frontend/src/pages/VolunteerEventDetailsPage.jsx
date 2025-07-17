@@ -287,6 +287,7 @@ export default function VolunteerEventDetailsPage() {
             </div>
           );
         })()
+    )}
       {/* Show Volunteers Button */}
       <button
         className={`fixed z-50 bg-green-600 text-white px-5 py-2 rounded shadow hover:bg-green-700 transition top-[calc(2cm+1.5rem)] left-8`}
