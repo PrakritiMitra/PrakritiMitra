@@ -19,6 +19,7 @@ import EditEventPage from "./pages/EditEventPage";
 import VolunteerOrganizationPage from "./pages/VolunteerOrganizationPage";
 import VolunteerEventDetailsPage from "./pages/VolunteerEventDetailsPage";
 import OrganizerPublicPage from "./pages/OrganizerPublicPage";
+import VolunteerPublicPage from "./pages/VolunteerPublicPage";
 
 import VolunteerMyEvents from "./pages/VolunteerMyEvents";
 
@@ -153,6 +154,7 @@ function App() {
           }
         />
         <Route path="/organizer/:id" element={<OrganizerPublicPage />} />
+        <Route path="/volunteer/:id" element={<VolunteerPublicPage />} />
       </Routes>
     </Router>
   );
