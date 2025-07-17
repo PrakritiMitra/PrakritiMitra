@@ -11,6 +11,7 @@ import { useState as useReactState } from "react";
 import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterModal";
 import { QRCodeSVG } from "qrcode.react";
 import { getOrganizerTeam } from "../api/event";
+import { useCallback } from "react";
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -38,6 +39,10 @@ export default function VolunteerEventDetailsPage() {
   // Organizer team state
   const [organizerTeam, setOrganizerTeam] = useState([]);
   const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
+  // Show Volunteers state
+  const [showVolunteers, setShowVolunteers] = useState(false);
+  const [volunteers, setVolunteers] = useState([]);
+  const [volunteersLoading, setVolunteersLoading] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -116,6 +121,18 @@ export default function VolunteerEventDetailsPage() {
         });
     }
   }, [event?._id, user?._id]);
+
+  // Fetch volunteers for this event when drawer is opened
+  const fetchVolunteers = useCallback(() => {
+    if (!event?._id) return;
+    setVolunteersLoading(true);
+    axiosInstance.get(`/registrations/event/${event._id}/volunteers`)
+      .then(res => {
+        setVolunteers(res.data);
+        setVolunteersLoading(false);
+      })
+      .catch(() => setVolunteersLoading(false));
+  }, [event?._id]);
 
   // Registration handler
   const handleRegister = async () => {
@@ -270,6 +287,57 @@ export default function VolunteerEventDetailsPage() {
             </div>
           );
         })()
+      {/* Show Volunteers Button */}
+      <button
+        className={`fixed z-50 bg-green-600 text-white px-5 py-2 rounded shadow hover:bg-green-700 transition top-[calc(2cm+1.5rem)] left-8`}
+        style={{ transition: 'left 0.3s cubic-bezier(0.4,0,0.2,1)' }}
+        onClick={() => {
+          setShowVolunteers((prev) => {
+            if (!prev) fetchVolunteers();
+            return !prev;
+          });
+        }}
+      >
+        {showVolunteers ? 'Hide Volunteers' : 'Show Volunteers'}
+      </button>
+      {/* Volunteers Drawer */}
+      {showVolunteers && (
+        <div
+          className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showVolunteers ? 'translate-x-0' : '-translate-x-full'}`}
+        >
+          <div className="flex items-center justify-between px-6 py-4 border-b">
+            <h2 className="text-lg font-semibold text-green-700">Volunteers</h2>
+            <button
+              className="text-gray-500 hover:text-red-600 text-2xl font-bold"
+              onClick={() => setShowVolunteers(false)}
+              aria-label="Close volunteers drawer"
+            >
+              ×
+            </button>
+          </div>
+          <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
+            {volunteersLoading ? (
+              <div>Loading volunteers...</div>
+            ) : volunteers.length === 0 ? (
+              <div className="text-gray-500">No volunteers registered.</div>
+            ) : (
+              volunteers.map((vol) => (
+                <div
+                  key={vol._id}
+                  className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50"
+                  onClick={() => navigate(`/volunteer/${vol._id}`)}
+                >
+                  <img
+                    src={vol.profileImage ? `http://localhost:5000/uploads/${vol.profileImage}` : '/images/default-profile.jpg'}
+                    alt={vol.name}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
+                  />
+                  <span className="font-medium text-green-800 text-lg">{vol.name}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
       <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <button
