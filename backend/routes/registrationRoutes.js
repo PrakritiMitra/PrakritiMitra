@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const protect = require("../middlewares/authMiddleware");
+const {protect} = require("../middlewares/authMiddleware");
 const { registerForEvent, checkRegistration, withdrawRegistration, getMyRegisteredEvents } = require("../controllers/registrationController");
 
 // POST /api/registrations

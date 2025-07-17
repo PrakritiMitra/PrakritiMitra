@@ -115,7 +115,14 @@ const eventSchema = new mongoose.Schema({
 
   contactPerson: {
     type: String,
-  }
+  },
+
+  organizerTeam: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  ],
 
 }, { timestamps: true });
 

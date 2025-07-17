@@ -10,6 +10,7 @@ import defaultImages from "../utils/eventTypeImages";
 import { useState as useReactState } from "react";
 import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterModal";
 import { QRCodeSVG } from "qrcode.react";
+import { getOrganizerTeam } from "../api/event";
 import { useCallback } from "react";
 
 export default function VolunteerEventDetailsPage() {
@@ -35,6 +36,9 @@ export default function VolunteerEventDetailsPage() {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [registrationData, setRegistrationData] = useState(null);
 
+  // Organizer team state
+  const [organizerTeam, setOrganizerTeam] = useState([]);
+  const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
   // Show Volunteers state
   const [showVolunteers, setShowVolunteers] = useState(false);
   const [volunteers, setVolunteers] = useState([]);
@@ -55,6 +59,18 @@ export default function VolunteerEventDetailsPage() {
 
     fetchEvent();
   }, [id]);
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const team = await getOrganizerTeam(id);
+        setOrganizerTeam(team);
+      } catch (err) {
+        setOrganizerTeam([]);
+      }
+    };
+    if (event && event._id) fetchTeam();
+  }, [event, id]);
 
   // On event load, check with the backend if the user is actually registered for the event. If not, clear registration status and QR code from localStorage. Keep localStorage and UI in sync with backend.
   useEffect(() => {
@@ -214,8 +230,63 @@ export default function VolunteerEventDetailsPage() {
   const eventImage = defaultImages[event.eventType?.toLowerCase()] || defaultImages["default"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-12 relative">
       <Navbar />
+      {event?.createdBy && (
+        <button
+          className={`fixed z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition top-[calc(2cm+1.5rem)] ${showOrganizerTeamDrawer ? 'right-[340px]' : 'right-8'}`}
+          style={{ transition: 'right 0.3s cubic-bezier(0.4,0,0.2,1)' }}
+          onClick={() => setShowOrganizerTeamDrawer((prev) => !prev)}
+        >
+          {showOrganizerTeamDrawer ? 'Hide Organizer Team' : 'Show Organizer Team'}
+        </button>
+      )}
+      {/* Organizer Team Drawer */}
+      {event?.createdBy && (
+        (() => {
+          // Prepare the list: creator first, then team (excluding creator if present)
+          const creator = event.createdBy;
+          const teamWithoutCreator = organizerTeam.filter(user => user._id !== creator._id);
+          const fullTeam = [creator, ...teamWithoutCreator];
+          return (
+            <div
+              className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizerTeamDrawer ? 'translate-x-0' : 'translate-x-full'}`}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <h2 className="text-lg font-semibold text-blue-700">Organizer Team</h2>
+                <button
+                  className="text-gray-500 hover:text-red-600 text-2xl font-bold"
+                  onClick={() => setShowOrganizerTeamDrawer(false)}
+                  aria-label="Close organizer team drawer"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
+                {fullTeam.map((user) => {
+                  const isCreator = user._id === creator._id;
+                  return (
+                    <div
+                      key={user._id}
+                      className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
+                      onClick={() => navigate(`/organizer/${user._id}`)}
+                    >
+                      <img
+                        src={user.profileImage ? `${imageBaseUrl}${user.profileImage}` : '/images/default-profile.jpg'}
+                        alt={user.name}
+                        className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                      />
+                      <span className="font-medium text-blue-800 text-lg">{user.name}</span>
+                      {isCreator && (
+                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()
       {/* Show Volunteers Button */}
       <button
         className={`fixed z-50 bg-green-600 text-white px-5 py-2 rounded shadow hover:bg-green-700 transition top-[calc(2cm+1.5rem)] left-8`}
