@@ -2,7 +2,7 @@
 const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
-const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam } = require('../controllers/eventController');
+const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance } = require('../controllers/eventController');
 const upload = require('../middlewares/upload');
 const Event = require("../models/event");
 
@@ -94,5 +94,8 @@ router.post('/:eventId/join-organizer', protect, requireOrganizer, joinAsOrganiz
 
 // Get the organizer team for an event
 router.get('/:eventId/organizer-team', protect, getOrganizerTeam);
+
+// PATCH /api/events/:eventId/organizer/:organizerId/attendance - mark attendance for an organizer
+router.patch('/:eventId/organizer/:organizerId/attendance', protect, requireOrganizer, updateOrganizerAttendance);
 
 module.exports = router;

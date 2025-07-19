@@ -105,14 +105,35 @@ exports.getMyRegisteredEvents = async (req, res) => {
   }
 };
 
-// Get all volunteers registered for a specific event
+// PATCH: Mark attendance for a volunteer registration
+exports.updateAttendance = async (req, res) => {
+  try {
+    const { registrationId } = req.params;
+    const { hasAttended } = req.body;
+    const registration = await Registration.findById(registrationId);
+    if (!registration) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
+    registration.hasAttended = !!hasAttended;
+    await registration.save();
+    res.json({ message: 'Attendance updated.', registration });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error updating attendance.' });
+  }
+};
+
+// Update getVolunteersForEvent to include hasAttended
 exports.getVolunteersForEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId;
     // Find all registrations for this event and populate volunteer details
     const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name email phone profileImage role');
-    // Return only the user details
-    const volunteers = registrations.map(r => r.volunteerId);
+    // Return user details and attendance
+    const volunteers = registrations.map(r => ({
+      ...r.volunteerId.toObject(),
+      hasAttended: r.hasAttended,
+      registrationId: r._id
+    }));
     res.json(volunteers);
   } catch (err) {
     res.status(500).json({ message: 'Server error fetching volunteers', error: err });

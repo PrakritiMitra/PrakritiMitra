@@ -10,4 +10,16 @@ export const joinAsOrganizer = async (eventId) => {
 export const getOrganizerTeam = async (eventId) => {
   const res = await axiosInstance.get(`/events/${eventId}/organizer-team`);
   return res.data.organizerTeam;
+};
+
+// Get the full organizer team for an event (with hasAttended)
+export const getFullOrganizerTeam = async (eventId) => {
+  const res = await axiosInstance.get(`/events/${eventId}/organizer-team?full=1`);
+  return res.data.organizerTeam;
+};
+
+// Update attendance for an organizer
+export const updateOrganizerAttendance = async (eventId, organizerId, hasAttended) => {
+  const res = await axiosInstance.patch(`/events/${eventId}/organizer/${organizerId}/attendance`, { hasAttended });
+  return res.data;
 }; 
