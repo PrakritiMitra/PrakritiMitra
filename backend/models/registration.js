@@ -25,6 +25,10 @@ const registrationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  hasAttended: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 module.exports = mongoose.model('Registration', registrationSchema);

@@ -17,5 +17,7 @@ router.get('/event/:eventId/volunteers', require('../controllers/registrationCon
 router.get('/volunteer/:volunteerId/events', require('../controllers/registrationController').getEventsForVolunteer);
 // GET /api/registrations/volunteer/:volunteerId - get all registrations for a volunteer
 router.get('/volunteer/:volunteerId', require('../controllers/registrationController').getRegistrationsForVolunteer);
+// PATCH /api/registrations/:registrationId/attendance - mark attendance for a volunteer
+router.patch('/:registrationId/attendance', protect, require('../controllers/registrationController').updateAttendance);
 
 module.exports = router;

@@ -72,6 +72,8 @@ exports.createEvent = async (req, res) => {
       govtApprovalLetter: approvalLetter,
       organization,
       createdBy: req.user._id,
+      // Add the creator to organizerTeam by default
+      organizerTeam: [{ user: req.user._id, hasAttended: false }],
 
       // Include questionnaire fields
       waterProvided: waterProvided === 'true',
@@ -336,11 +338,11 @@ exports.joinAsOrganizer = async (req, res) => {
     }
 
     // Prevent duplicate join
-    if (event.organizerTeam.includes(userId)) {
+    if (event.organizerTeam.some(obj => obj.user.toString() === userId.toString())) {
       return res.status(400).json({ message: 'You have already joined as an organizer for this event.' });
     }
 
-    event.organizerTeam.push(userId);
+    event.organizerTeam.push({ user: userId, hasAttended: false });
     await event.save();
     res.status(200).json({ message: 'Successfully joined as organizer', event });
   } catch (err) {
@@ -353,11 +355,34 @@ exports.joinAsOrganizer = async (req, res) => {
 exports.getOrganizerTeam = async (req, res) => {
   try {
     const eventId = req.params.eventId;
-    const event = await Event.findById(eventId).populate('organizerTeam', 'name email profileImage');
+    // Populate the user field inside organizerTeam
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email phone profileImage');
     if (!event) return res.status(404).json({ message: 'Event not found' });
-    res.status(200).json({ organizerTeam: event.organizerTeam });
+    // If ?full=1, return full objects (for attendance), else just user info
+    if (req.query.full === '1') {
+      res.status(200).json({ organizerTeam: event.organizerTeam });
+    } else {
+      res.status(200).json({ organizerTeam: event.organizerTeam.map(obj => obj.user) });
+    }
   } catch (err) {
     console.error('❌ Failed to fetch organizer team:', err);
     res.status(500).json({ message: 'Server error while fetching organizer team' });
+  }
+};
+
+// PATCH: Mark attendance for an organizer in organizerTeam
+exports.updateOrganizerAttendance = async (req, res) => {
+  try {
+    const { eventId, organizerId } = req.params;
+    const { hasAttended } = req.body;
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    const organizer = event.organizerTeam.find(obj => obj.user.toString() === organizerId);
+    if (!organizer) return res.status(404).json({ message: 'Organizer not found in team' });
+    organizer.hasAttended = !!hasAttended;
+    await event.save();
+    res.json({ message: 'Attendance updated.', organizer });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error updating organizer attendance.' });
   }
 };

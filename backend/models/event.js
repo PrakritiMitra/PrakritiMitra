@@ -119,9 +119,9 @@ const eventSchema = new mongoose.Schema({
 
   organizerTeam: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      hasAttended: { type: Boolean, default: false }
+    }
   ],
 
 }, { timestamps: true });
