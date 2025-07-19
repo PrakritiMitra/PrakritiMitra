@@ -3,7 +3,7 @@ const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
 const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance } = require('../controllers/eventController');
-const upload = require('../middlewares/upload');
+const { upload } = require('../middlewares/upload');
 
 const Event = require("../models/event");
 

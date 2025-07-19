@@ -42,8 +42,6 @@ export default function EventCard({ event }) {
   const isOrganizer = currentUser?.role === "organizer";
   const canJoinAsOrganizer = isOrganizer && !isCreator && !isTeamMember;
 
-  const isLive = new Date(startDateTime) <= new Date() && new Date() < new Date(endDateTime);
-
   useEffect(() => {
     const fetchTeam = async () => {
       try {
