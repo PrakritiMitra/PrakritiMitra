@@ -33,7 +33,7 @@ const VolunteerOrganizationsTab = () => {
           {organizations.map((org) => (
             <div
               key={org._id}
-              onClick={() => navigate(`/volunteer/organizations/${org._id}`)}
+              onClick={() => navigate(`/organizations/${org._id}`)}
               className="bg-white border rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer"
             >
               <h3 className="text-lg font-bold text-blue-800 mb-1">{org.name}</h3>

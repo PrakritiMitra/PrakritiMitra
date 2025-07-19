@@ -6,30 +6,73 @@ const User = require('../models/user');
 exports.registerOrganization = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, description, website, category, verifiedStatus } = req.body;
+    const {
+      name,
+      description,
+      website,
+      socialLinks,
+      headOfficeLocation,
+      orgEmail,
+      visionMission,
+      orgPhone,
+      yearOfEstablishment,
+      focusArea,
+      focusAreaOther
+    } = req.body;
 
-    console.log("🔹 Registering organization:", { name, userId });
+    // Handle file uploads
+    const files = req.files || {};
+    const logo = files.logo ? files.logo[0].path : undefined;
+    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].path : undefined;
+    const panCard = files.panCard ? files.panCard[0].path : undefined;
+    const ngoRegistration = files.ngoRegistration ? files.ngoRegistration[0].path : undefined;
+    const letterOfIntent = files.letterOfIntent ? files.letterOfIntent[0].path : undefined;
+
+    // Parse socialLinks if sent as JSON string
+    let parsedSocialLinks = socialLinks;
+    if (typeof socialLinks === 'string') {
+      try {
+        parsedSocialLinks = JSON.parse(socialLinks);
+      } catch {
+        parsedSocialLinks = [socialLinks];
+      }
+    }
 
     const organization = await Organization.create({
       name,
       description,
       website,
-      category,
-      verifiedStatus,
+      socialLinks: parsedSocialLinks,
+      logo,
+      headOfficeLocation,
+      orgEmail,
+      visionMission,
+      orgPhone,
+      yearOfEstablishment,
+      focusArea,
+      focusAreaOther,
+      documents: {
+        gstCertificate,
+        panCard,
+        ngoRegistration,
+        letterOfIntent,
+      },
       createdBy: userId,
       team: [
         {
           userId,
           status: 'approved',
-          isAdmin: true, // ✅ Grant admin privileges to the creator
-          position: 'Founder', // optional
+          isAdmin: true,
+          position: 'Founder',
         },
       ],
     });
 
-    console.log("✅ Organization registered:", organization._id);
     res.status(201).json(organization);
   } catch (err) {
+    if (err.code === 11000 && err.keyPattern && err.keyPattern.name) {
+      return res.status(409).json({ message: 'An organization with this name already exists. Please choose a different name.' });
+    }
     console.error("❌ Failed to register organization:", err);
     res.status(500).json({ message: err.message });
   }

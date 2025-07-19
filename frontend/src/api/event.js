@@ -10,4 +10,10 @@ export const joinAsOrganizer = async (eventId) => {
 export const getOrganizerTeam = async (eventId) => {
   const res = await axiosInstance.get(`/events/${eventId}/organizer-team`);
   return res.data.organizerTeam;
+};
+
+// Get events by organization ID
+export const getEventsByOrganization = async (orgId) => {
+  const res = await axiosInstance.get(`/events/organization/${orgId}`);
+  return res.data;
 }; 

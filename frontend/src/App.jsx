@@ -20,6 +20,8 @@ import VolunteerOrganizationPage from "./pages/VolunteerOrganizationPage";
 import VolunteerEventDetailsPage from "./pages/VolunteerEventDetailsPage";
 import OrganizerPublicPage from "./pages/OrganizerPublicPage";
 import VolunteerPublicPage from "./pages/VolunteerPublicPage";
+import OrganizationPublicPage from "./pages/OrganizationPublicPage";
+
 
 import VolunteerMyEvents from "./pages/VolunteerMyEvents";
 
@@ -163,6 +165,14 @@ function App() {
         />
         <Route path="/organizer/:id" element={<OrganizerPublicPage />} />
         <Route path="/volunteer/:id" element={<VolunteerPublicPage />} />
+        <Route
+          path="/organizations/:id"
+          element={
+            <PrivateRoute>
+              <OrganizationPublicPage />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </Router>
   );

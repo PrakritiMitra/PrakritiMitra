@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import { useNavigate } from "react-router-dom";
 
 export default function JoinOrganizationPage() {
   const [organizations, setOrganizations] = useState([]);
@@ -11,6 +12,7 @@ export default function JoinOrganizationPage() {
   const [loading, setLoading] = useState(true);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -114,6 +116,8 @@ export default function JoinOrganizationPage() {
             <div
               key={org._id}
               className="bg-white border p-4 rounded shadow hover:shadow-md transition"
+              style={{ cursor: 'pointer' }}
+              onClick={() => navigate(`/organizations/${org._id}`)}
             >
               <h3 className="text-lg font-semibold text-blue-700">
                 {org.name}
@@ -127,7 +131,7 @@ export default function JoinOrganizationPage() {
                 ) : (
                   <button
                     className="px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 text-sm"
-                    onClick={() => handleJoinRequest(org._id)}
+                    onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
                   >
                     Request to Join
                   </button>
