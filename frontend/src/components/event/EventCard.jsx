@@ -20,30 +20,30 @@ export default function EventCard({ event }) {
     createdBy,
   } = event;
 
-  // Determine filled/total slots
   const filled = volunteers.length;
   const total = unlimitedVolunteers ? "∞" : maxVolunteers;
 
-  // Format date
   const formattedDate = `${format(new Date(startDateTime), "d MMMM, yyyy")} — ${format(
     new Date(endDateTime),
     "h:mm a"
   )}`;
 
-  // Determine fallback image based on eventType
   const eventImage = defaultImages[eventType?.toLowerCase()] || defaultImages["default"];
-
-  // Extract City, State (basic split)
   let cityState = location?.split(",").slice(-2).join(", ").trim();
 
   const [organizerTeam, setOrganizerTeam] = useState([]);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
   const [joinSuccess, setJoinSuccess] = useState("");
-  const currentUser = JSON.parse(localStorage.getItem("user"));
-  const isCreator = event.createdBy === currentUser?._id || event.createdBy?._id === currentUser?._id;
-  const isOrganizer = currentUser?.role === "organizer";
   const [isTeamMember, setIsTeamMember] = useState(false);
+
+  const currentUser = JSON.parse(localStorage.getItem("user"));
+  const isCreator = createdBy === currentUser?._id || createdBy?._id === currentUser?._id;
+  const isOrganizer = currentUser?.role === "organizer";
+  const canJoinAsOrganizer = isOrganizer && !isCreator && !isTeamMember;
+
+  const isLive = new Date(startDateTime) <= new Date() && new Date() < new Date(endDateTime);
+
   useEffect(() => {
     const fetchTeam = async () => {
       try {
@@ -57,7 +57,7 @@ export default function EventCard({ event }) {
     };
     fetchTeam();
   }, [_id, currentUser?._id]);
-  const canJoinAsOrganizer = isOrganizer && !isCreator && !isTeamMember;
+
   const handleJoinAsOrganizer = async (e) => {
     e.preventDefault();
     setJoining(true);
@@ -66,7 +66,6 @@ export default function EventCard({ event }) {
     try {
       await joinAsOrganizer(_id);
       setJoinSuccess("You have joined as an organizer!");
-      // Refresh team status
       const team = await getOrganizerTeam(_id);
       setOrganizerTeam(team);
       setIsTeamMember(true);
@@ -106,10 +105,11 @@ export default function EventCard({ event }) {
           </div>
         </div>
       </Link>
+
       {canJoinAsOrganizer && (
         <button
           onClick={handleJoinAsOrganizer}
-          className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
           disabled={joining}
         >
           {joining ? "Joining..." : "Join as Organizer"}
