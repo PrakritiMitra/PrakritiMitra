@@ -161,7 +161,8 @@ exports.getEventById = async (req, res) => {
       .populate({
         path: 'createdBy',
         select: 'name profileImage',
-      });
+      })
+      .populate('organizerTeam.user', 'name email phone profileImage');
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -201,7 +202,7 @@ exports.updateEvent = async (req, res) => {
       const toRemove = Array.isArray(removedImages) ? removedImages : [removedImages];
       event.eventImages = event.eventImages.filter((img) => {
         if (toRemove.includes(img)) {
-          const imgPath = path.join(__dirname, "../uploads", img);
+          const imgPath = path.join(__dirname, "../uploads/Events", img);
           if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
           return false;
         }
@@ -211,7 +212,7 @@ exports.updateEvent = async (req, res) => {
 
     // ✅ Remove letter file if requested
     if (req.body.removedLetter === "true" && event.govtApprovalLetter) {
-      const letterPath = path.join(__dirname, "../uploads", event.govtApprovalLetter);
+      const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
       if (fs.existsSync(letterPath)) fs.unlinkSync(letterPath);
       event.govtApprovalLetter = null;
     }
@@ -313,7 +314,33 @@ exports.deleteEvent = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to delete this event' });
     }
 
-    // ✅ Use this to ensure full deletion
+    // ✅ Delete associated files before deleting the event
+    try {
+      // Delete event images
+      if (event.eventImages && event.eventImages.length > 0) {
+        event.eventImages.forEach(img => {
+          const imgPath = path.join(__dirname, "../uploads/Events", img);
+          if (fs.existsSync(imgPath)) {
+            fs.unlinkSync(imgPath);
+            console.log(`✅ Deleted event image: ${img}`);
+          }
+        });
+      }
+
+      // Delete government approval letter
+      if (event.govtApprovalLetter) {
+        const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
+        if (fs.existsSync(letterPath)) {
+          fs.unlinkSync(letterPath);
+          console.log(`✅ Deleted approval letter: ${event.govtApprovalLetter}`);
+        }
+      }
+    } catch (fileError) {
+      console.error('⚠️ Error deleting files:', fileError);
+      // Continue with event deletion even if file deletion fails
+    }
+
+    // ✅ Delete the event from database
     await Event.findByIdAndDelete(req.params.id);
 
     return res.status(200).json({ message: 'Event deleted successfully' });
@@ -349,7 +376,10 @@ exports.joinAsOrganizer = async (req, res) => {
 
     event.organizerTeam.push({ user: userId, hasAttended: false });
     await event.save();
-    res.status(200).json({ message: 'Successfully joined as organizer', event });
+    
+    // Populate the user field before sending response
+    const populatedEvent = await Event.findById(eventId).populate('organizerTeam.user', 'name email phone profileImage');
+    res.status(200).json({ message: 'Successfully joined as organizer', event: populatedEvent });
   } catch (err) {
     console.error('❌ Failed to join as organizer:', err);
     res.status(500).json({ message: 'Server error while joining as organizer' });

@@ -22,7 +22,7 @@ export default function VolunteerEventDetailsPage() {
   const [registering, setRegistering] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
-  const imageBaseUrl = "http://localhost:5000/uploads/";
+  const imageBaseUrl = "http://localhost:5000/uploads/Events/";
 
   // Carousel state
   const [carouselIndex, setCarouselIndex] = useReactState(0);
@@ -262,11 +262,11 @@ export default function VolunteerEventDetailsPage() {
                   className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
                   onClick={() => navigate(`/organizer/${user._id}`)}
                 >
-                  <img
-                    src={user.profileImage ? `${imageBaseUrl}${user.profileImage}` : '/images/default-profile.jpg'}
-                    alt={user.name}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                  />
+                                        <img
+                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
+                        alt={user.name}
+                        className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                      />
                   <span className="font-medium text-blue-800 text-lg">{user.name}</span>
                   {isCreator && (
                     <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
@@ -318,7 +318,7 @@ export default function VolunteerEventDetailsPage() {
                   onClick={() => navigate(`/volunteer/${vol._id}`)}
                 >
                   <img
-                    src={vol.profileImage ? `http://localhost:5000/uploads/${vol.profileImage}` : '/images/default-profile.jpg'}
+                    src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
                     alt={vol.name}
                     className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
                   />

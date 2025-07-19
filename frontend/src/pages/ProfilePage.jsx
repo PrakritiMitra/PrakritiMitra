@@ -14,6 +14,8 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({});
   const [profileImagePreview, setProfileImagePreview] = useState(null);
   const [govtIdPreview, setGovtIdPreview] = useState(null);
+  const [removeProfileImage, setRemoveProfileImage] = useState(false);
+  const [removeGovtIdProof, setRemoveGovtIdProof] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
@@ -90,6 +92,7 @@ export default function ProfilePage() {
     if (file) {
       setFormData(prev => ({ ...prev, profileImage: file }));
       setProfileImagePreview(URL.createObjectURL(file));
+      setRemoveProfileImage(false); // Reset remove flag when new file is selected
     }
   };
 
@@ -98,7 +101,20 @@ export default function ProfilePage() {
     if (file) {
       setFormData(prev => ({ ...prev, govtIdProof: file }));
       setGovtIdPreview(URL.createObjectURL(file));
+      setRemoveGovtIdProof(false); // Reset remove flag when new file is selected
     }
+  };
+
+  const handleRemoveProfileImage = () => {
+    setRemoveProfileImage(true);
+    setProfileImagePreview(null);
+    setFormData(prev => ({ ...prev, profileImage: undefined }));
+  };
+
+  const handleRemoveGovtIdProof = () => {
+    setRemoveGovtIdProof(true);
+    setGovtIdPreview(null);
+    setFormData(prev => ({ ...prev, govtIdProof: undefined }));
   };
 
   const handleSubmit = async (e) => {
@@ -121,6 +137,14 @@ export default function ProfilePage() {
         }
       });
 
+      // Add remove flags
+      if (removeProfileImage) {
+        data.append('removeProfileImage', 'true');
+      }
+      if (removeGovtIdProof) {
+        data.append('removeGovtIdProof', 'true');
+      }
+
       // Handle password change
       if (formData.newPassword && formData.newPassword === formData.confirmPassword) {
         data.append('password', formData.newPassword);
@@ -136,6 +160,8 @@ export default function ProfilePage() {
         // Update previews after save
         setProfileImagePreview(null);
         setGovtIdPreview(null);
+        setRemoveProfileImage(false);
+        setRemoveGovtIdProof(false);
         setRefreshKey(prev => prev + 1);
         // Clear password fields
         setFormData(prev => ({
@@ -199,7 +225,7 @@ export default function ProfilePage() {
                 <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-4 border-blue-200">
                   {user.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/${user.profileImage}?k=${refreshKey}`}
+                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}?k=${refreshKey}`}
                       alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
                     />
@@ -213,13 +239,13 @@ export default function ProfilePage() {
                 {user.govtIdProofUrl ? (
                   user.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                     <img
-                      src={`http://localhost:5000/uploads/${user.govtIdProofUrl}?k=${refreshKey}`}
+                      src={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}?k=${refreshKey}`}
                       alt="Govt ID"
                       className="w-20 h-14 object-contain border rounded shadow-md mt-2"
                     />
                   ) : (
                     <a
-                      href={`http://localhost:5000/uploads/${user.govtIdProofUrl}?k=${refreshKey}`}
+                      href={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}?k=${refreshKey}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline text-xs mt-2"
@@ -285,7 +311,7 @@ export default function ProfilePage() {
                     />
                   ) : user.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/${user.profileImage}`}
+                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
                       alt="Profile"
                       className="w-24 h-24 rounded-full object-cover animate-fade-in"
                     />
@@ -304,6 +330,15 @@ export default function ProfilePage() {
                     className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                   <p className="text-xs text-gray-500 mt-1">Recommended: Square image, max 2MB</p>
+                  {user.profileImage && !removeProfileImage && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveProfileImage}
+                      className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                    >
+                      Remove Current Photo
+                    </button>
+                  )}
                 </div>
               </div>
               {/* Govt ID Proof Section */}
@@ -326,18 +361,18 @@ export default function ProfilePage() {
                         className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
                       />
                     </div>
-                  ) : user.govtIdProof ? (
+                  ) : user.govtIdProofUrl ? (
                     <div>
                       <span className="block text-xs text-gray-500 mb-1">Current:</span>
-                      {user.govtIdProof.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      {user.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                         <img
-                          src={`http://localhost:5000/uploads/${user.govtIdProof}`}
+                          src={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}`}
                           alt="Govt ID"
                           className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
                         />
                       ) : (
                         <a
-                          href={`http://localhost:5000/uploads/${user.govtIdProof}`}
+                          href={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 underline text-sm animate-fade-in"
@@ -358,6 +393,15 @@ export default function ProfilePage() {
                       className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
                     />
                     <p className="text-xs text-gray-500 mt-1">Accepted: Image/PDF, max 5MB</p>
+                    {user.govtIdProofUrl && !removeGovtIdProof && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveGovtIdProof}
+                        className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                      >
+                        Remove Current Govt ID
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

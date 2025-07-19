@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const Organization = require('../models/organization');
 const User = require('../models/user');
+const fs = require('fs');
+const path = require('path');
 
 // Register new organization
 exports.registerOrganization = async (req, res) => {
@@ -22,11 +24,11 @@ exports.registerOrganization = async (req, res) => {
 
     // Handle file uploads
     const files = req.files || {};
-    const logo = files.logo ? files.logo[0].path : undefined;
-    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].path : undefined;
-    const panCard = files.panCard ? files.panCard[0].path : undefined;
-    const ngoRegistration = files.ngoRegistration ? files.ngoRegistration[0].path : undefined;
-    const letterOfIntent = files.letterOfIntent ? files.letterOfIntent[0].path : undefined;
+    const logo = files.logo ? files.logo[0].filename : undefined;
+    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].filename : undefined;
+    const panCard = files.panCard ? files.panCard[0].filename : undefined;
+    const ngoRegistration = files.ngoRegistration ? files.ngoRegistration[0].filename : undefined;
+    const letterOfIntent = files.letterOfIntent ? files.letterOfIntent[0].filename : undefined;
 
     // Parse socialLinks if sent as JSON string
     let parsedSocialLinks = socialLinks;
@@ -310,5 +312,71 @@ exports.getOrganizationsByUserId = async (req, res) => {
     res.json(orgs);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch organizations', error: err });
+  }
+};
+
+// Delete organization
+exports.deleteOrganization = async (req, res) => {
+  try {
+    const orgId = req.params.id;
+    console.log(`🔹 Deleting organization: ${orgId}`);
+
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    // Check if user is authorized to delete (creator or admin)
+    const userId = req.user._id.toString();
+    const isCreator = org.createdBy.toString() === userId;
+    const isAdmin = org.team.some(m => m.userId.toString() === userId && m.isAdmin);
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ message: 'You are not authorized to delete this organization' });
+    }
+
+    // ✅ Delete associated files before deleting the organization
+    try {
+      // Delete logo
+      if (org.logo) {
+        const logoPath = path.join(__dirname, "../uploads/OrganizationDetails", org.logo);
+        if (fs.existsSync(logoPath)) {
+          fs.unlinkSync(logoPath);
+          console.log(`✅ Deleted logo: ${org.logo}`);
+        }
+      }
+
+      // Delete documents
+      if (org.documents) {
+        const documents = [
+          org.documents.gstCertificate,
+          org.documents.panCard,
+          org.documents.ngoRegistration,
+          org.documents.letterOfIntent
+        ];
+
+        documents.forEach(doc => {
+          if (doc) {
+            const docPath = path.join(__dirname, "../uploads/OrganizationDetails", doc);
+            if (fs.existsSync(docPath)) {
+              fs.unlinkSync(docPath);
+              console.log(`✅ Deleted document: ${doc}`);
+            }
+          }
+        });
+      }
+    } catch (fileError) {
+      console.error('⚠️ Error deleting files:', fileError);
+      // Continue with organization deletion even if file deletion fails
+    }
+
+    // ✅ Delete the organization from database
+    await Organization.findByIdAndDelete(orgId);
+
+    console.log("✅ Organization deleted successfully");
+    return res.status(200).json({ message: 'Organization deleted successfully' });
+  } catch (err) {
+    console.error('❌ Failed to delete organization:', err);
+    res.status(500).json({ message: 'Server error while deleting organization' });
   }
 };

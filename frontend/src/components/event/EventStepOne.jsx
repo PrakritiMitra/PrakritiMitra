@@ -68,6 +68,16 @@ export default function EventStepOne({
     onNext();
   };
 
+  // Helper to handle appending new files
+  const handleAddImages = (e) => {
+    const files = Array.from(e.target.files);
+    setImageFiles((prev) => [...prev, ...files]);
+  };
+
+  const handleRemoveNewImage = (idx) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   return (
     <Box component="form" onSubmit={handleProceed} sx={{ p: 3, bgcolor: "white", borderRadius: 2, boxShadow: 3 }}>
       <Typography variant="h6" color="primary" gutterBottom>
@@ -203,18 +213,52 @@ export default function EventStepOne({
         <Typography variant="subtitle1" gutterBottom>
           Event Images (optional)
         </Typography>
+        {/* Existing Images */}
         {existingImages.length > 0 && (
           <Box mb={1}>
             <Typography variant="body2">Existing Images:</Typography>
             {existingImages.map((img, index) => (
               <Box key={index} display="flex" alignItems="center" gap={1} mt={1}>
-                <img src={`http://localhost:5000/uploads/${img}`} alt="Preview" width="100" style={{ borderRadius: 4 }} />
+                <img src={`http://localhost:5000/uploads/Events/${img}`} alt="Preview" width="100" style={{ borderRadius: 4 }} />
                 <Button size="small" color="error" onClick={() => onRemoveExistingImage(img)}>Remove</Button>
               </Box>
             ))}
           </Box>
         )}
-        <input type="file" multiple accept="image/*" onChange={handleImageChange} />
+        {/* New Uploads Preview */}
+        {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && (
+          <Box mb={1} display="flex" flexWrap="wrap" gap={2}>
+            {formData.eventImages.map((file, idx) => (
+              <Box key={idx} display="flex" flexDirection="column" alignItems="center" gap={1}>
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt={`Upload Preview ${idx + 1}`}
+                  width={100}
+                  style={{ borderRadius: 4, marginBottom: 4 }}
+                />
+                <Button size="small" color="error" onClick={() => handleRemoveNewImage(idx)}>Remove</Button>
+              </Box>
+            ))}
+          </Box>
+        )}
+        {/* Add Another Image Button */}
+        <Button
+          variant="outlined"
+          component="label"
+          sx={{ mt: 1 }}
+        >
+          Add Another Image
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={e => {
+              handleAddImages(e);
+              e.target.value = null; // Reset input after handling
+            }}
+          />
+        </Button>
       </Box>
 
       <Box mt={2}>

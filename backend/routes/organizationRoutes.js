@@ -32,6 +32,9 @@ router.get('/:id/team', protect, orgCtrl.getOrganizationTeam);
 // Get all organizations (basic listing)
 router.get('/', orgCtrl.getAllOrganizations);
 
+// Delete organization (only for creator or admin)
+router.delete('/:id', protect, orgCtrl.deleteOrganization);
+
 // Get organization by ID (excluding team)
 // IMPORTANT: keep this as the last route to prevent conflicts
 router.get('/:id', orgCtrl.getOrganizationById);

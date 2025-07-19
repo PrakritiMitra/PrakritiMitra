@@ -12,7 +12,7 @@ import {
   Chip,
 } from "@mui/material";
 
-export default function EventPreview({ formData, questionnaireData, onBack, onSubmit }) {
+export default function EventPreview({ formData, questionnaireData, onBack, onSubmit, existingLetter }) {
   const displayListItem = (label, value) => (
     <ListItem>
       <ListItemText
@@ -22,6 +22,40 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
       />
     </ListItem>
   );
+
+  // Helper for letter preview
+  const renderLetter = () => {
+    if (formData.govtApprovalLetter) {
+      // New upload
+      return formData.govtApprovalLetter.name;
+    } else if (existingLetter) {
+      // Existing file
+      if (existingLetter.match(/\.(jpg|jpeg|png|gif)$/i)) {
+        return (
+          <img
+            src={`http://localhost:5000/uploads/Events/${existingLetter}`}
+            alt="Govt Approval Letter"
+            style={{ width: 120, borderRadius: 6, marginTop: 4 }}
+          />
+        );
+      } else if (existingLetter.match(/\.pdf$/i)) {
+        return (
+          <a
+            href={`http://localhost:5000/uploads/Events/${existingLetter}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#1976d2', textDecoration: 'underline' }}
+          >
+            View PDF
+          </a>
+        );
+      } else {
+        return existingLetter;
+      }
+    } else {
+      return "Not uploaded";
+    }
+  };
 
   return (
     <Box sx={{ p: 3, bgcolor: "white", borderRadius: 2, boxShadow: 3 }}>
@@ -69,9 +103,34 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
           <ListItemText
             primary="Images"
             secondary={
-              formData.eventImages?.length > 0
-                ? `${formData.eventImages.length} selected`
-                : "None"
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1 }}>
+                {/* Show new uploads (File objects) */}
+                {Array.isArray(formData.eventImages) && formData.eventImages.map((img, idx) =>
+                  typeof img === 'object' && img instanceof File ? (
+                    <img
+                      key={idx}
+                      src={URL.createObjectURL(img)}
+                      alt={`Event Image ${idx + 1}`}
+                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }}
+                    />
+                  ) : null
+                )}
+                {/* Show existing images (filenames as string) */}
+                {formData.existingImages?.map((img, idx) =>
+                  typeof img === 'string' ? (
+                    <img
+                      key={`existing-${idx}`}
+                      src={`http://localhost:5000/uploads/Events/${img}`}
+                      alt={`Event Image ${idx + 1}`}
+                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }}
+                    />
+                  ) : null
+                )}
+                {/* Fallback if no images */}
+                {(!formData.eventImages || formData.eventImages.length === 0) && (!formData.existingImages || formData.existingImages.length === 0) && (
+                  <span style={{ color: '#888' }}>None</span>
+                )}
+              </Box>
             }
             primaryTypographyProps={{ fontWeight: "bold" }}
           />
@@ -79,7 +138,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
         <ListItem>
           <ListItemText
             primary="Govt Approval Letter"
-            secondary={formData.govtApprovalLetter?.name || "Not uploaded"}
+            secondary={renderLetter()}
             primaryTypographyProps={{ fontWeight: "bold" }}
           />
         </ListItem>

@@ -78,7 +78,7 @@ export default function UserProfilePage() {
             <>
               <div className="flex flex-col items-center mb-6">
                 <img
-                  src={user.profileImage ? `http://localhost:5000/uploads/${user.profileImage}` : '/images/default-profile.jpg'}
+                  src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
                   alt={user.name}
                   className="w-24 h-24 rounded-full object-cover border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
                 />

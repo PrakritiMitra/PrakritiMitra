@@ -72,7 +72,7 @@ export default function VolunteerPublicPage() {
             <>
               <div className="flex flex-col items-center mb-6">
                 <img
-                  src={volunteer.profileImage ? `http://localhost:5000/uploads/${volunteer.profileImage}` : '/images/default-profile.jpg'}
+                  src={volunteer.profileImage ? `http://localhost:5000/uploads/Profiles/${volunteer.profileImage}` : '/images/default-profile.jpg'}
                   alt={volunteer.name}
                   className="w-24 h-24 rounded-full object-cover border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
                 />
