@@ -4,9 +4,10 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
 const orgCtrl = require('../controllers/organizationController');
+const { multiUpload } = require('../middlewares/upload');
 
 // Register a new organization (organizer creates it)
-router.post('/register', protect, orgCtrl.registerOrganization);
+router.post('/register', protect, multiUpload, orgCtrl.registerOrganization);
 
 // Get the organization created by the current user
 router.get('/my', protect, orgCtrl.getMyOrganization);

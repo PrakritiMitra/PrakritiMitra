@@ -21,5 +21,8 @@ export const getFullOrganizerTeam = async (eventId) => {
 // Update attendance for an organizer
 export const updateOrganizerAttendance = async (eventId, organizerId, hasAttended) => {
   const res = await axiosInstance.patch(`/events/${eventId}/organizer/${organizerId}/attendance`, { hasAttended });
+// Get events by organization ID
+export const getEventsByOrganization = async (orgId) => {
+  const res = await axiosInstance.get(`/events/organization/${orgId}`);
   return res.data;
 }; 
