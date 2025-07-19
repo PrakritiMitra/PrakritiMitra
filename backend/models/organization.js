@@ -31,15 +31,39 @@ const organizationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  logo: {
+    type: String, // file path or URL (image/pdf)
+  },
+  headOfficeLocation: {
+    type: String,
+  },
+  orgEmail: {
+    type: String,
+  },
+  visionMission: {
+    type: String,
+  },
+  orgPhone: {
+    type: String,
+  },
+  yearOfEstablishment: {
+    type: Number,
+  },
+  focusArea: {
+    type: String, // dropdown, if 'Other', then custom text
+  },
+  focusAreaOther: {
+    type: String, // only if focusArea is 'Other'
+  },
   logoUrl: String,
   website: String,
   socialLinks: [String], // Array of URLs (LinkedIn, Instagram, etc.)
 
   documents: {
-    gstCertificateUrl: String,
-    panCardUrl: String,
-    ngoRegistrationUrl: String,
-    letterOfIntentUrl: String,
+    gstCertificate: String, // file path or URL (image/pdf)
+    panCard: String, // file path or URL (image/pdf)
+    ngoRegistration: String, // file path or URL (image/pdf)
+    letterOfIntent: String, // file path or URL (image/pdf)
   },
 
   createdBy: {

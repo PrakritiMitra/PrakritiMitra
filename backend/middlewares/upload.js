@@ -6,7 +6,7 @@ const path = require('path');
 // Store in ./uploads directory
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Ensure this folder exists
+    cb(null, 'uploads/OrganizationDetails'); // Ensure this folder exists
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + '-' + file.originalname);
@@ -15,4 +15,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-module.exports = upload;
+// For organization registration: support multiple files
+const multiUpload = upload.fields([
+  { name: 'logo', maxCount: 1 },
+  { name: 'gstCertificate', maxCount: 1 },
+  { name: 'panCard', maxCount: 1 },
+  { name: 'ngoRegistration', maxCount: 1 },
+  { name: 'letterOfIntent', maxCount: 1 },
+]);
+
+module.exports = { upload, multiUpload };
