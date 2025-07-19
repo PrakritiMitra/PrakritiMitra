@@ -337,8 +337,13 @@ exports.joinAsOrganizer = async (req, res) => {
       return res.status(400).json({ message: 'You are already the main organizer of this event.' });
     }
 
+    // Initialize organizerTeam if it doesn't exist (for old events)
+    if (!event.organizerTeam) {
+      event.organizerTeam = [];
+    }
+
     // Prevent duplicate join
-    if (event.organizerTeam.some(obj => obj.user.toString() === userId.toString())) {
+    if (event.organizerTeam.some(obj => obj.user && obj.user.toString() === userId.toString())) {
       return res.status(400).json({ message: 'You have already joined as an organizer for this event.' });
     }
 
@@ -358,11 +363,17 @@ exports.getOrganizerTeam = async (req, res) => {
     // Populate the user field inside organizerTeam
     const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email phone profileImage');
     if (!event) return res.status(404).json({ message: 'Event not found' });
+    
+    // Initialize organizerTeam if it doesn't exist (for old events)
+    if (!event.organizerTeam) {
+      event.organizerTeam = [];
+    }
+    
     // If ?full=1, return full objects (for attendance), else just user info
     if (req.query.full === '1') {
       res.status(200).json({ organizerTeam: event.organizerTeam });
     } else {
-      res.status(200).json({ organizerTeam: event.organizerTeam.map(obj => obj.user) });
+      res.status(200).json({ organizerTeam: event.organizerTeam.map(obj => obj.user).filter(Boolean) });
     }
   } catch (err) {
     console.error('❌ Failed to fetch organizer team:', err);
