@@ -172,7 +172,7 @@ export default function OrganizationPage() {
                 onClick={() => navigate(`/organizer/${org.userId._id}`)}
               >
                 <img
-                  src={org.userId.profileImage ? `http://localhost:5000/uploads/${org.userId.profileImage}` : '/images/default-profile.jpg'}
+                  src={org.userId.profileImage ? `http://localhost:5000/uploads/Profiles/${org.userId.profileImage}` : '/images/default-profile.jpg'}
                   alt={org.userId.name}
                   className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
                 />
@@ -261,8 +261,21 @@ export default function OrganizationPage() {
                     key={req.userId._id}
                     className="flex justify-between items-center bg-white border rounded p-3"
                   >
-                    <span>
-                      {req.userId.name} ({req.userId.email})
+                    <span className="flex items-center gap-3">
+                      {req.userId.profileImage ? (
+                        <img
+                          src={`http://localhost:5000/uploads/Profiles/${req.userId.profileImage}`}
+                          alt={req.userId.name}
+                          className="w-10 h-10 rounded-full object-cover border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-lg font-bold text-blue-700">
+                          {req.userId.name?.[0]}
+                        </div>
+                      )}
+                      <span>
+                        {req.userId.name} ({req.userId.email})
+                      </span>
                     </span>
                     <div className="space-x-2">
                       <button

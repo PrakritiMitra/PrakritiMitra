@@ -16,7 +16,6 @@ export default function EditEventPage() {
   const [formData, setFormData] = useState(null);
   const [questionnaireData, setQuestionnaireData] = useState(null);
 
-  const [existingImages, setExistingImages] = useState([]);
   const [existingLetter, setExistingLetter] = useState(null);
   const [removedImages, setRemovedImages] = useState([]);
   const [removedLetter, setRemovedLetter] = useState(false);
@@ -45,10 +44,10 @@ export default function EditEventPage() {
           recurringValue: e.recurringValue || "",
           organization: e.organization?._id || "",
           eventImages: [],
+          existingImages: e.eventImages || [], // <-- add this
           govtApprovalLetter: null,
         });
 
-        setExistingImages(e.eventImages || []);
         setExistingLetter(e.govtApprovalLetter || null);
 
         setQuestionnaireData({
@@ -80,7 +79,10 @@ export default function EditEventPage() {
 
   // 🔴 Remove specific image
   const handleRemoveExistingImage = (filename) => {
-    setExistingImages((prev) => prev.filter((img) => img !== filename));
+    setFormData((prev) => ({
+      ...prev,
+      existingImages: prev.existingImages.filter((img) => img !== filename),
+    }));
     setRemovedImages((prev) => [...prev, filename]);
   };
 
@@ -154,8 +156,14 @@ export default function EditEventPage() {
           <EventStepOne
             formData={formData}
             setFormData={handleFormUpdate}
-            setImageFiles={(files) =>
-              setFormData((prev) => ({ ...prev, eventImages: files }))
+            setImageFiles={(updater) =>
+              setFormData((prev) => ({
+                ...prev,
+                eventImages:
+                  typeof updater === "function"
+                    ? updater(Array.isArray(prev.eventImages) ? prev.eventImages : [])
+                    : updater,
+              }))
             }
             setLetterFile={(file) =>
               setFormData((prev) => ({ ...prev, govtApprovalLetter: file }))
@@ -163,7 +171,7 @@ export default function EditEventPage() {
             selectedOrgId={formData.organization}
             onNext={() => setStep(2)}
             isEditMode
-            existingImages={existingImages}
+            existingImages={formData.existingImages}
             existingLetter={existingLetter}
             onRemoveExistingImage={handleRemoveExistingImage}
             onRemoveExistingLetter={handleRemoveExistingLetter}
@@ -183,6 +191,7 @@ export default function EditEventPage() {
           <EventPreview
             formData={formData}
             questionnaireData={questionnaireData}
+            existingLetter={existingLetter}
             onBack={() => setStep(2)}
             onSubmit={handleSubmit}
           />

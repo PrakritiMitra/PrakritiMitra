@@ -3,12 +3,12 @@ const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
 const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance } = require('../controllers/eventController');
-const { upload } = require('../middlewares/upload');
+const { eventMultiUpload } = require('../middlewares/upload');
 
 const Event = require("../models/event");
 
 // @route   POST /api/events/create
-router.post( '/create', protect, upload.fields([{ name: 'eventImages', maxCount: 5 }, { name: 'govtApprovalLetter', maxCount: 1 },]), createEvent);
+router.post( '/create', protect, eventMultiUpload, createEvent);
 
 // @route   GET /api/events
 router.get('/', getAllEvents);
@@ -54,7 +54,7 @@ router.post("/batch", protect, async (req, res) => {
 
 // Get event by ID /api/events/:id
 router.get('/:id', getEventById);
-router.put('/:id', protect, upload.fields([{ name: 'eventImages', maxCount: 5 }, { name: 'govtApprovalLetter', maxCount: 1 },]), updateEvent);
+router.put('/:id', protect, eventMultiUpload, updateEvent);
 router.delete('/:id', protect, deleteEvent);
 
 // @route   GET /api/events/organization/:orgId

@@ -52,7 +52,7 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
             <div className="flex items-center gap-4 mb-4">
               {volunteer.profileImage ? (
                 <img
-                  src={`http://localhost:5000/uploads/${volunteer.profileImage}`}
+                  src={`http://localhost:5000/uploads/Profiles/${volunteer.profileImage}`}
                   alt={volunteer.name}
                   className="w-12 h-12 rounded-full object-cover bg-gray-200"
                 />

@@ -3,25 +3,66 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
 const User = require('../models/user');
-const { upload } = require('../middlewares/upload');
+const { profileMultiUpload } = require('../middlewares/upload');
+const fs = require('fs');
+const path = require('path');
+
+// Helper function to safely delete files
+const deleteFile = (filePath, fileName) => {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`Deleted file: ${fileName}`);
+      return true;
+    }
+  } catch (error) {
+    console.error(`Error deleting file ${fileName}:`, error);
+  }
+  return false;
+};
 
 router.get('/profile', protect, (req, res) => {
   res.json({ user: req.user });
 });
 
-router.put('/profile', protect, upload.fields([
-  { name: 'profileImage', maxCount: 1 },
-  { name: 'govtIdProof', maxCount: 1 }
-]), async (req, res) => {
+router.put('/profile', protect, profileMultiUpload, async (req, res) => {
   try {
+    console.log('Profile update request received');
+    console.log('Files:', req.files);
+    console.log('Body:', req.body);
+    
     const userId = req.user._id;
+    
+    // Get current user data to check for existing files
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
     const updateData = { ...req.body };
 
     // Parse socials if sent as JSON string
-    if (updateData.socials && typeof updateData.socials === 'string') {
-      try {
-        updateData.socials = JSON.parse(updateData.socials);
-      } catch (e) {
+    if (updateData.socials) {
+      if (typeof updateData.socials === 'string') {
+        try {
+          updateData.socials = JSON.parse(updateData.socials);
+        } catch (e) {
+          console.error('Error parsing socials:', e);
+          updateData.socials = {};
+        }
+      }
+      // Ensure socials has the correct structure
+      if (typeof updateData.socials === 'object' && updateData.socials !== null) {
+        updateData.socials = {
+          instagram: updateData.socials.instagram || '',
+          linkedin: updateData.socials.linkedin || '',
+          twitter: updateData.socials.twitter || '',
+          facebook: updateData.socials.facebook || ''
+        };
+      } else {
         updateData.socials = {};
       }
     }
@@ -33,10 +74,35 @@ router.put('/profile', protect, upload.fields([
 
     // Handle profile image upload
     if (req.files?.profileImage?.[0]) {
+      // Delete old profile image if it exists
+      if (currentUser.profileImage) {
+        const oldProfileImagePath = path.join(__dirname, '../uploads/Profiles', currentUser.profileImage);
+        deleteFile(oldProfileImagePath, currentUser.profileImage);
+      }
       updateData.profileImage = req.files.profileImage[0].filename;
+    } else if (req.body.removeProfileImage === 'true') {
+      // Handle profile image removal
+      if (currentUser.profileImage) {
+        const oldProfileImagePath = path.join(__dirname, '../uploads/Profiles', currentUser.profileImage);
+        deleteFile(oldProfileImagePath, currentUser.profileImage);
+      }
+      updateData.profileImage = null;
     }
+    
     if (req.files?.govtIdProof?.[0]) {
+      // Delete old government ID proof if it exists
+      if (currentUser.govtIdProofUrl) {
+        const oldGovtIdPath = path.join(__dirname, '../uploads/Profiles', currentUser.govtIdProofUrl);
+        deleteFile(oldGovtIdPath, currentUser.govtIdProofUrl);
+      }
       updateData.govtIdProofUrl = req.files.govtIdProof[0].filename;
+    } else if (req.body.removeGovtIdProof === 'true') {
+      // Handle government ID proof removal
+      if (currentUser.govtIdProofUrl) {
+        const oldGovtIdPath = path.join(__dirname, '../uploads/Profiles', currentUser.govtIdProofUrl);
+        deleteFile(oldGovtIdPath, currentUser.govtIdProofUrl);
+      }
+      updateData.govtIdProofUrl = null;
     }
 
     // Remove password from update data if it's not being changed
@@ -57,9 +123,15 @@ router.put('/profile', protect, upload.fields([
     });
   } catch (error) {
     console.error('Profile update error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      updateData: updateData
+    });
     res.status(500).json({
       success: false,
-      message: 'Failed to update profile'
+      message: 'Failed to update profile',
+      error: error.message
     });
   }
 });

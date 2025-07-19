@@ -13,7 +13,7 @@ export default function EventAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const currentUser = JSON.parse(localStorage.getItem("user"));
-  const imageBaseUrl = "http://localhost:5000/uploads/";
+  const imageBaseUrl = "http://localhost:5000/uploads/Profiles/";
 
   useEffect(() => {
     const fetchData = async () => {

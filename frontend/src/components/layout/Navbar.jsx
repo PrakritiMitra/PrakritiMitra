@@ -180,7 +180,7 @@ export default function Navbar() {
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
                   {user && user.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/${user.profileImage}`}
+                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
                       alt="Profile"
                       className="w-8 h-8 rounded-full object-cover"
                     />

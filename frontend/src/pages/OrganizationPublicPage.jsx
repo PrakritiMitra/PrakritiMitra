@@ -7,12 +7,12 @@ import {
 import { getEventsByOrganization } from '../api/event';
 import EventCard from '../components/event/EventCard';
 
-const fileUrl = (path) =>
-  path ? `http://localhost:5000/${path.replace(/\\/g, '/')}` : null;
+const orgFileUrl = (filename) =>
+  filename ? `http://localhost:5000/uploads/organizationdetails/${filename.replace(/\\/g, '/')}` : null;
 
 function FilePreview({ filePath, label }) {
   if (!filePath) return null;
-  const url = fileUrl(filePath);
+  const url = orgFileUrl(filePath);
   if (filePath.match(/\.(jpg|jpeg|png|gif)$/i)) {
     return (
       <div className="my-2">
@@ -91,7 +91,7 @@ export default function OrganizationPublicPage() {
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow mt-10">
       <div className="flex flex-col sm:flex-row items-center gap-6">
         {logo && (
-          <img src={fileUrl(logo)} alt={name} className="w-28 h-28 rounded-lg object-cover border" />
+          <img src={orgFileUrl(logo)} alt={name} className="w-28 h-28 rounded-lg object-cover border" />
         )}
         <div className="flex-1">
           <h1 className="text-3xl font-bold text-blue-700 mb-1">{name}</h1>
@@ -187,7 +187,7 @@ export default function OrganizationPublicPage() {
             {team.filter(member => member.status === 'approved').map((member) => (
               <div key={member._id} className="flex items-center gap-3 mb-4">
                 {member.userId?.profileImage ? (
-                  <img src={fileUrl('uploads/' + member.userId.profileImage)} alt={member.userId?.name} className="w-10 h-10 rounded-full object-cover border" />
+                  <img src={`http://localhost:5000/uploads/Profiles/${member.userId.profileImage}`} alt={member.userId?.name} className="w-10 h-10 rounded-full object-cover border" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-lg font-bold text-blue-700">
                     {member.userId?.name?.[0]}
