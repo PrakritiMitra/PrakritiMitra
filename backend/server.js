@@ -14,6 +14,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const User = require('./models/user');
 const Message = require('./models/Message');
+const chatRoutes = require('./routes/chatRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -59,6 +60,7 @@ app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/chatbox', chatboxRoutes); // <-- Use chatbox routes
+app.use('/api/chat', chatRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);
