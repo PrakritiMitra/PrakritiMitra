@@ -14,38 +14,35 @@ exports.registerForEvent = async (req, res) => {
       return res.status(400).json({ message: "You have already registered for this event." });
     }
 
-    const payload = {
+    // 1. Create registration first (without QR code)
+    const registration = new Registration({
       eventId,
       volunteerId,
       groupMembers: groupMembers || [],
-    };
+    });
+    await registration.save();
 
-    // Generate QR Code data
+    // 2. Generate QR code with registrationId
     const qrData = JSON.stringify({
-      volunteerId,
+      registrationId: registration._id,
       eventId,
-      groupMembers,
-      registeredAt: new Date(),
+      volunteerId,
     });
 
-    // Save QR Code image to file system
-    const fileName = `qr-${volunteerId}-${Date.now()}.png`;
+    const fileName = `qr-${registration._id}-${Date.now()}.png`;
     const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
 
-    // Ensure folder exists
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-
     await QRCode.toFile(filePath, qrData);
 
-    payload.qrCodePath = `/uploads/qrcodes/${fileName}`;
-
-    const registration = new Registration(payload);
+    // 3. Update registration with QR code path
+    registration.qrCodePath = `/uploads/qrcodes/${fileName}`;
     await registration.save();
 
     res.status(201).json({
       message: "Registered successfully.",
       registrationId: registration._id,
-      qrCodePath: payload.qrCodePath,
+      qrCodePath: registration.qrCodePath,
     });
   } catch (err) {
     console.error("❌ Registration error:", err);
@@ -168,5 +165,23 @@ exports.getRegistrationsForVolunteer = async (req, res) => {
   } catch (err) {
     console.error('[DEBUG] Error fetching registrations:', err);
     res.status(500).json({ message: 'Server error fetching registrations', error: err });
+  }
+};
+
+// Get a specific registration for a volunteer and event
+exports.getRegistrationForVolunteerEvent = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const volunteerId = req.user._id; // from protect middleware
+
+    const registration = await Registration.findOne({ eventId, volunteerId });
+
+    if (!registration) {
+      return res.status(404).json({ message: "Registration not found." });
+    }
+
+    res.json(registration);
+  } catch (err) {
+    res.status(500).json({ message: "Server error fetching registration details." });
   }
 };

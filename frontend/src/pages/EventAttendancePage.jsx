@@ -4,6 +4,8 @@ import { getFullOrganizerTeam, updateOrganizerAttendance } from "../api/event";
 import { getVolunteersForEvent, updateVolunteerAttendance } from "../api/registration";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+import AttendanceQrScanner from "../components/attendance/AttendanceQrScanner";
+import axiosInstance from "../api/axiosInstance"; // <-- Use axiosInstance
 
 export default function EventAttendancePage() {
   const { eventId } = useParams();
@@ -14,6 +16,7 @@ export default function EventAttendancePage() {
   const [error, setError] = useState("");
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const imageBaseUrl = "http://localhost:5000/uploads/Profiles/";
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,6 +69,24 @@ export default function EventAttendancePage() {
     }
   };
 
+  const handleScan = async (scannedText) => {
+    try {
+      console.log("Scanned QR content:", scannedText);
+      const data = JSON.parse(scannedText);
+      const registrationId = data.registrationId;
+      console.log("Parsed registrationId:", registrationId);
+      if (!registrationId) throw new Error("Invalid QR code");
+      const response = await axiosInstance.patch(`/registrations/${registrationId}/attendance`, { hasAttended: true });
+      console.log("Attendance API response:", response.data);
+      alert("Attendance marked!");
+      setVolunteers((prev) => prev.map((v) => v.registrationId === registrationId ? { ...v, hasAttended: true } : v));
+    } catch (err) {
+      console.error("Attendance scan error:", err);
+      alert("Invalid QR code or failed to mark attendance.");
+    }
+    setShowScanner(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <Navbar />
@@ -73,7 +94,27 @@ export default function EventAttendancePage() {
         <button className="mb-4 text-blue-600 underline" onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <h1 className="text-2xl font-bold text-blue-800 mb-6">Event Attendance</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-blue-800">Event Attendance</h1>
+          <button
+            className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-transform transform hover:scale-105"
+            onClick={() => setShowScanner(true)}
+          >
+            Scan Volunteer QR
+          </button>
+        </div>
+
+        {showScanner && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-2xl p-8 relative w-full max-w-md">
+              <h3 className="text-xl font-semibold text-center mb-4 text-gray-800">Scan QR Code</h3>
+              <AttendanceQrScanner
+                onScan={handleScan}
+                onClose={() => setShowScanner(false)}
+              />
+            </div>
+          </div>
+        )}
         {loading ? (
           <div>Loading...</div>
         ) : error ? (
