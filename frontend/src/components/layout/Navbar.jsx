@@ -195,6 +195,14 @@ export default function Navbar() {
                 <span className="font-medium text-sm"></span>
               </Link>
 
+              {/* Resource Center link for all logged-in users */}
+              <Link
+                to="/resources"
+                className={`font-medium text-sm ${isActive("/resources") ? "text-blue-600" : "text-gray-700 hover:text-blue-500"}`}
+              >
+                Resource Center
+              </Link>
+
               <button
                 onClick={handleLogout}
                 className="font-medium text-sm text-gray-700 hover:text-red-500"

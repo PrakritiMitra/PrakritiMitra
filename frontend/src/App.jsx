@@ -23,6 +23,7 @@ import VolunteerPublicPage from "./pages/VolunteerPublicPage";
 import EventAttendancePage from './pages/EventAttendancePage';
 import OrganizationPublicPage from "./pages/OrganizationPublicPage";
 import VolunteerMyEvents from "./pages/VolunteerMyEvents";
+import ResourceCenter from "./pages/ResourceCenter";
 
 function App() {
   return (
@@ -170,6 +171,14 @@ function App() {
           element={
             <PrivateRoute>
               <OrganizationPublicPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/resources"
+          element={
+            <PrivateRoute>
+              <ResourceCenter />
             </PrivateRoute>
           }
         />

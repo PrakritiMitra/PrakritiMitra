@@ -7,6 +7,7 @@ const userRoutes = require('./routes/userRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const registrationRoutes = require("./routes/registrationRoutes");
+const resourceRoutes = require('./routes/resourceRoutes');
 const path = require('path');
 
 const cors = require('cors');
@@ -39,6 +40,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);
+app.use('/api/resources', resourceRoutes);
 
 // ✅ Sample home route
 app.get("/", (req, res) => {
