@@ -9,6 +9,7 @@ const eventRoutes = require('./routes/eventRoutes');
 const registrationRoutes = require("./routes/registrationRoutes");
 const resourceRoutes = require('./routes/resourceRoutes');
 const path = require('path');
+const chatRoutes = require('./routes/chatRoutes');
 
 const cors = require('cors');
 
@@ -41,6 +42,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);
 app.use('/api/resources', resourceRoutes);
+app.use('/api/chat', chatRoutes);
 
 // ✅ Sample home route
 app.get("/", (req, res) => {

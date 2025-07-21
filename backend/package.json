@@ -18,6 +18,7 @@
   "author": "Sidhik and Amrut",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.10.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
@@ -29,6 +30,8 @@
     "mongoose": "^7.5.0",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^5.10.1",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
