@@ -8,7 +8,7 @@ const organizationRoutes = require('./routes/organizationRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const registrationRoutes = require("./routes/registrationRoutes");
 const resourceRoutes = require('./routes/resourceRoutes');
-const chatRoutes = require('./routes/chatRoutes'); // <-- Import chat routes
+const chatboxRoutes = require('./routes/chatboxRoutes'); // <-- Import chatbox routes
 const initializeSocket = require('./socketHandler'); // <-- Import the handler
 const path = require('path');
 const jwt = require('jsonwebtoken');
@@ -58,7 +58,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);
 app.use('/api/resources', resourceRoutes);
-app.use('/api/chat', chatRoutes); // <-- Use chat routes
+app.use('/api/chat', chatboxRoutes); // <-- Use chatbox routes
 
 // Initialize Socket.IO
 initializeSocket(io);

@@ -16,7 +16,7 @@ const socket = io('http://localhost:5000', {
   }
 });
 
-export default function EventChat({ eventId, currentUser }) {
+export default function EventChatbox({ eventId, currentUser }) {
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
@@ -78,16 +78,34 @@ export default function EventChat({ eventId, currentUser }) {
     socket.emit('joinEventRoom', eventId);
 
     const receiveMessageHandler = (message) => {
+      // 1. Robustly get the sender's ID, whether userId is a string or an object.
+      const senderId = typeof message.userId === 'object' && message.userId !== null
+        ? message.userId._id
+        : message.userId;
+      console.log('Received message:', message);
+      console.log('SenderId:', senderId, 'CurrentUser:', currentUser._id);
+
+      // 2. The 'isFromMe' check now works reliably.
+      const isFromMe = String(senderId) === String(currentUser._id);
+
       const container = chatContainerRef.current;
       let isNearBottom = true;
       if (container) {
         isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
       }
+
       setMessages((prev) => [...prev, message]);
-      if (isNearBottom) {
+
+      // 3. This condition will now be true when you send a message.
+      if (isFromMe || isNearBottom) {
+        // This is the new, more reliable scroll logic
         setTimeout(() => {
-          chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 0);
+          const chatContainer = chatContainerRef.current;
+          if (chatContainer) {
+            // Directly set the scroll position to the bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        }, 50); // Increased timeout to ensure rendering is complete
       }
     };
 
@@ -396,193 +414,198 @@ export default function EventChat({ eventId, currentUser }) {
               </div>
             )}
             {messages.length === 0 ? (
-              <div className="text-center italic text-gray-400 py-8">
-                No messages yet. Start the conversation!
-              </div>
-            ) : messages.map((msg, idx) => {
-              const isMe = msg.userId?._id === currentUser._id;
-              const role = msg.userId?.role;
-              const roleLabel = role === 'organizer' ? 'Organizer' : 'Volunteer';
-              const roleColor = role === 'organizer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white';
-              // Improved color scheme for sender's own messages
-              const bubbleColor = isMe
-                ? (role === 'organizer'
-                    ? 'bg-blue-200 text-blue-900 border border-blue-400'
-                    : 'bg-green-200 text-green-900 border border-green-400')
-                : (role === 'organizer'
-                    ? 'bg-blue-100 text-blue-900'
-                    : 'bg-green-100 text-green-900');
-              const isPinned = pinnedMessage && msg._id === pinnedMessage._id;
+              <>
+                <div className="text-center italic text-gray-400 py-8">
+                  No messages yet. Start the conversation!
+                </div>
+                <div ref={chatEndRef} />
+              </>
+            ) : <>
+              {messages.map((msg, idx) => {
+                const isMe = msg.userId?._id === currentUser._id;
+                const role = msg.userId?.role;
+                const roleLabel = role === 'organizer' ? 'Organizer' : 'Volunteer';
+                const roleColor = role === 'organizer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white';
+                // Improved color scheme for sender's own messages
+                const bubbleColor = isMe
+                  ? (role === 'organizer'
+                      ? 'bg-blue-200 text-blue-900 border border-blue-400'
+                      : 'bg-green-200 text-green-900 border border-green-400')
+                  : (role === 'organizer'
+                      ? 'bg-blue-100 text-blue-900'
+                      : 'bg-green-100 text-green-900');
+                const isPinned = pinnedMessage && msg._id === pinnedMessage._id;
 
-              const aggregatedReactions = msg.reactions.reduce((acc, reaction) => {
-                acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
-                return acc;
-              }, {});
+                const aggregatedReactions = msg.reactions.reduce((acc, reaction) => {
+                  acc[reaction.emoji] = (acc[reaction.emoji] || 0) + 1;
+                  return acc;
+                }, {});
 
-              // For reply display
-              const reply = msg.replyTo;
+                // For reply display
+                const reply = msg.replyTo;
 
-              return (
-                <div
-                  key={msg._id}
-                  ref={idx === 0 ? firstMsgRef : null}
-                  className={`group flex items-start gap-3 my-2 ${isMe ? 'flex-row-reverse' : ''}`}
-                >
-                  <img
-                    src={msg.userId?.profileImage ? `http://localhost:5000/uploads/Profiles/${msg.userId.profileImage}` : '/images/default-profile.jpg'}
-                    alt={msg.userId?.name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                  <div className={`relative p-3 rounded-lg max-w-[70%] ${bubbleColor} ${isPinned ? 'border-2 border-yellow-400' : ''}`}>
-                    {/* Reply preview in chat bubble */}
-                    {reply && (
-                      <div className="mb-2 p-2 rounded bg-gray-100 border-l-4 border-blue-400">
-                        <div className="text-xs text-gray-500">Replying to <span className="font-semibold">{reply.userId?.name}</span></div>
-                        <div className="truncate text-xs text-gray-700 max-w-xs">{reply.message}</div>
-                      </div>
-                    )}
-                    <div className="absolute top-0 right-0 -mt-2 flex items-center gap-1">
-                      {currentUser.role === 'organizer' && (
-                        isPinned ? (
-                          <button
-                            onClick={() => handlePinMessage(msg)}
-                            className={`p-1 rounded-full bg-white text-yellow-500 hover:text-yellow-700 border border-yellow-400`}
-                            title="Unpin Message"
-                          >
-                            <FaThumbtack size={12} />
-                          </button>
-                        ) : (
-                          !pinnedMessage && (
+                return (
+                  <div
+                    key={msg._id}
+                    ref={idx === 0 ? firstMsgRef : null}
+                    className={`group flex items-start gap-3 my-2 ${isMe ? 'flex-row-reverse' : ''}`}
+                  >
+                    <img
+                      src={msg.userId?.profileImage ? `http://localhost:5000/uploads/Profiles/${msg.userId.profileImage}` : '/images/default-profile.jpg'}
+                      alt={msg.userId?.name}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <div className={`relative p-3 rounded-lg max-w-[70%] ${bubbleColor} ${isPinned ? 'border-2 border-yellow-400' : ''}`}>
+                      {/* Reply preview in chat bubble */}
+                      {reply && (
+                        <div className="mb-2 p-2 rounded bg-gray-100 border-l-4 border-blue-400">
+                          <div className="text-xs text-gray-500">Replying to <span className="font-semibold">{reply.userId?.name}</span></div>
+                          <div className="truncate text-xs text-gray-700 max-w-xs">{reply.message}</div>
+                        </div>
+                      )}
+                      <div className="absolute top-0 right-0 -mt-2 flex items-center gap-1">
+                        {currentUser.role === 'organizer' && (
+                          isPinned ? (
                             <button
                               onClick={() => handlePinMessage(msg)}
-                              className="p-1 rounded-full bg-white text-gray-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="Pin Message"
+                              className={`p-1 rounded-full bg-white text-yellow-500 hover:text-yellow-700 border border-yellow-400`}
+                              title="Unpin Message"
                             >
                               <FaThumbtack size={12} />
                             </button>
+                          ) : (
+                            !pinnedMessage && (
+                              <button
+                                onClick={() => handlePinMessage(msg)}
+                                className="p-1 rounded-full bg-white text-gray-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Pin Message"
+                              >
+                                <FaThumbtack size={12} />
+                              </button>
+                            )
                           )
+                        )}
+                        <button
+                          onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg._id ? null : msg._id)}
+                          className="p-1 rounded-full bg-white text-gray-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Add reaction"
+                        >
+                          <FaSmile size={12} />
+                        </button>
+                        <button
+                          onClick={() => setReplyToMessage(msg)}
+                          className="p-1 rounded-full bg-white text-gray-500 hover:text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Reply"
+                        >
+                          ↩️
+                        </button>
+                        {canEditMessage(msg) && (
+                          <button
+                            onClick={() => handleEditClick(msg)}
+                            className="p-1 rounded-full bg-white text-gray-500 hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Edit"
+                          >
+                            <FiEdit2 size={12} />
+                          </button>
+                        )}
+                        {canUnsendMessage(msg) && (
+                          <button
+                            onClick={() => handleUnsendClick(msg)}
+                            className="p-1 rounded-full bg-white text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Unsend"
+                          >
+                            <MdDelete size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {showEmojiPickerFor === msg._id && (
+                        <div ref={emojiPickerRef} className="absolute z-10 -top-8 left-0 bg-white border rounded-full px-2 py-1 flex gap-1 shadow-lg">
+                          {EMOJIS.map(emoji => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleReaction(msg._id, emoji)}
+                              className="text-lg hover:scale-125 transition-transform"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-sm">{msg.userId?.name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${roleColor}`}>{roleLabel}</span>
+                        {isPinned && (
+                          <FaThumbtack className="ml-1 text-yellow-500" title="Pinned" />
+                        )}
+                      </div>
+                      {editingMessageId === msg._id ? (
+                        <div className="flex gap-2 items-center mt-1">
+                          <input
+                            type="text"
+                            value={editingText}
+                            onChange={e => setEditingText(e.target.value)}
+                            className="flex-1 p-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            maxLength={500}
+                          />
+                          <button
+                            type="button"
+                            className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 border border-blue-700 font-semibold"
+                            onClick={() => handleEditSave(msg)}
+                          >Save</button>
+                          <button
+                            type="button"
+                            className="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 border border-gray-400 font-semibold"
+                            onClick={() => { setEditingMessageId(null); setEditingText(''); }}
+                          >Cancel</button>
+                        </div>
+                      ) : (
+                        <p className="text-sm break-words whitespace-pre-line">{msg.message}</p>
+                      )}
+                      {msg.fileUrl && (
+                        msg.fileType && msg.fileType.startsWith('image/') ? (
+                          <img
+                            src={`http://localhost:5000${msg.fileUrl}`}
+                            alt="Shared file"
+                            className="mt-2 rounded-lg max-w-full h-auto"
+                          />
+                        ) : (
+                          <a
+                            href={`http://localhost:5000${msg.fileUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 text-blue-300 underline"
+                          >
+                            View File: {msg.message}
+                          </a>
                         )
                       )}
-                      <button
-                        onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg._id ? null : msg._id)}
-                        className="p-1 rounded-full bg-white text-gray-500 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Add reaction"
-                      >
-                        <FaSmile size={12} />
-                      </button>
-                      <button
-                        onClick={() => setReplyToMessage(msg)}
-                        className="p-1 rounded-full bg-white text-gray-500 hover:text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Reply"
-                      >
-                        ↩️
-                      </button>
-                      {canEditMessage(msg) && (
-                        <button
-                          onClick={() => handleEditClick(msg)}
-                          className="p-1 rounded-full bg-white text-gray-500 hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Edit"
-                        >
-                          <FiEdit2 size={12} />
-                        </button>
+                      {msg.edited && (
+                        <div className="text-xs text-gray-400 mt-1">edited</div>
                       )}
-                      {canUnsendMessage(msg) && (
-                        <button
-                          onClick={() => handleUnsendClick(msg)}
-                          className="p-1 rounded-full bg-white text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Unsend"
-                        >
-                          <MdDelete size={14} />
-                        </button>
+                      <div className="text-xs text-right mt-1 opacity-70">
+                        {format(new Date(msg.createdAt), 'p')}
+                      </div>
+                      {Object.keys(aggregatedReactions).length > 0 && (
+                        <div className="mt-2 flex gap-1 flex-wrap">
+                          {Object.entries(aggregatedReactions).map(([emoji, count]) => (
+                            <div
+                              key={emoji}
+                              className="bg-gray-200 bg-opacity-50 rounded-full px-2 py-0.5 flex items-center text-xs"
+                            >
+                              <span>{emoji}</span>
+                              <span className="ml-1 font-semibold">{count}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-
-                    {showEmojiPickerFor === msg._id && (
-                      <div ref={emojiPickerRef} className="absolute z-10 -top-8 left-0 bg-white border rounded-full px-2 py-1 flex gap-1 shadow-lg">
-                        {EMOJIS.map(emoji => (
-                          <button
-                            key={emoji}
-                            onClick={() => handleReaction(msg._id, emoji)}
-                            className="text-lg hover:scale-125 transition-transform"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-sm">{msg.userId?.name}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${roleColor}`}>{roleLabel}</span>
-                      {isPinned && (
-                        <FaThumbtack className="ml-1 text-yellow-500" title="Pinned" />
-                      )}
-                    </div>
-                    {editingMessageId === msg._id ? (
-                      <div className="flex gap-2 items-center mt-1">
-                        <input
-                          type="text"
-                          value={editingText}
-                          onChange={e => setEditingText(e.target.value)}
-                          className="flex-1 p-1 border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          maxLength={500}
-                        />
-                        <button
-                          type="button"
-                          className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 border border-blue-700 font-semibold"
-                          onClick={() => handleEditSave(msg)}
-                        >Save</button>
-                        <button
-                          type="button"
-                          className="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 border border-gray-400 font-semibold"
-                          onClick={() => { setEditingMessageId(null); setEditingText(''); }}
-                        >Cancel</button>
-                      </div>
-                    ) : (
-                      <p className="text-sm break-words whitespace-pre-line">{msg.message}</p>
-                    )}
-                    {msg.fileUrl && (
-                      msg.fileType && msg.fileType.startsWith('image/') ? (
-                        <img
-                          src={`http://localhost:5000${msg.fileUrl}`}
-                          alt="Shared file"
-                          className="mt-2 rounded-lg max-w-full h-auto"
-                        />
-                      ) : (
-                        <a
-                          href={`http://localhost:5000${msg.fileUrl}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 text-blue-300 underline"
-                        >
-                          View File: {msg.message}
-                        </a>
-                      )
-                    )}
-                    {msg.edited && (
-                      <div className="text-xs text-gray-400 mt-1">edited</div>
-                    )}
-                    <div className="text-xs text-right mt-1 opacity-70">
-                      {format(new Date(msg.createdAt), 'p')}
-                    </div>
-                    {Object.keys(aggregatedReactions).length > 0 && (
-                      <div className="mt-2 flex gap-1 flex-wrap">
-                        {Object.entries(aggregatedReactions).map(([emoji, count]) => (
-                          <div
-                            key={emoji}
-                            className="bg-gray-200 bg-opacity-50 rounded-full px-2 py-0.5 flex items-center text-xs"
-                          >
-                            <span>{emoji}</span>
-                            <span className="ml-1 font-semibold">{count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                </div>
-              );
-            })}
-            <div ref={chatEndRef} />
+                );
+              })}
+              <div ref={chatEndRef} />
+            </>}
           </div>
           <div className="h-6 px-4 text-sm text-gray-500 italic">
             {typingDisplay && `${typingDisplay} is typing...`}

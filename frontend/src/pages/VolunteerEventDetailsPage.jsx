@@ -12,7 +12,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { getFullOrganizerTeam } from "../api/event";
 import { useCallback } from "react";
 import { io } from "socket.io-client";
-import EventChat from '../components/chat/EventChat';
+import EventChatbox from '../components/chat/EventChatbox';
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -480,7 +480,7 @@ export default function VolunteerEventDetailsPage() {
         </div>
       </div>
       {event && (
-        <EventChat eventId={event._id} currentUser={user} />
+        <EventChatbox eventId={event._id} currentUser={user} />
       )}
       {!isPastEvent && (
         <VolunteerRegisterModal

@@ -6,7 +6,7 @@ import Navbar from "../components/layout/Navbar";
 import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/event";
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
-import EventChat from '../components/chat/EventChat';
+import EventChatbox from '../components/chat/EventChatbox';
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -379,9 +379,9 @@ export default function EventDetailsPage() {
               Event Images
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {event.eventImages.map((img) => (
+              {event.eventImages.map((img, idx) => (
                 <img
-                  key={img}
+                  key={img + '-' + idx}
                   src={`${imageBaseUrl}${img}`}
                   alt="Event"
                   className="w-full max-w-md rounded shadow my-2"
@@ -403,7 +403,7 @@ export default function EventDetailsPage() {
         )}
       </div>
       {event && (
-        <EventChat eventId={event._id} currentUser={currentUser} />
+        <EventChatbox eventId={event._id} currentUser={currentUser} />
       )}
     </div>
   );
