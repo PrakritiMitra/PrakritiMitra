@@ -76,12 +76,28 @@ const eventMultiUpload = eventUpload.fields([
   { name: 'govtApprovalLetter', maxCount: 1 },
 ]);
 
-module.exports = { 
-  organizationUpload, 
-  eventUpload, 
+// Chat storage - store in ./uploads/Chat
+const chatStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/Chat';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const chatUpload = multer({ storage: chatStorage });
+
+module.exports = {
+  organizationUpload,
+  eventUpload,
   profileUpload,
-  multiUpload, 
+  multiUpload,
   eventMultiUpload,
   profileMultiUpload,
-  profileSingleUpload
+  profileSingleUpload,
+  chatUpload, // <-- Export chat upload
 };

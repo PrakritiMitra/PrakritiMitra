@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import axiosInstance from "../api/axiosInstance";
 import EventCard from "../components/event/EventCard";
 
@@ -166,7 +165,6 @@ export default function VolunteerPublicPage() {
           )}
         </div>
       </div>
-      <Footer />
       {/* Fade-in animation keyframes */}
       <style>{`
         .animate-fade-in {

@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import { useNavigate } from "react-router-dom";
 
 export default function JoinOrganizationPage() {
@@ -141,7 +140,6 @@ export default function JoinOrganizationPage() {
           ))}
         </div>
       )}
-      <Footer />
     </div>
   );
 }

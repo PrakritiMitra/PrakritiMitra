@@ -3,9 +3,10 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/event";
 import { getVolunteersForEvent } from "../api/registration";
+import { io } from "socket.io-client";
+import EventChatbox from '../components/chat/EventChatbox';
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -65,6 +66,17 @@ export default function EventDetailsPage() {
       })
       .catch(() => setVolunteersLoading(false));
   }, [event?._id]);
+
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+    socket.on('connect', () => {
+      console.log('Socket.IO connected (organizer):', socket.id);
+    });
+    socket.on('disconnect', () => {
+      console.log('Socket.IO disconnected (organizer)');
+    });
+    return () => socket.disconnect();
+  }, []);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -367,9 +379,9 @@ export default function EventDetailsPage() {
               Event Images
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {event.eventImages.map((img) => (
+              {event.eventImages.map((img, idx) => (
                 <img
-                  key={img}
+                  key={img + '-' + idx}
                   src={`${imageBaseUrl}${img}`}
                   alt="Event"
                   className="w-full max-w-md rounded shadow my-2"
@@ -390,7 +402,9 @@ export default function EventDetailsPage() {
           </a>
         )}
       </div>
-      <Footer />
+      {event && (
+        <EventChatbox eventId={event._id} currentUser={currentUser} />
+      )}
     </div>
   );
 }

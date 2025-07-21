@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import { getUserById } from "../api/organization";
 import { FaInstagram, FaLinkedin, FaTwitter, FaFacebook } from "react-icons/fa";
 import axiosInstance from "../api/axiosInstance";
@@ -243,7 +242,6 @@ export default function UserProfilePage() {
           )}
         </div>
       </div>
-      <Footer />
       {/* Fade-in animation keyframes */}
       <style>{`
         .animate-fade-in {

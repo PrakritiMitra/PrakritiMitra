@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getFullOrganizerTeam, updateOrganizerAttendance } from "../api/event";
 import { getVolunteersForEvent, updateVolunteerAttendance } from "../api/registration";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import AttendanceQrScanner from "../components/attendance/AttendanceQrScanner";
 import axiosInstance from "../api/axiosInstance"; // <-- Use axiosInstance
 
@@ -216,7 +215,6 @@ export default function EventAttendancePage() {
           </>
         )}
       </div>
-      <Footer />
     </div>
   );
 } 

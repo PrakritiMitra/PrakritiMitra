@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import EventCard from "../components/event/EventCard";
-import Footer from "../components/layout/Footer";
 
 export default function MyEvents() {
   const [events, setEvents] = useState([]);
@@ -93,7 +92,6 @@ export default function MyEvents() {
           </>
         )}
       </div>
-      <Footer />
     </div>
   );
 } 

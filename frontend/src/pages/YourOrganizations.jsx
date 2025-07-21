@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 
 export default function YourOrganizations() {
   const [orgs, setOrgs] = useState([]);
@@ -75,7 +74,6 @@ export default function YourOrganizations() {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import ResourceCard from "../components/resources/ResourceCard";
 
 const DOMAIN_LIST = [
@@ -178,7 +177,6 @@ export default function ResourceCenter() {
           </div>
         )}
       </main>
-      <Footer />
     </div>
   );
 }

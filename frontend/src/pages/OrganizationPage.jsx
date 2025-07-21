@@ -7,7 +7,6 @@ import Navbar from "../components/layout/Navbar";
 import { approveTeamMember, rejectTeamMember, getOrganizationOrganizers } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
-import Footer from "../components/layout/Footer";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -346,7 +345,6 @@ export default function OrganizationPage() {
           </div>
         </div>
       )}
-      <Footer />
     </div>
   );
 }
