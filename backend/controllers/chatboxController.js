@@ -36,7 +36,7 @@ exports.getMessages = async (req, res) => {
   }
 };
 
-// POST /api/chat/upload - Upload a file for chat
+// POST /api/chatbox/upload - Upload a file for chat
 exports.uploadFile = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded.' });
@@ -48,7 +48,7 @@ exports.uploadFile = async (req, res) => {
   });
 };
 
-// PATCH /api/chat/messages/:messageId/pin - Pin or unpin a message
+// PATCH /api/chatbox/messages/:messageId/pin - Pin or unpin a message
 exports.pinMessage = async (req, res) => {
   try {
     const { messageId } = req.params;

@@ -58,7 +58,7 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);
 app.use('/api/resources', resourceRoutes);
-app.use('/api/chat', chatboxRoutes); // <-- Use chatbox routes
+app.use('/api/chatbox', chatboxRoutes); // <-- Use chatbox routes
 
 // Initialize Socket.IO
 initializeSocket(io);

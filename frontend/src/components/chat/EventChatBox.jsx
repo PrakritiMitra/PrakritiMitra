@@ -47,7 +47,7 @@ export default function EventChatbox({ eventId, currentUser }) {
   // Fetch chat messages (moved outside useEffect for access in handlers)
   const fetchMessages = async (opts = {}) => {
     try {
-      let url = `/chat/events/${eventId}/messages?limit=20`;
+      let url = `/chatbox/events/${eventId}/messages?limit=20`;
       if (opts.before) url += `&before=${opts.before}`;
       const res = await axiosInstance.get(url);
       const newMessages = res.data;
@@ -217,7 +217,7 @@ export default function EventChatbox({ eventId, currentUser }) {
       const formData = new FormData();
       formData.append('file', fileToSend);
       try {
-        const res = await axiosInstance.post('/chat/upload', formData, {
+        const res = await axiosInstance.post('/chatbox/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         const { fileUrl, fileType } = res.data;
@@ -242,7 +242,7 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   const handlePinMessage = async (message) => {
     try {
-      const res = await axiosInstance.patch(`/chat/messages/${message._id}/pin`, { eventId });
+      const res = await axiosInstance.patch(`/chatbox/messages/${message._id}/pin`, { eventId });
       // Emit an event to notify all clients (including this one) about the pin status change
       socket.emit('pinMessage', { eventId, message: res.data });
     } catch (err) {
