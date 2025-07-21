@@ -75,36 +75,17 @@ export default function VolunteerEventDetailsPage() {
     if (event && event._id) fetchTeam();
   }, [event, id]);
 
-  // On event load, check with the backend if the user is actually registered for the event. If not, clear registration status and QR code from localStorage. Keep localStorage and UI in sync with backend.
+  // On event load, check with the backend if the user is actually registered for the event and get registration details.
   useEffect(() => {
     if (event && event._id && user && user._id) {
-      axiosInstance.get(`/registrations/${event._id}/check`)
+      axiosInstance.get(`/registrations/event/${event._id}/my-registration`)
         .then(res => {
-          setIsRegistered(res.data.registered);
-          if (res.data.registered) {
-            const regDetails = res.data; // Assuming res.data contains all registration details
-            setRegistrationDetails(regDetails);
-            // Also ensure event ID is in registeredEvents
-            const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
-            if (!registeredEvents.includes(event._id)) {
-              registeredEvents.push(event._id);
-              localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
-            }
-          } else {
-            setIsRegistered(false);
-            setRegistrationDetails(null);
-            // Remove from localStorage if not registered
-            const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
-            const idx = registeredEvents.indexOf(event._id);
-            if (idx !== -1) {
-              registeredEvents.splice(idx, 1);
-              localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
-            }
-            localStorage.removeItem(`registrationData_${event._id}`);
-          }
+          setIsRegistered(true);
+          setRegistrationDetails(res.data);
         })
         .catch(() => {
-          // Optionally handle error
+          setIsRegistered(false);
+          setRegistrationDetails(null);
         });
     }
   }, [event?._id, user?._id]);
@@ -137,6 +118,10 @@ export default function VolunteerEventDetailsPage() {
       );
       setRegisterSuccess(true);
       alert("Registered successfully!");
+      // Fetch registration details from backend
+      const regDetailsRes = await axiosInstance.get(`/registrations/event/${event._id}/my-registration`);
+      setIsRegistered(true);
+      setRegistrationDetails(regDetailsRes.data);
     } catch (err) {
       alert(err.response?.data?.message || "Registration failed");
     } finally {
@@ -155,6 +140,7 @@ export default function VolunteerEventDetailsPage() {
       setShowRegisterModal(false);
       // Fetch registration details from backend
       const regDetailsRes = await axiosInstance.get(`/registrations/event/${event._id}/my-registration`);
+      setIsRegistered(true);
       setRegistrationDetails(regDetailsRes.data);
     } catch (err) {
       console.error("Registration failed:", err);
@@ -331,7 +317,7 @@ export default function VolunteerEventDetailsPage() {
               <p className="text-red-600 font-semibold mt-6">This event has ended</p>
             ) : isLiveEvent ? (
               <p className="text-blue-700 font-semibold mt-6">Event is live</p>
-            ) : registrationSuccess && registrationDetails && registrationDetails.qrCodePath ? (
+            ) : isRegistered && registrationDetails && registrationDetails.qrCodePath ? (
               <>
                 <p className="text-green-700 font-semibold mt-6">✅ Registered Successfully</p>
                 <div className="mt-6 flex flex-col items-center">
@@ -353,14 +339,7 @@ export default function VolunteerEventDetailsPage() {
                       await axiosInstance.delete(`/registrations/${event._id}`);
                       setRegistrationSuccess(false);
                       setRegistrationDetails(null);
-                      // Remove from localStorage
-                      const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
-                      const idx = registeredEvents.indexOf(event._id);
-                      if (idx !== -1) {
-                        registeredEvents.splice(idx, 1);
-                        localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
-                      }
-                      localStorage.removeItem(`registrationData_${event._id}`);
+                      setIsRegistered(false); // Ensure isRegistered is false after withdrawal
                       alert('You have withdrawn your registration.');
                     } catch (err) {
                       alert('Failed to withdraw registration. Please try again.');
