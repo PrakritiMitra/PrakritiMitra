@@ -47,9 +47,9 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
     // Parse socials if sent as JSON string
     if (updateData.socials) {
       if (typeof updateData.socials === 'string') {
-        try {
-          updateData.socials = JSON.parse(updateData.socials);
-        } catch (e) {
+      try {
+        updateData.socials = JSON.parse(updateData.socials);
+      } catch (e) {
           console.error('Error parsing socials:', e);
           updateData.socials = {};
         }

@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import VolunteerEventCard from "../components/volunteer/VolunteerEventCard";
 
 export default function VolunteerOrganizationPage() {
@@ -103,7 +102,6 @@ export default function VolunteerOrganizationPage() {
           <p>Organization not found.</p>
         )}
       </div>
-      <Footer />
     </div>
   );
 }

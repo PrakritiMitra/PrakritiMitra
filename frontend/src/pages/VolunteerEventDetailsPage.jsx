@@ -5,13 +5,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import defaultImages from "../utils/eventTypeImages";
 import { useState as useReactState } from "react";
 import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterModal";
 import { QRCodeSVG } from "qrcode.react";
 import { getFullOrganizerTeam } from "../api/event";
 import { useCallback } from "react";
+import { io } from "socket.io-client";
+import EventChat from '../components/chat/EventChat';
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -147,6 +148,17 @@ export default function VolunteerEventDetailsPage() {
       alert("Failed to register. Please try again.");
     }
   };
+
+  useEffect(() => {
+    const socket = io('http://localhost:5000');
+    socket.on('connect', () => {
+      console.log('Socket.IO connected (volunteer):', socket.id);
+    });
+    socket.on('disconnect', () => {
+      console.log('Socket.IO disconnected (volunteer)');
+    });
+    return () => socket.disconnect();
+  }, []);
 
   if (loading) {
     return (
@@ -320,17 +332,17 @@ export default function VolunteerEventDetailsPage() {
             ) : isRegistered && registrationDetails && registrationDetails.qrCodePath ? (
               <>
                 <p className="text-green-700 font-semibold mt-6">✅ Registered Successfully</p>
-                <div className="mt-6 flex flex-col items-center">
-                  <h3 className="text-lg font-semibold mb-2">Your QR Code</h3>
+                  <div className="mt-6 flex flex-col items-center">
+                    <h3 className="text-lg font-semibold mb-2">Your QR Code</h3>
                   <img
                     src={`http://localhost:5000${registrationDetails.qrCodePath}`}
                     alt="Your QR Code"
                     className="border border-gray-300 p-2 w-64 h-64"
-                  />
-                  <p className="mt-3 text-blue-800 text-sm text-center max-w-xs">
-                    Please save this QR code. You will need to scan it at the event for attendance. This is your proof of registration.
-                  </p>
-                </div>
+                    />
+                    <p className="mt-3 text-blue-800 text-sm text-center max-w-xs">
+                      Please save this QR code. You will need to scan it at the event for attendance. This is your proof of registration.
+                    </p>
+                  </div>
                 {/* Withdraw Registration Button */}
                 <button
                   onClick={async () => {
@@ -467,7 +479,9 @@ export default function VolunteerEventDetailsPage() {
           </div>
         </div>
       </div>
-      <Footer />
+      {event && (
+        <EventChat eventId={event._id} currentUser={user} />
+      )}
       {!isPastEvent && (
         <VolunteerRegisterModal
           open={showRegisterModal}

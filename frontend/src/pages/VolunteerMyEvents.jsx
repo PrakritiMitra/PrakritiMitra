@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 import axiosInstance from "../api/axiosInstance";
 import VolunteerEventCard from "../components/volunteer/VolunteerEventCard";
 
@@ -74,7 +73,6 @@ export default function VolunteerMyEvents() {
           </>
         )}
       </div>
-      <Footer />
     </div>
   );
 } 

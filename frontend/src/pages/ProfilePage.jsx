@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { updateProfile } from "../api/auth";
 import { getMyOrganization } from "../api/organization";
 import Navbar from "../components/layout/Navbar";
-import Footer from "../components/layout/Footer";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -686,7 +685,6 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
-      <Footer />
     </div>
   );
 } 
