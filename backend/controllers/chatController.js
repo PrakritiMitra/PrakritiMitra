@@ -35,25 +35,32 @@ const handleChat = async (req, res) => {
     }
   }
 
-  // Fallback: Gemini 1.5 Pro
+  // Fallback: OpenRouter DeepSeek R1 Distill Llama 70B
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error("Gemini API key not set in .env");
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OpenRouter API key not set in .env");
     }
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`;
+    const url = "https://openrouter.ai/api/v1/chat/completions";
     const body = {
-      contents: [
-        { parts: [{ text: message }] }
+      model: "deepseek/deepseek-r1-distill-llama-70b:free",
+      messages: [
+        { role: "user", content: message }
       ]
     };
     const response = await axios.post(url, body, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://prakritimitra.com', // Optional, for OpenRouter compliance
+        'X-Title': 'PrakritiMitra Assistant' // Optional, for OpenRouter compliance
+      }
     });
     const data = response.data;
-    const geminiReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't get a response from Gemini.";
-    return res.json({ response: geminiReply });
+    const openRouterReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't get a response from OpenRouter.";
+    return res.json({ response: openRouterReply });
   } catch (error) {
-    console.error("Gemini error:", error.response?.data || error.message);
+    console.error("OpenRouter error:", error.response?.data || error.message);
     return res.json({ response: "Sorry, I'm having trouble reaching my AI brain right now. Please try again later." });
   }
 };
