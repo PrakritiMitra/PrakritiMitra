@@ -2,35 +2,35 @@
 import axios from './axiosInstance';
 
 export const registerOrganization = (data) =>
-  axios.post('/organizations/register', data);
+  axios.post('/api/organizations/register', data);
 
 export const getMyOrganization = () =>
-  axios.get('/organizations/my');
+  axios.get('/api/organizations/my');
 
 export const getAllOrganizations = () =>
-  axios.get('/organizations');
+  axios.get('/api/organizations');
 
 export const getOrganizationById = (id) =>
-  axios.get(`/organizations/${id}`);
+  axios.get(`/api/organizations/${id}`);
 
 export const requestToJoinOrganization = (id) =>
-  axios.post(`/organizations/${id}/join`);
+  axios.post(`/api/organizations/${id}/join`);
 
 export const getOrganizationTeam = (id) =>
-  axios.get(`/organizations/${id}/team`);
+  axios.get(`/api/organizations/${id}/team`);
 
 export const getApprovedOrganizations = () =>
-  axios.get('/organizations/approved');
+  axios.get('/api/organizations/approved');
 
 export const approveTeamMember = (orgId, userId) =>
-  axios.patch(`/organizations/${orgId}/approve/${userId}`);
+  axios.patch(`/api/organizations/${orgId}/approve/${userId}`);
 
 export const rejectTeamMember = (orgId, userId) =>
-  axios.delete(`/organizations/${orgId}/reject/${userId}`);
+  axios.delete(`/api/organizations/${orgId}/reject/${userId}`);
 
 // Helper: Fetch only approved organizers from the team
 export const getOrganizationOrganizers = async (id) => {
-  const res = await axios.get(`/organizations/${id}/team`);
+  const res = await axios.get(`/api/organizations/${id}/team`);
   // Only approved organizers
   return res.data.filter(
     (member) => member.status === 'approved' && member.userId.role === 'organizer'
@@ -39,4 +39,4 @@ export const getOrganizationOrganizers = async (id) => {
 
 // Fetch user by ID (for organizer profile)
 export const getUserById = (id) =>
-  axios.get(`/users/${id}`);
+  axios.get(`/api/users/${id}`);

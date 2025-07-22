@@ -23,7 +23,7 @@ export default function EditEventPage() {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const res = await axiosInstance.get(`/events/${id}`);
+        const res = await axiosInstance.get(`/api/events/${id}`);
         const e = res.data;
 
         setFormData({
@@ -125,7 +125,7 @@ export default function EditEventPage() {
     }
 
     try {
-      await axiosInstance.put(`/events/${id}`, data, {
+      await axiosInstance.put(`/api/events/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       alert("Event updated successfully");

@@ -10,7 +10,12 @@ const VolunteerEventsTab = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const { data } = await axiosInstance.get("/events/all-events");
+        const token = localStorage.getItem('token');
+        const { data } = await axiosInstance.get("/api/events/all-events", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
 
         const now = new Date();
         const future = data

@@ -81,7 +81,7 @@ export default function EventDetailsPage() {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const res = await axiosInstance.get(`/events/${id}`);
+        const res = await axiosInstance.get(`/api/events/${id}`);
         setEvent(res.data);
       } catch (err) {
         setError("Event not found or failed to load.");
@@ -107,7 +107,7 @@ export default function EventDetailsPage() {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
 
     try {
-      await axiosInstance.delete(`/events/${id}`);
+      await axiosInstance.delete(`/api/events/${id}`);
       alert("Event deleted successfully.");
       navigate(-1); // or navigate('/your-organizations') if you prefer
     } catch (err) {
