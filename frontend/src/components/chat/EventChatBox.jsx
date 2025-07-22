@@ -42,6 +42,89 @@ export default function EventChatbox({ eventId, currentUser }) {
   const emojiPickerRef = useRef(null);
   const isLoadingEarlierRef = useRef(false);
 
+  // --- Chat UI Positioning Constants ---
+  const PADDING = 112; // 64px (chatbot bubble) + 24px (gap) + 24px (extra)
+  const BUBBLE_DIMS = { w: 64, h: 64 };
+  const CHATBOX_DIMS = { w: 384, h: 500 };
+  // Default position for the bubble in the bottom-right corner
+  const bubbleDefaultPos = {
+    x: window.innerWidth - BUBBLE_DIMS.w - 24, // keep right padding at 24px
+    y: window.innerHeight - BUBBLE_DIMS.h - PADDING,
+  };
+  // Unified draggable chat position state
+  // Always start at the bubble's default corner
+  const [chatPos, setChatPos] = useState(bubbleDefaultPos);
+  const [dragging, setDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const bubbleRef = useRef(null);
+
+  // Handle mouse/touch events for dragging (bubble or header)
+  const startDrag = (e) => {
+    e.preventDefault();
+    setDragging(true);
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setDragOffset({
+      x: clientX - chatPos.x,
+      y: clientY - chatPos.y,
+    });
+  };
+  const onDrag = (e) => {
+    if (!dragging) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    let newX = clientX - dragOffset.x;
+    let newY = clientY - dragOffset.y;
+    // Clamp to window bounds (bubble: 80x80, chatbox: 384x500)
+    const maxW = isChatOpen ? 384 : 80;
+    const maxH = isChatOpen ? 500 : 80;
+    newX = Math.max(0, Math.min(window.innerWidth - maxW, newX));
+    newY = Math.max(0, Math.min(window.innerHeight - maxH, newY));
+    setChatPos({ x: newX, y: newY });
+  };
+  const stopDrag = () => {
+    setDragging(false);
+    // Only save position if the chat window was dragged
+    if (isChatOpen) {
+      localStorage.setItem('chatPosition', JSON.stringify(chatPos));
+    }
+  };
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener('mousemove', onDrag);
+      window.addEventListener('mouseup', stopDrag);
+      window.addEventListener('touchmove', onDrag);
+      window.addEventListener('touchend', stopDrag);
+    } else {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDrag);
+      window.removeEventListener('touchmove', onDrag);
+      window.removeEventListener('touchend', stopDrag);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDrag);
+      window.removeEventListener('touchmove', onDrag);
+      window.removeEventListener('touchend', stopDrag);
+    };
+  }, [dragging, dragOffset, chatPos]);
+
+  // Clamp chatPos on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setChatPos(pos => {
+        const maxW = isChatOpen ? 384 : 80;
+        const maxH = isChatOpen ? 500 : 80;
+        return {
+          x: Math.max(0, Math.min(window.innerWidth - maxW, pos.x)),
+          y: Math.max(0, Math.min(window.innerHeight - maxH, pos.y)),
+        };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isChatOpen]);
+
   const EMOJIS = ['👍', '❤️', '😂', '🎉', '🙏', '😢'];
 
   // Fetch chat messages (moved outside useEffect for access in handlers)
@@ -345,20 +428,82 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   return (
     <>
-      {/* Floating Chat Bubble */}
-      <div
-        className="fixed z-50 rounded-full bg-blue-600 w-16 h-16 flex items-center justify-center shadow-lg cursor-pointer select-none bottom-24 right-6"
-        onClick={handleBubbleClick}
-      >
-        <span className="text-3xl">💬</span>
-      </div>
+      {/* Draggable Floating Chat Bubble (only shows when chat is closed) */}
+      {!isChatOpen && (
+        <div
+          ref={bubbleRef}
+          style={{
+            position: 'fixed',
+            left: chatPos.x,
+            top: chatPos.y,
+            width: BUBBLE_DIMS.w,
+            height: BUBBLE_DIMS.h,
+            zIndex: 1051,
+            borderRadius: '50%',
+            background: '#2563eb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+            cursor: dragging ? 'grabbing' : 'grab',
+            userSelect: 'none',
+            transition: dragging ? 'none' : 'transform 0.2s',
+          }}
+          onMouseDown={startDrag}
+          onTouchStart={startDrag}
+          onClick={() => {
+            if (dragging) return;
+            // Open the chat window at the bubble's current position
+            // Clamp to window for chatbox size
+            const clampedX = Math.max(PADDING, Math.min(window.innerWidth - CHATBOX_DIMS.w - PADDING, chatPos.x));
+            const clampedY = Math.max(PADDING, Math.min(window.innerHeight - CHATBOX_DIMS.h - PADDING, chatPos.y));
+            setChatPos({ x: clampedX, y: clampedY });
+            setIsChatOpen(true);
+          }}
+        >
+          <span className="text-3xl" style={{ color: 'white' }}>💬</span>
+        </div>
+      )}
 
-      {/* Chat Window */}
+      {/* Draggable Chat Window */}
       {isChatOpen && (
-        <div className="fixed bottom-24 right-6 w-96 bg-white rounded-lg shadow-xl border flex flex-col h-[500px] z-50">
-          <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
+        <div 
+          style={{
+            position: 'fixed',
+            left: chatPos.x,
+            top: chatPos.y,
+            width: 384,
+            height: 500,
+            zIndex: 1050,
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+            border: '1px solid #e5e7eb',
+            userSelect: dragging ? 'none' : 'auto',
+          }}
+        >
+          {/* The header is now the drag handle for the window. */}
+          <div 
+            className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center"
+            style={{ cursor: dragging ? 'grabbing' : 'grab' }}
+            onMouseDown={startDrag}
+            onTouchStart={startDrag}
+          >
             <h3 className="font-semibold text-lg">Event Chat</h3>
-            <button onClick={() => setIsChatOpen(false)} className="text-white text-2xl leading-none">&times;</button>
+            <button 
+              onClick={() => {
+                setIsChatOpen(false);
+                setChatPos(bubbleDefaultPos);
+                // Clear saved chat window position
+                localStorage.removeItem('chatPosition');
+              }} 
+              className="text-white text-2xl leading-none"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              &times;
+            </button>
           </div>
           {pinnedMessage && (
             <div className="p-3 bg-yellow-100 border-b border-yellow-300">
