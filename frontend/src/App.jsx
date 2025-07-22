@@ -28,6 +28,7 @@ import React, { useState } from "react";
 import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
+import FAQSection from "./pages/FAQSection";
 
 const SUGGESTED_QUESTIONS = [
   "What is your pricing?",
@@ -104,6 +105,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/faqs" element={<FAQSection />} />
 
           {/* Protected Routes */}
           <Route
