@@ -16,6 +16,7 @@ const User = require('./models/user');
 const Message = require('./models/Message');
 const chatRoutes = require('./routes/chatRoutes');
 const aiSummaryRoutes = require('./routes/aiSummaryRoutes');
+const faqRoutes = require('./routes/faqRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -63,6 +64,7 @@ app.use('/api/resources', resourceRoutes);
 app.use('/api/chatbox', chatboxRoutes); // <-- Use chatbox routes
 app.use('/api/chat', chatRoutes);
 app.use('/api/ai-summary', aiSummaryRoutes);
+app.use('/api/faqs', faqRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);
