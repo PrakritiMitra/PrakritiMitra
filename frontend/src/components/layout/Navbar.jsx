@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { getMyOrganization } from "../../api/organization";
+import { ChevronDown } from "react-feather";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -195,13 +197,41 @@ export default function Navbar() {
                 <span className="font-medium text-sm"></span>
               </Link>
 
-              {/* Resource Center link for all logged-in users */}
-              <Link
-                to="/resources"
-                className={`font-medium text-sm ${isActive("/resources") ? "text-blue-600" : "text-gray-700 hover:text-blue-500"}`}
-              >
-                Resource Center
-              </Link>
+              {/* Resource Center dropdown for all logged-in users */}
+              <div className="relative group">
+                <button
+                  className={`font-medium text-sm flex items-center gap-1 ${
+                    isActive("/resources") || isActive("/faqs")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Resource Center
+                  <ChevronDown size={16} />
+                </button>
+                <AnimatePresence>
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 hidden group-hover:block group-focus:block"
+                  >
+                    <Link
+                      to="/resources"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                    >
+                      Resource Center
+                    </Link>
+                    <Link
+                      to="/faqs"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-b-lg transition-colors"
+                    >
+                      FAQs
+                    </Link>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
 
               <button
                 onClick={handleLogout}
