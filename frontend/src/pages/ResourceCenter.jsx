@@ -45,7 +45,7 @@ export default function ResourceCenter() {
     setLoading(true);
     setError("");
     try {
-      let url = "/resources";
+      let url = "/api/resources";
       const params = [];
       if (domain) params.push(`domain=${encodeURIComponent(domain)}`);
       if (type) params.push(`type=${encodeURIComponent(type)}`);

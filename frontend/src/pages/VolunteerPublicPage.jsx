@@ -16,7 +16,7 @@ export default function VolunteerPublicPage() {
   useEffect(() => {
     setLoading(true);
     setError("");
-    axiosInstance.get(`/users/${id}`)
+    axiosInstance.get(`/api/users/${id}`)
       .then(res => {
         setVolunteer(res.data);
         setLoading(false);
@@ -31,14 +31,14 @@ export default function VolunteerPublicPage() {
     if (!id) return;
     setEventsLoading(true);
     // 1. Get registrations for this volunteer
-    axiosInstance.get(`/registrations/volunteer/${id}`)
+    axiosInstance.get(`/api/registrations/volunteer/${id}`)
       .then(async res => {
         const registrations = res.data; // array of registration objects
         // 2. For each registration, get eventId
         const eventIds = registrations.map(r => r.eventId);
         // 3. Fetch event details for all eventIds
         const eventPromises = eventIds.map(eventId =>
-          axiosInstance.get(`/events/${eventId}`).then(eRes => eRes.data).catch(() => null)
+          axiosInstance.get(`/api/events/${eventId}`).then(eRes => eRes.data).catch(() => null)
         );
         const eventsData = (await Promise.all(eventPromises)).filter(e => !!e);
         setEvents(eventsData);

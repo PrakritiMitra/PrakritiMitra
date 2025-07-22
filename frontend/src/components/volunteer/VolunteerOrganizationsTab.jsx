@@ -10,7 +10,7 @@ const VolunteerOrganizationsTab = () => {
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
-        const { data } = await axiosInstance.get("/organizations");
+        const { data } = await axiosInstance.get("/api/organizations");
         setOrganizations(data);
       } catch (error) {
         console.error("Error fetching organizations:", error);

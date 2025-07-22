@@ -13,7 +13,7 @@ const VolunteerEventCard = ({ event }) => {
 
   useEffect(() => {
     if (event && event._id && user) {
-      axiosInstance.get(`/registrations/${event._id}/check`)
+      axiosInstance.get(`/api/registrations/${event._id}/check`)
         .then(res => {
           if (res.data.registered) {
             setIsRegistered(true);

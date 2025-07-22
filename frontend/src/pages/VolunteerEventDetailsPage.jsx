@@ -51,7 +51,7 @@ export default function VolunteerEventDetailsPage() {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const res = await axiosInstance.get(`/events/${id}`);
+        const res = await axiosInstance.get(`/api/events/${id}`);
         setEvent(res.data);
       } catch (err) {
         setError("Event not found or failed to load.");
@@ -79,7 +79,7 @@ export default function VolunteerEventDetailsPage() {
   // On event load, check with the backend if the user is actually registered for the event and get registration details.
   useEffect(() => {
     if (event && event._id && user && user._id) {
-      axiosInstance.get(`/registrations/event/${event._id}/my-registration`)
+      axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`)
         .then(res => {
           setIsRegistered(true);
           setRegistrationDetails(res.data);
@@ -95,7 +95,7 @@ export default function VolunteerEventDetailsPage() {
   const fetchVolunteers = useCallback(() => {
     if (!event?._id) return;
     setVolunteersLoading(true);
-    axiosInstance.get(`/registrations/event/${event._id}/volunteers`)
+    axiosInstance.get(`/api/registrations/event/${event._id}/volunteers`)
       .then(res => {
         setVolunteers(res.data);
         setVolunteersLoading(false);
@@ -107,8 +107,8 @@ export default function VolunteerEventDetailsPage() {
   const handleRegister = async () => {
     setRegistering(true);
     try {
-      await axios.post(
-        `http://localhost:5000/api/events/${event._id}/register`,
+      await axiosInstance.post(
+        `/api/events/${event._id}/register`,
         {},
         {
           headers: {
@@ -120,7 +120,7 @@ export default function VolunteerEventDetailsPage() {
       setRegisterSuccess(true);
       alert("Registered successfully!");
       // Fetch registration details from backend
-      const regDetailsRes = await axiosInstance.get(`/registrations/event/${event._id}/my-registration`);
+      const regDetailsRes = await axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`);
       setIsRegistered(true);
       setRegistrationDetails(regDetailsRes.data);
     } catch (err) {
@@ -136,11 +136,11 @@ export default function VolunteerEventDetailsPage() {
         eventId: event._id,
         groupMembers,
       };
-      await axiosInstance.post("/registrations", payload);
+      await axiosInstance.post("/api/registrations", payload);
       setRegistrationSuccess(true);
       setShowRegisterModal(false);
       // Fetch registration details from backend
-      const regDetailsRes = await axiosInstance.get(`/registrations/event/${event._id}/my-registration`);
+      const regDetailsRes = await axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`);
       setIsRegistered(true);
       setRegistrationDetails(regDetailsRes.data);
     } catch (err) {
@@ -348,7 +348,7 @@ export default function VolunteerEventDetailsPage() {
                   onClick={async () => {
                     if (!window.confirm('Are you sure you want to withdraw your registration?')) return;
                     try {
-                      await axiosInstance.delete(`/registrations/${event._id}`);
+                      await axiosInstance.delete(`/api/registrations/${event._id}`);
                       setRegistrationSuccess(false);
                       setRegistrationDetails(null);
                       setIsRegistered(false); // Ensure isRegistered is false after withdrawal

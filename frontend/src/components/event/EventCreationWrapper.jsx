@@ -90,7 +90,7 @@ export default function EventCreationWrapper({
           data.append("equipmentNeeded", item)
         );
       } else if (key === "eventImages") {
-        formData.eventImages.forEach((file) =>
+        (Array.isArray(formData.eventImages) ? formData.eventImages : []).forEach((file) =>
           data.append("eventImages", file)
         );
       } else if (key === "govtApprovalLetter") {

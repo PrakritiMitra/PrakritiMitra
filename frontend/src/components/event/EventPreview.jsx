@@ -88,11 +88,11 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
             secondary={
               formData.equipmentNeeded.length > 0
                 ? (
-                    <span>
+                    <div>
                       {formData.equipmentNeeded.map((eq) => (
                         <Chip key={eq} label={eq} sx={{ mr: 1 }} />
                       ))}
-                    </span>
+                    </div>
                   )
                 : "None"
             }

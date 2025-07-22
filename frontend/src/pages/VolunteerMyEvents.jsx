@@ -12,7 +12,7 @@ export default function VolunteerMyEvents() {
     const fetchMyEvents = async () => {
       try {
         // 1. Get registered event IDs
-        const { data } = await axiosInstance.get("/registrations/my-events");
+        const { data } = await axiosInstance.get("/api/registrations/my-events");
         const eventIds = data.registeredEventIds || [];
         if (eventIds.length === 0) {
           setUpcomingEvents([]);
@@ -21,7 +21,7 @@ export default function VolunteerMyEvents() {
           return;
         }
         // 2. Fetch event details for those IDs
-        const eventsRes = await axiosInstance.post("/events/batch", { eventIds });
+        const eventsRes = await axiosInstance.post("/api/events/batch", { eventIds });
         const now = new Date();
         const upcoming = eventsRes.data.filter(e => new Date(e.endDateTime) >= now);
         const past = eventsRes.data.filter(e => new Date(e.endDateTime) < now);
@@ -75,4 +75,4 @@ export default function VolunteerMyEvents() {
       </div>
     </div>
   );
-} 
+}

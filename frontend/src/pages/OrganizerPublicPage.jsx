@@ -34,7 +34,7 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (!id) return;
     axiosInstance
-      .get(`/organizations/user/${id}`)
+      .get(`/api/organizations/user/${id}`)
       .then((res) => setOrganizations(res.data))
       .catch(() => setOrganizations([]));
   }, [id]);
@@ -45,9 +45,9 @@ export default function UserProfilePage() {
     setEventsLoading(true);
     let url = "";
     if (selectedOrg === "all") {
-      url = `/events/created-by/${id}`;
+      url = `/api/events/created-by/${id}`;
     } else {
-      url = `/events/by-organizer-and-org/${id}/${selectedOrg}`;
+      url = `/api/events/by-organizer-and-org/${id}/${selectedOrg}`;
     }
     axiosInstance
       .get(url)

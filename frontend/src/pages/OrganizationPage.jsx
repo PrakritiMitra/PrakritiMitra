@@ -34,15 +34,15 @@ export default function OrganizationPage() {
         setOrganizersError("");
 
         const [orgRes, eventRes] = await Promise.all([
-          axiosInstance.get(`/organizations/${id}`),
-          axiosInstance.get(`/events/organization/${id}`),
+          axiosInstance.get(`/api/organizations/${id}`),
+          axiosInstance.get(`/api/events/organization/${id}`),
         ]);
 
         setOrganization(orgRes.data);
         setEvents(eventRes.data);
 
         if (user?.role === "organizer") {
-          const teamRes = await axiosInstance.get(`/organizations/${id}/team`);
+          const teamRes = await axiosInstance.get(`/api/organizations/${id}/team`);
           const team = teamRes.data;
 
           const memberEntry = team.find(
@@ -98,7 +98,7 @@ export default function OrganizationPage() {
   const handleJoinRequest = async () => {
     try {
       setJoining(true);
-      await axiosInstance.post(`/organizations/${id}/join`);
+      await axiosInstance.post(`/api/organizations/${id}/join`);
       setHasRequested(true);
       alert("Join request sent.");
     } catch (err) {
