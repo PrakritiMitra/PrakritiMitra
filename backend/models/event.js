@@ -124,6 +124,11 @@ const eventSchema = new mongoose.Schema({
     }
   ],
 
+  summary: {
+    type: String,
+    default: '',
+  },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);
