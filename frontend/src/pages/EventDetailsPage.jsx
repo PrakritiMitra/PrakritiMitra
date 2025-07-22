@@ -103,6 +103,21 @@ export default function EventDetailsPage() {
     fetchTeam();
   }, [id]);
 
+  // Poll for summary if missing
+  useEffect(() => {
+    if (!event || event.summary) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await axiosInstance.get(`/api/events/${id}`);
+        if (res.data.summary && res.data.summary.trim()) {
+          setEvent(res.data);
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [event, id]);
+
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
 
@@ -390,6 +405,16 @@ export default function EventDetailsPage() {
             </div>
           </div>
         )}
+
+        {/* AI Summary Section */}
+        <div className="mt-8 mb-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded shadow">
+          <h2 className="text-xl font-bold text-yellow-700 mb-2">AI Event Summary</h2>
+          {event.summary && event.summary.trim() ? (
+            <p className="text-gray-800 whitespace-pre-line">{event.summary}</p>
+          ) : (
+            <p className="italic text-gray-500">Generating AI summary...</p>
+          )}
+        </div>
 
         {event.govtApprovalLetter && (
           <a

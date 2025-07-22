@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const fs = require("fs");
 const path = require("path");
 const Organization = require("../models/organization");
+const axios = require('axios');
 
 // Create new event
 exports.createEvent = async (req, res) => {
@@ -87,8 +88,21 @@ exports.createEvent = async (req, res) => {
     const event = new Event(eventData);
     await event.save();
 
-    console.log("✅ Event created:", event.title || event._id);
+    // Respond immediately
     res.status(201).json(event);
+
+    // --- AI SUMMARY GENERATION (background) ---
+    setImmediate(async () => {
+      try {
+        const summaryPrompt = `Write a detailed, engaging, 150-word summary for this event, including what the event is about, its importance, and interesting facts about the location or event type if possible.\n\nEvent: ${event.title}\nDescription: ${event.description}\nType: ${event.eventType}\nLocation: ${event.location}\nDate: ${event.startDateTime}\nOrganizer: ${event.organization}\nPrecautions: ${event.precautions}\nInstructions: ${event.instructions}`;
+        const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
+        const summary = res.data.summary;
+        await Event.findByIdAndUpdate(event._id, { summary });
+        console.log('Summary updated for event', event._id);
+      } catch (err) {
+        console.error('Failed to generate event summary (background):', err);
+      }
+    });
   } catch (err) {
     console.error("❌ Event creation failed:", err);
     res.status(500).json({ message: err.message });
@@ -286,8 +300,23 @@ exports.updateEvent = async (req, res) => {
     event.publicTransport = publicTransport || event.publicTransport;
     event.contactPerson = contactPerson || event.contactPerson;
 
+    // Clear the summary before generating a new one
+    event.summary = '';
     await event.save();
     res.status(200).json(event);
+
+    // --- AI SUMMARY GENERATION (background) ---
+    setImmediate(async () => {
+      try {
+        const summaryPrompt = `Write a detailed, engaging, 150-word summary for this event, including what the event is about, its importance, and interesting facts about the location or event type if possible.\n\nEvent: ${event.title}\nDescription: ${event.description}\nType: ${event.eventType}\nLocation: ${event.location}\nDate: ${event.startDateTime}\nOrganizer: ${event.organization}\nPrecautions: ${event.precautions}\nInstructions: ${event.instructions}`;
+        const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
+        const summary = res.data.summary;
+        await Event.findByIdAndUpdate(event._id, { summary });
+        console.log('Summary updated for event', event._id);
+      } catch (err) {
+        console.error('Failed to generate event summary (background):', err);
+      }
+    });
   } catch (err) {
     console.error("❌ Failed to update event:", err);
     res.status(500).json({ message: err.message });
