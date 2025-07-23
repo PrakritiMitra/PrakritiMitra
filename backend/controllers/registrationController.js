@@ -2,6 +2,7 @@ const Registration = require("../models/registration");
 const QRCode = require("qrcode");
 const fs = require("fs");
 const path = require("path");
+const { v4: uuidv4 } = require('uuid');
 
 exports.registerForEvent = async (req, res) => {
   try {
@@ -111,7 +112,51 @@ exports.updateAttendance = async (req, res) => {
     if (!registration) {
       return res.status(404).json({ message: 'Registration not found.' });
     }
+    // --- Permission logic ---
+    // Find the event and its organizerTeam
+    const Event = require('../models/event');
+    const event = await Event.findById(registration.eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found.' });
+    }
+    // Find the creator (first in organizerTeam)
+    const creatorId = event.organizerTeam?.[0]?.user?.toString?.() || event.createdBy?.toString?.();
+    const isCreator = req.user._id.toString() === creatorId;
+    // Check if user is in organizerTeam
+    const isOrganizer = event.organizerTeam.some(obj => obj.user.toString() === req.user._id.toString());
+    // If not an organizer, deny
+    if (!isOrganizer) {
+      return res.status(403).json({ message: 'Only organizers can mark attendance.' });
+    }
+    // If not creator, only allow marking attendance for volunteers (not for other organizers)
+    if (!isCreator) {
+      // Check if the registration is for a volunteer (not an organizer)
+      // A volunteer registration will not have their userId in organizerTeam
+      const isForOrganizer = event.organizerTeam.some(obj => obj.user.toString() === registration.volunteerId.toString());
+      if (isForOrganizer) {
+        return res.status(403).json({ message: 'Only the event creator can mark attendance for organizers.' });
+      }
+    }
     registration.hasAttended = !!hasAttended;
+    // If marking as attended and inTime is not set, set inTime, generate exitQrToken, and delete entry QR
+    if (hasAttended && !registration.inTime) {
+      registration.inTime = new Date();
+      if (!registration.exitQrToken) {
+        registration.exitQrToken = uuidv4();
+      }
+      // Delete entry QR image if exists
+      if (registration.qrCodePath) {
+        const entryQrPath = path.join(__dirname, "..", registration.qrCodePath);
+        try {
+          if (fs.existsSync(entryQrPath)) {
+            fs.unlinkSync(entryQrPath);
+          }
+        } catch (err) {
+          console.error('Failed to delete entry QR code:', err);
+        }
+        registration.qrCodePath = null;
+      }
+    }
     await registration.save();
     res.json({ message: 'Attendance updated.', registration });
   } catch (err) {
@@ -125,12 +170,22 @@ exports.getVolunteersForEvent = async (req, res) => {
     const eventId = req.params.eventId;
     // Find all registrations for this event and populate volunteer details
     const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name email phone profileImage role');
+    // Get the event and its organizerTeam
+    const Event = require('../models/event');
+    const event = await Event.findById(eventId);
+    const organizerTeamIds = event ? event.organizerTeam.map(obj => obj.user.toString()) : [];
     // Return user details and attendance
-    const volunteers = registrations.map(r => ({
-      ...r.volunteerId.toObject(),
-      hasAttended: r.hasAttended,
-      registrationId: r._id
-    }));
+    const volunteers = registrations
+      .filter(r => !organizerTeamIds.includes(r.volunteerId.toString()))
+      .map(r => ({
+        ...r.volunteerId.toObject(),
+        hasAttended: r.hasAttended,
+        registrationId: r._id,
+        inTime: r.inTime,
+        outTime: r.outTime,
+        exitQrToken: r.exitQrToken,
+        isOrganizerTeam: false,
+      }));
     res.json(volunteers);
   } catch (err) {
     res.status(500).json({ message: 'Server error fetching volunteers', error: err });
@@ -183,5 +238,132 @@ exports.getRegistrationForVolunteerEvent = async (req, res) => {
     res.json(registration);
   } catch (err) {
     res.status(500).json({ message: "Server error fetching registration details." });
+  }
+};
+
+// Entry scan: set inTime, generate exitQrToken, return exit QR
+exports.entryScan = async (req, res) => {
+  try {
+    const { registrationId } = req.params;
+    const registration = await Registration.findById(registrationId);
+    if (!registration) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
+    if (!registration.inTime) {
+      registration.inTime = new Date();
+      registration.exitQrToken = uuidv4();
+      // Delete entry QR image if exists
+      if (registration.qrCodePath) {
+        const entryQrPath = path.join(__dirname, "..", registration.qrCodePath);
+        try {
+          if (fs.existsSync(entryQrPath)) {
+            fs.unlinkSync(entryQrPath);
+          }
+        } catch (err) {
+          console.error('Failed to delete entry QR code:', err);
+        }
+        registration.qrCodePath = null;
+      }
+      await registration.save();
+    }
+    // Do NOT generate exit QR here. Only return inTime and exitQrToken.
+    return res.json({
+      message: 'Entry recorded.',
+      inTime: registration.inTime,
+      exitQrToken: registration.exitQrToken
+    });
+  } catch (err) {
+    console.error('Entry scan error:', err);
+    res.status(500).json({ message: 'Server error during entry scan.' });
+  }
+};
+
+// Generate exit QR on demand
+exports.generateExitQr = async (req, res) => {
+  try {
+    const { registrationId } = req.params;
+    const registration = await Registration.findById(registrationId);
+    if (!registration || !registration.exitQrToken) {
+      return res.status(404).json({ message: 'Registration or exit QR token not found.' });
+    }
+    // Generate exit QR code (token-based)
+    const exitQrData = JSON.stringify({ exitQrToken: registration.exitQrToken });
+    const fileName = `exitqr-${registration._id}-${Date.now()}.png`;
+    const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    await QRCode.toFile(filePath, exitQrData);
+    registration.exitQrPath = `/uploads/qrcodes/${fileName}`;
+    await registration.save();
+    return res.json({ exitQrPath: registration.exitQrPath });
+  } catch (err) {
+    console.error('Exit QR generation error:', err);
+    res.status(500).json({ message: 'Server error generating exit QR.' });
+  }
+};
+
+// Exit scan: set outTime using exitQrToken
+exports.exitScan = async (req, res) => {
+  try {
+    const { exitQrToken } = req.params;
+    const registration = await Registration.findOne({ exitQrToken });
+    if (!registration) {
+      return res.status(404).json({ message: 'Invalid or expired exit QR code.' });
+    }
+    if (!registration.outTime) {
+      registration.outTime = new Date();
+      // Delete exit QR image if exists
+      if (registration.exitQrPath) {
+        const exitQrPath = path.join(__dirname, "..", registration.exitQrPath);
+        try {
+          if (fs.existsSync(exitQrPath)) {
+            fs.unlinkSync(exitQrPath);
+          }
+        } catch (err) {
+          console.error('Failed to delete exit QR code:', err);
+        }
+        registration.exitQrPath = null;
+      }
+      await registration.save();
+      return res.json({ message: 'Out-time recorded!', outTime: registration.outTime });
+    } else {
+      return res.json({ message: 'Out-time already recorded.', outTime: registration.outTime });
+    }
+  } catch (err) {
+    console.error('Exit scan error:', err);
+    res.status(500).json({ message: 'Server error during exit scan.' });
+  }
+};
+
+// PATCH: Manually update inTime
+exports.updateInTime = async (req, res) => {
+  try {
+    const { registrationId } = req.params;
+    const { inTime } = req.body;
+    const registration = await Registration.findById(registrationId);
+    if (!registration) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
+    registration.inTime = inTime ? new Date(inTime) : null;
+    await registration.save();
+    res.json({ message: 'In-time updated.', inTime: registration.inTime });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error updating in-time.' });
+  }
+};
+
+// PATCH: Manually update outTime
+exports.updateOutTime = async (req, res) => {
+  try {
+    const { registrationId } = req.params;
+    const { outTime } = req.body;
+    const registration = await Registration.findById(registrationId);
+    if (!registration) {
+      return res.status(404).json({ message: 'Registration not found.' });
+    }
+    registration.outTime = outTime ? new Date(outTime) : null;
+    await registration.save();
+    res.json({ message: 'Out-time updated.', outTime: registration.outTime });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error updating out-time.' });
   }
 };

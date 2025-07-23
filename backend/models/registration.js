@@ -18,8 +18,32 @@ const registrationSchema = new mongoose.Schema({
       email: String,
     },
   ],
+  // Entry QR code (generated at registration, deleted after entry scan)
   qrCodePath: {
-    type: String, // will store the relative path like `/uploads/qrcodes/qr-abc123.png`
+    type: String, // e.g., /uploads/qrcodes/qr-abc123.png
+    default: null,
+  },
+  // In-time (set when entry QR is scanned by organizer)
+  inTime: {
+    type: Date,
+    default: null,
+  },
+  // Out-time (set when exit QR is scanned by organizer)
+  outTime: {
+    type: Date,
+    default: null,
+  },
+  // Unique token for exit QR (set at entry scan, deleted after exit scan)
+  exitQrToken: {
+    type: String,
+    default: null,
+    unique: true,
+    sparse: true,
+  },
+  // Exit QR code (generated on demand after inTime, deleted after exit scan)
+  exitQrPath: {
+    type: String, // e.g., /uploads/qrcodes/exitqr-abc123.png
+    default: null,
   },
   createdAt: {
     type: Date,

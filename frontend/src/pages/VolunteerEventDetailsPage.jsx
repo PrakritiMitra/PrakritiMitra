@@ -48,6 +48,8 @@ export default function VolunteerEventDetailsPage() {
   const [showVolunteers, setShowVolunteers] = useState(false);
   const [volunteers, setVolunteers] = useState([]);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
+  const [showExitQr, setShowExitQr] = useState(false);
+  const [exitQrPath, setExitQrPath] = useState(null);
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -106,6 +108,21 @@ export default function VolunteerEventDetailsPage() {
         });
     }
   }, [event?._id, user?._id]);
+
+  // Poll for registration details if registered but inTime is not set
+  useEffect(() => {
+    if (!isRegistered || registrationDetails?.inTime) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`);
+        if (res.data.inTime) {
+          setRegistrationDetails(res.data);
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isRegistered, registrationDetails?.inTime, event?._id]);
 
   // Fetch volunteers for this event when drawer is opened
   const fetchVolunteers = useCallback(() => {
@@ -175,6 +192,67 @@ export default function VolunteerEventDetailsPage() {
     });
     return () => socket.disconnect();
   }, []);
+
+  // Attendance completion check
+  const hasCompletedEvent = !!(registrationDetails?.inTime && registrationDetails?.outTime);
+
+  // Entry scan handler
+  const handleEntryScan = async () => {
+    if (!registrationDetails?._id) return;
+    try {
+      const res = await axiosInstance.post(`/api/registrations/${registrationDetails._id}/entry-scan`);
+      setRegistrationDetails((prev) => ({
+        ...prev,
+        inTime: res.data.inTime,
+        exitQrToken: res.data.exitQrToken,
+        exitQrPath: res.data.exitQrPath,
+      }));
+      alert('Entry marked! Please save your exit QR code.');
+    } catch (err) {
+      alert('Failed to mark entry.');
+    }
+  };
+
+  // Exit scan handler (simulate scan in-app)
+  const handleExitScan = async () => {
+    if (!registrationDetails?.exitQrToken) return;
+    try {
+      const res = await axiosInstance.post(`/api/registrations/exit/${registrationDetails.exitQrToken}`);
+      setRegistrationDetails((prev) => ({
+        ...prev,
+        outTime: res.data.outTime,
+      }));
+      alert('Exit marked! Thank you for attending.');
+    } catch (err) {
+      alert('Failed to mark exit.');
+    }
+  };
+
+  // Generate exit QR handler
+  const handleGenerateExitQr = async () => {
+    if (!registrationDetails?._id) return;
+    try {
+      const res = await axiosInstance.get(`/api/registrations/${registrationDetails._id}/exit-qr`);
+      setExitQrPath(res.data.exitQrPath);
+      setShowExitQr(true);
+    } catch (err) {
+      alert('Failed to generate exit QR.');
+    }
+  };
+
+  // Withdraw registration handler
+  const handleWithdrawRegistration = async () => {
+    if (!event?._id) return;
+    if (!window.confirm('Are you sure you want to withdraw your registration for this event?')) return;
+    try {
+      await axiosInstance.delete(`/api/registrations/${event._id}`);
+      setIsRegistered(false);
+      setRegistrationDetails(null);
+      alert('Registration withdrawn successfully.');
+    } catch (err) {
+      alert('Failed to withdraw registration.');
+    }
+  };
 
   if (loading) {
     return (
@@ -340,50 +418,63 @@ export default function VolunteerEventDetailsPage() {
               <h1 className="text-3xl font-bold text-blue-800 flex-1">{event.title}</h1>
             </div>
 
-            {/* Register Button */}
-            {isPastEvent ? (
-              <p className="text-red-600 font-semibold mt-6">This event has ended</p>
-            ) : isLiveEvent ? (
-              <p className="text-blue-700 font-semibold mt-6">Event is live</p>
-            ) : isRegistered && registrationDetails && registrationDetails.qrCodePath ? (
-              <>
-                <p className="text-green-700 font-semibold mt-6">✅ Registered Successfully</p>
-                  <div className="mt-6 flex flex-col items-center">
-                    <h3 className="text-lg font-semibold mb-2">Your QR Code</h3>
-                  <img
-                    src={`http://localhost:5000${registrationDetails.qrCodePath}`}
-                    alt="Your QR Code"
-                    className="border border-gray-300 p-2 w-64 h-64"
-                    />
-                    <p className="mt-3 text-blue-800 text-sm text-center max-w-xs">
-                      Please save this QR code. You will need to scan it at the event for attendance. This is your proof of registration.
-                    </p>
-                  </div>
-                {/* Withdraw Registration Button */}
+            {/* Register/Attendance/Exit UI */}
+            {/* Show entry QR until inTime is set */}
+            {!hasCompletedEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
+              <div className="mt-6 flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-2">Your Entry QR Code</h3>
+                <img
+                  src={`http://localhost:5000${registrationDetails.qrCodePath}`}
+                  alt="Entry QR Code"
+                  className="border border-gray-300 p-2 w-64 h-64"
+                />
+                <p className="mt-3 text-blue-800 text-sm text-center max-w-xs">
+                  Show this QR code to the organizer at the event entrance.
+                </p>
+              </div>
+            )}
+            {/* After inTime, show Generate Exit QR button */}
+            {!hasCompletedEvent && registrationDetails?.inTime && !registrationDetails?.outTime && !showExitQr && (
+              <div className="mt-6 flex flex-col items-center">
                 <button
-                  onClick={async () => {
-                    if (!window.confirm('Are you sure you want to withdraw your registration?')) return;
-                    try {
-                      await axiosInstance.delete(`/api/registrations/${event._id}`);
-                      setRegistrationSuccess(false);
-                      setRegistrationDetails(null);
-                      setIsRegistered(false); // Ensure isRegistered is false after withdrawal
-                      alert('You have withdrawn your registration.');
-                    } catch (err) {
-                      alert('Failed to withdraw registration. Please try again.');
-                    }
-                  }}
-                  className="mt-6 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  onClick={handleGenerateExitQr}
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 >
-                  Withdraw Registration
+                  Generate Exit QR
                 </button>
-              </>
-            ) : (
+              </div>
+            )}
+            {/* Show exit QR after generation */}
+            {!hasCompletedEvent && registrationDetails?.inTime && !registrationDetails?.outTime && showExitQr && exitQrPath && (
+              <div className="mt-6 flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-2">Your Exit QR Code</h3>
+                <img
+                  src={`http://localhost:5000${exitQrPath}`}
+                  alt="Exit QR Code"
+                  className="border border-gray-300 p-2 w-64 h-64"
+                />
+                <p className="mt-3 text-blue-800 text-sm text-center max-w-xs">
+                  Show this QR code to the organizer at the exit to mark your out-time.
+                </p>
+              </div>
+            )}
+            {!hasCompletedEvent && !isRegistered && (
               <button
                 onClick={() => setShowRegisterModal(true)}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mt-6"
               >
                 Register
+              </button>
+            )}
+            {hasCompletedEvent && (
+              <p className="text-green-700 font-semibold mt-6">Thank you for attending! Your attendance is complete.</p>
+            )}
+            {!hasCompletedEvent && isRegistered && !registrationDetails?.inTime && (
+              <button
+                onClick={handleWithdrawRegistration}
+                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4"
+              >
+                Withdraw Registration
               </button>
             )}
 

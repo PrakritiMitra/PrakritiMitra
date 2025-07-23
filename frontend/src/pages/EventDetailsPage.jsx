@@ -46,7 +46,7 @@ export default function EventDetailsPage() {
   })();
 
   const isOrganizer = currentUser?.role === "organizer";
-  const isTeamMember = organizerTeam.some((obj) => (obj.user ? obj.user._id === currentUser?._id : obj._id === currentUser?._id));
+  const isTeamMember = organizerTeam.some((obj) => (obj.user && obj.user._id ? obj.user._id === currentUser?._id : false));
   const canJoinAsOrganizer = isOrganizer && !isCreator && !isTeamMember;
 
   const canEdit = isCreator || isOrgAdmin;
@@ -137,11 +137,16 @@ export default function EventDetailsPage() {
     setJoinError("");
     setJoinSuccess("");
     try {
-      await joinAsOrganizer(id);
+      // The joinAsOrganizer API returns the updated event with organizerTeam populated
+      const res = await joinAsOrganizer(id);
       setJoinSuccess("You have joined as an organizer!");
-      // Refresh team list
-      const team = await getOrganizerTeam(id);
-      setOrganizerTeam(team);
+      // Use the returned event.organizerTeam if available, else fallback to fetching
+      if (res && res.event && res.event.organizerTeam) {
+        setOrganizerTeam(res.event.organizerTeam);
+      } else {
+        const team = await getOrganizerTeam(id);
+        setOrganizerTeam(team);
+      }
     } catch (err) {
       setJoinError(err?.response?.data?.message || "Failed to join as organizer.");
     } finally {
@@ -194,6 +199,7 @@ export default function EventDetailsPage() {
           </div>
           <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
             {organizerTeam.map((obj) => {
+              if (!obj.user || !obj.user._id) return null;
               const user = obj.user;
               const isCreator = user._id === event.createdBy._id;
               return (
@@ -202,11 +208,11 @@ export default function EventDetailsPage() {
                   className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
                   onClick={() => navigate(`/organizer/${user._id}`)}
                 >
-                                        <img
-                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                        alt={user.name}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                      />
+                  <img
+                    src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
+                    alt={user.name}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                  />
                   <span className="font-medium text-blue-800 text-lg">{user.name}</span>
                   {isCreator && (
                     <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
@@ -276,28 +282,30 @@ export default function EventDetailsPage() {
         >
           ← Back
         </button>
-        {canEdit && (
+        {(canEdit || isTeamMember) && (
           <div className="mt-6 flex gap-4">
-            <button
-              onClick={() => navigate(`/events/${id}/edit`)}
-              className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-            >
-              ✏️ Edit Event
-            </button>
-            <button
-              onClick={handleDelete}
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-            >
-              🗑️ Delete Event
-            </button>
-            {isOrganizer && (
-              <button
-                className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
-                onClick={() => navigate(`/events/${id}/attendance`)}
-              >
-                📋 Manage Attendance
-              </button>
+            {canEdit && (
+              <>
+                <button
+                  onClick={() => navigate(`/events/${id}/edit`)}
+                  className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+                >
+                  ✏️ Edit Event
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                >
+                  🗑️ Delete Event
+                </button>
+              </>
             )}
+            <button
+              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
+              onClick={() => navigate(`/events/${id}/attendance`)}
+            >
+              📋 Manage Attendance
+            </button>
           </div>
         )}
         {canJoinAsOrganizer && (
