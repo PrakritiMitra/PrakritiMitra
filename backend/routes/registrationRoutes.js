@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const {protect} = require("../middlewares/authMiddleware");
-const { registerForEvent, checkRegistration, withdrawRegistration, getMyRegisteredEvents, getRegistrationForVolunteerEvent } = require("../controllers/registrationController");
+const { registerForEvent, checkRegistration, withdrawRegistration, getMyRegisteredEvents, getRegistrationForVolunteerEvent, entryScan } = require("../controllers/registrationController");
 
 // POST /api/registrations
 router.post("/", protect, registerForEvent);
@@ -21,5 +21,10 @@ router.get('/volunteer/:volunteerId/events', require('../controllers/registratio
 router.get('/volunteer/:volunteerId', require('../controllers/registrationController').getRegistrationsForVolunteer);
 // PATCH /api/registrations/:registrationId/attendance - mark attendance for a volunteer
 router.patch('/:registrationId/attendance', protect, require('../controllers/registrationController').updateAttendance);
+router.patch('/:registrationId/in-time', require('../controllers/registrationController').updateInTime);
+router.patch('/:registrationId/out-time', require('../controllers/registrationController').updateOutTime);
+router.post('/:registrationId/entry-scan', entryScan);
+router.post('/exit/:exitQrToken', require('../controllers/registrationController').exitScan);
+router.get('/:registrationId/exit-qr', require('../controllers/registrationController').generateExitQr);
 
 module.exports = router;
