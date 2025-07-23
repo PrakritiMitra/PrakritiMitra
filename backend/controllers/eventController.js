@@ -17,6 +17,7 @@ exports.createEvent = async (req, res) => {
       title,
       description,
       location,
+      mapLocation, // This is now an object: { address, lat, lng }
       startDateTime,
       endDateTime,
       eventType,
@@ -57,7 +58,12 @@ exports.createEvent = async (req, res) => {
     const eventData = {
       title,
       description,
-      location,
+      location, // Original string location
+      mapLocation: {
+        address: mapLocation.address,
+        lat: parseFloat(mapLocation.lat) || null,
+        lng: parseFloat(mapLocation.lng) || null,
+      },
       startDateTime,
       endDateTime,
       eventType,
@@ -247,6 +253,7 @@ exports.updateEvent = async (req, res) => {
       title,
       description,
       location,
+      mapLocation,
       startDateTime,
       endDateTime,
       eventType,
@@ -271,6 +278,15 @@ exports.updateEvent = async (req, res) => {
     event.title = title || event.title;
     event.description = description || event.description;
     event.location = location || event.location;
+    
+    if (mapLocation && typeof mapLocation === 'object') {
+      event.mapLocation = {
+        address: mapLocation.address || event.mapLocation.address,
+        lat: parseFloat(mapLocation.lat) || event.mapLocation.lat,
+        lng: parseFloat(mapLocation.lng) || event.mapLocation.lng,
+      };
+    }
+
     event.startDateTime = startDateTime || event.startDateTime;
     event.endDateTime = endDateTime || event.endDateTime;
     event.eventType = eventType || event.eventType;
