@@ -7,6 +7,7 @@ import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
 import EventChatbox from '../components/chat/EventChatbox';
+import StaticMap from '../components/event/StaticMap'; // Import the new component
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -320,6 +321,18 @@ export default function EventDetailsPage() {
         {joinSuccess && <p className="text-green-600 mb-2">{joinSuccess}</p>}
         <h1 className="text-3xl font-bold text-blue-800 mb-3">{event.title}</h1>
         <p className="text-gray-700 mb-4">{event.description}</p>
+
+        {/* --- MAP & LOCATION SECTION --- */}
+        {event.mapLocation && event.mapLocation.lat && event.mapLocation.lng && (
+          <div className="my-6">
+            <h2 className="text-xl font-semibold text-blue-700 mb-2">Event Location</h2>
+            <StaticMap lat={event.mapLocation.lat} lng={event.mapLocation.lng} />
+            {event.mapLocation.address && (
+              <p className="text-gray-600 mt-2">{event.mapLocation.address}</p>
+            )}
+          </div>
+        )}
+        {/* --- END MAP & LOCATION SECTION --- */}
 
         <div className="mb-4">
           <strong>Location:</strong> {event.location}

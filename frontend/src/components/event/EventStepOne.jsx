@@ -1,6 +1,6 @@
 // src/components/event/EventStepOne.jsx
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   TextField,
   Box,
@@ -14,6 +14,7 @@ import {
   Typography,
   FormGroup,
 } from "@mui/material";
+import LocationPicker from './LocationPicker'; // Make sure this path is correct
 
 export default function EventStepOne({
   formData,
@@ -53,6 +54,18 @@ export default function EventStepOne({
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+  
+  const handleLocationChange = (newLocation) => {
+    // newLocation is { lat, lng } from the map click or search
+    setFormData((prev) => ({
+      ...prev,
+      mapLocation: {
+        ...prev.mapLocation, // Keep existing address if any
+        lat: newLocation.lat,
+        lng: newLocation.lng,
+      },
+    }));
   };
 
   const handleImageChange = (e) => {
@@ -105,7 +118,37 @@ export default function EventStepOne({
 
       <TextField fullWidth margin="normal" name="title" label="Event Name" value={formData.title} onChange={handleChange} required />
       <TextField fullWidth margin="normal" multiline rows={3} name="description" label="Event Description" value={formData.description} onChange={handleChange} />
-      <TextField fullWidth margin="normal" name="location" label="Location" value={formData.location} onChange={handleChange} required />
+      
+      {/* --- NEW LOCATION SECTION --- */}
+      <Box mt={2} mb={2}>
+        <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
+          Event Location
+        </Typography>
+        <LocationPicker
+          value={formData.mapLocation} // Pass the mapLocation object
+          onChange={handleLocationChange}
+        />
+        <TextField 
+          fullWidth 
+          margin="normal" 
+          label="Location Address"
+          // Manually handle the change for the nested mapLocation.address field
+          value={formData.mapLocation?.address || ''} 
+          onChange={(e) => setFormData(prev => ({...prev, mapLocation: {...prev.mapLocation, address: e.target.value}}))}
+          required 
+          helperText="You can also manually type the address here."
+        />
+         <TextField 
+          fullWidth 
+          margin="normal" 
+          name="location"
+          label="Location (Simple Text)" 
+          value={formData.location || ''} 
+          onChange={handleChange}
+          helperText="A simple text description of the location (e.g., 'Near Central Park')."
+        />
+      </Box>
+      {/* --- END NEW LOCATION SECTION --- */}
 
       <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
         <TextField fullWidth type="datetime-local" name="startDateTime" label="Start Date & Time" InputLabelProps={{ shrink: true }} value={formData.startDateTime} onChange={handleChange} required />
