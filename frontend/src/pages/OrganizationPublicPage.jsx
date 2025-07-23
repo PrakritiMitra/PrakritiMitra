@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   getOrganizationById,
   getOrganizationTeam
 } from '../api/organization';
 import { getEventsByOrganization } from '../api/event';
 import EventCard from '../components/event/EventCard';
+import Navbar from '../components/layout/Navbar';
 
 const orgFileUrl = (filename) =>
   filename ? `http://localhost:5000/uploads/organizationdetails/${filename.replace(/\\/g, '/')}` : null;
@@ -34,6 +35,7 @@ function FilePreview({ filePath, label }) {
 
 export default function OrganizationPublicPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [org, setOrg] = useState(null);
   const [team, setTeam] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -89,6 +91,7 @@ export default function OrganizationPublicPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow mt-10">
+      <Navbar />
       <div className="flex flex-col sm:flex-row items-center gap-6">
         {logo && (
           <img src={orgFileUrl(logo)} alt={name} className="w-28 h-28 rounded-lg object-cover border" />
@@ -185,7 +188,9 @@ export default function OrganizationPublicPage() {
             <hr className="mb-2" />
             {team.length === 0 && <div className="text-gray-500">No organizers found.</div>}
             {team.filter(member => member.status === 'approved').map((member) => (
-              <div key={member._id} className="flex items-center gap-3 mb-4">
+              <div key={member._id} className="flex items-center gap-3 mb-4 cursor-pointer hover:bg-blue-50 p-2 rounded-lg border transition"
+                onClick={() => navigate(`/organizer/${member.userId?._id}`)}
+              >
                 {member.userId?.profileImage ? (
                   <img src={`http://localhost:5000/uploads/Profiles/${member.userId.profileImage}`} alt={member.userId?.name} className="w-10 h-10 rounded-full object-cover border" />
                 ) : (

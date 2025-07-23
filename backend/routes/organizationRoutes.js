@@ -26,6 +26,9 @@ router.patch('/:orgId/approve/:userId', protect, orgCtrl.approveTeamMember);
 
 router.delete('/:orgId/reject/:userId', protect, orgCtrl.rejectTeamMember);
 
+// Withdraw join request
+router.delete('/:orgId/withdraw', protect, orgCtrl.withdrawJoinRequest);
+
 // Get team members of an organization
 router.get('/:id/team', protect, orgCtrl.getOrganizationTeam);
 

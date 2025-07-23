@@ -301,6 +301,25 @@ exports.rejectTeamMember = async (req, res) => {
   }
 };
 
+// Withdraw join request
+exports.withdrawJoinRequest = async (req, res) => {
+  try {
+    const org = await Organization.findById(req.params.orgId);
+    if (!org) return res.status(404).json({ message: 'Organization not found' });
+    // Find the member entry
+    const memberIdx = org.team.findIndex(member => member.userId.toString() === req.user._id.toString() && member.status === 'pending');
+    if (memberIdx === -1) {
+      return res.status(400).json({ message: 'No pending join request found for this user.' });
+    }
+    org.team.splice(memberIdx, 1);
+    await org.save();
+    res.json({ message: 'Join request withdrawn' });
+  } catch (err) {
+    console.error('❌ Failed to withdraw join request:', err);
+    res.status(500).json({ message: 'Failed to withdraw join request', error: err });
+  }
+};
+
 // Get all organizations for a given userId (public)
 exports.getOrganizationsByUserId = async (req, res) => {
   try {

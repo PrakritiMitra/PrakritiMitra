@@ -95,8 +95,29 @@ export default function JoinOrganizationPage() {
       );
       alert("Join request sent");
       setPendingOrgIds((prev) => new Set(prev).add(orgId));
+      setOrganizations((prev) => prev.map(org => org._id === orgId ? { ...org, status: "pending" } : org));
     } catch (err) {
       alert(err.response?.data?.message || "Request failed");
+      console.error(err);
+    }
+  };
+
+  const handleWithdrawRequest = async (orgId) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/organizations/${orgId}/withdraw`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      alert("Join request withdrawn");
+      setPendingOrgIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(orgId);
+        return newSet;
+      });
+      setOrganizations((prev) => prev.map(org => org._id === orgId ? { ...org, status: "none" } : org));
+    } catch (err) {
+      alert(err.response?.data?.message || "Withdraw failed");
       console.error(err);
     }
   };
@@ -124,9 +145,17 @@ export default function JoinOrganizationPage() {
               <p className="text-sm text-gray-600">{org.description}</p>
               <div className="mt-3">
                 {org.status === "pending" ? (
-                  <p className="text-sm text-yellow-600 font-medium">
-                    Approval Pending
-                  </p>
+                  <>
+                    <p className="text-sm text-yellow-600 font-medium">
+                      Approval Pending
+                    </p>
+                    <button
+                      className="ml-2 px-3 py-1 text-white bg-red-600 rounded hover:bg-red-700 text-sm"
+                      onClick={(e) => { e.stopPropagation(); handleWithdrawRequest(org._id); }}
+                    >
+                      Withdraw Join
+                    </button>
+                  </>
                 ) : (
                   <button
                     className="px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 text-sm"
