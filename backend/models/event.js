@@ -130,6 +130,14 @@ const eventSchema = new mongoose.Schema({
     }
   ],
 
+  organizerJoinRequests: [
+    {
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+      _wasRejected: { type: Boolean, default: false },
+    }
+  ],
+
   summary: {
     type: String,
     default: '',
