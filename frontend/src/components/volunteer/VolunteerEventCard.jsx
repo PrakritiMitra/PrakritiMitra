@@ -72,9 +72,15 @@ const VolunteerEventCard = ({ event }) => {
 
   return (
     <div
-      className="bg-white border rounded-lg shadow hover:shadow-md transition overflow-hidden cursor-pointer"
+      className="bg-white border rounded-lg shadow hover:shadow-md transition overflow-hidden cursor-pointer relative"
       onClick={() => navigate(`/volunteer/events/${_id}`)}
     >
+      {/* LIVE badge */}
+      {isLiveEvent && (
+        <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10 animate-pulse">
+          LIVE
+        </div>
+      )}
       <img src={eventImage} alt={eventType} className="w-full h-40 object-cover" />
       <div className="p-4">
         <h3 className="text-lg font-bold text-blue-800 mb-1">{title}</h3>
@@ -97,8 +103,6 @@ const VolunteerEventCard = ({ event }) => {
 
         {isPastEvent ? (
           <p className="text-red-600 font-semibold mt-4">This event has ended</p>
-        ) : isLiveEvent ? (
-          <p className="text-blue-700 font-semibold mt-4">Event is live</p>
         ) : isRegistered ? (
           <p className="text-green-700 font-semibold">✅ Registered Successfully</p>
         ) : (

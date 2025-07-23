@@ -128,6 +128,11 @@ export default function OrganizationPage() {
     }
   };
 
+  // Add this function to remove a pending request by userId
+  const removePendingRequest = (userId) => {
+    setPendingRequests((prev) => prev.filter((m) => m.userId._id !== userId));
+  };
+
   const now = new Date();
   const upcoming = events.filter((e) => new Date(e.startDateTime) >= now);
   const past = events.filter((e) => new Date(e.startDateTime) < now);
@@ -258,6 +263,7 @@ export default function OrganizationPage() {
                 {pendingRequests.map((req) => (
                   <li
                     key={req.userId._id}
+                    data-userid={req.userId._id}
                     className="flex justify-between items-center bg-white border rounded p-3"
                   >
                     <span className="flex items-center gap-3">
