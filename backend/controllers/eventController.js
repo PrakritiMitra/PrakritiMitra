@@ -182,7 +182,8 @@ exports.getEventById = async (req, res) => {
         path: 'createdBy',
         select: 'name profileImage',
       })
-      .populate('organizerTeam.user', 'name email phone profileImage');
+      .populate('organizerTeam.user', 'name email phone profileImage')
+      .populate('organizerJoinRequests.user', 'name email profileImage');
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -428,6 +429,148 @@ exports.joinAsOrganizer = async (req, res) => {
   } catch (err) {
     console.error('❌ Failed to join as organizer:', err);
     res.status(500).json({ message: 'Server error while joining as organizer' });
+  }
+};
+
+// POST /api/events/:eventId/leave-organizer
+exports.leaveAsOrganizer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.user._id.toString();
+    const event = await require('../models/event').findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    // Prevent creator from leaving
+    if (event.createdBy.toString() === userId) {
+      return res.status(400).json({ message: 'Creator cannot leave as organizer.' });
+    }
+    // Remove user from organizerTeam
+    const before = event.organizerTeam.length;
+    event.organizerTeam = event.organizerTeam.filter(obj => obj.user.toString() !== userId);
+    if (event.organizerTeam.length === before) {
+      return res.status(400).json({ message: 'You are not an organizer for this event.' });
+    }
+    // Remove any join request for this user
+    event.organizerJoinRequests = event.organizerJoinRequests.filter(obj => obj.user.toString() !== userId);
+    await event.save();
+    res.json({ message: 'Left as organizer successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error while leaving as organizer.' });
+  }
+};
+
+// POST /api/events/:eventId/request-join-organizer
+exports.requestJoinAsOrganizer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.user._id.toString();
+    const event = await require('../models/event').findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    // Prevent creator from requesting
+    if (event.createdBy.toString() === userId) {
+      return res.status(400).json({ message: 'Creator cannot request to join as organizer.' });
+    }
+    // Prevent duplicate join (already in team)
+    if (event.organizerTeam.some(obj => obj.user.toString() === userId)) {
+      return res.status(400).json({ message: 'Already an organizer for this event.' });
+    }
+    // Check for existing join request
+    const existingRequestIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId);
+    if (existingRequestIndex !== -1) {
+      const existingRequest = event.organizerJoinRequests[existingRequestIndex];
+      if (existingRequest.status === 'pending') {
+        return res.status(400).json({ message: 'Join request already sent.' });
+      } else if (existingRequest.status === 'rejected') {
+        // Allow reapply: set status to pending and update timestamp
+        event.organizerJoinRequests[existingRequestIndex].status = 'pending';
+        event.organizerJoinRequests[existingRequestIndex].createdAt = new Date();
+        event.organizerJoinRequests[existingRequestIndex]._wasRejected = true;
+        await event.save();
+        return res.json({ message: 'Join request re-sent.' });
+      }
+    }
+    // Add new join request (only if none exists)
+    event.organizerJoinRequests.push({ user: userId, status: 'pending' });
+    await event.save();
+    res.json({ message: 'Join request sent.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error while requesting to join as organizer.' });
+  }
+};
+
+// POST /api/events/:eventId/approve-join-request
+exports.approveJoinRequest = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { userId } = req.body;
+    const event = await require('../models/event').findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    // Only creator can approve
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the creator can approve join requests.' });
+    }
+    // Find the request
+    const reqIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId && obj.status === 'pending');
+    if (reqIndex === -1) {
+      return res.status(404).json({ message: 'Join request not found.' });
+    }
+    // Approve: add to organizerTeam, remove from requests
+    event.organizerTeam.push({ user: userId, hasAttended: false });
+    event.organizerJoinRequests.splice(reqIndex, 1);
+    await event.save();
+    res.json({ message: 'Join request approved.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error while approving join request.' });
+  }
+};
+
+// POST /api/events/:eventId/reject-join-request
+exports.rejectJoinRequest = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { userId } = req.body;
+    const event = await require('../models/event').findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    // Only creator can reject
+    if (event.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the creator can reject join requests.' });
+    }
+    // Find the request
+    const reqObj = event.organizerJoinRequests.find(obj => obj.user.toString() === userId && obj.status === 'pending');
+    if (!reqObj) {
+      return res.status(404).json({ message: 'Join request not found.' });
+    }
+    reqObj.status = 'rejected';
+    await event.save();
+    res.json({ message: 'Join request rejected.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error while rejecting join request.' });
+  }
+};
+
+// POST /api/events/:eventId/withdraw-join-request
+exports.withdrawJoinRequest = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.user._id.toString();
+    const event = await require('../models/event').findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    // Find the pending join request
+    const reqIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId && obj.status === 'pending');
+    if (reqIndex === -1) {
+      return res.status(404).json({ message: 'No pending join request found to withdraw.' });
+    }
+    // If the request was previously rejected, set back to rejected; else remove
+    if (event.organizerJoinRequests[reqIndex]._wasRejected) {
+      event.organizerJoinRequests[reqIndex].status = 'rejected';
+      await event.save();
+      return res.json({ message: 'Join request withdrawn and set back to rejected.' });
+    } else {
+      event.organizerJoinRequests.splice(reqIndex, 1);
+      await event.save();
+      return res.json({ message: 'Join request withdrawn.' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Server error while withdrawing join request.' });
   }
 };
 

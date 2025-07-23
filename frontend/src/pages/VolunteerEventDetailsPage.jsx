@@ -56,6 +56,10 @@ export default function VolunteerEventDetailsPage() {
       try {
         const res = await axiosInstance.get(`/api/events/${id}`);
         setEvent(res.data);
+        // If organizerTeam is present and populated, set it for organizer drawer
+        if (res.data.organizerTeam && Array.isArray(res.data.organizerTeam)) {
+          setOrganizerTeam(res.data.organizerTeam);
+        }
       } catch (err) {
         setError("Event not found or failed to load.");
         console.error(err);
@@ -315,23 +319,20 @@ export default function VolunteerEventDetailsPage() {
           </div>
           <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
             {organizerTeam.map((obj) => {
+              if (!obj.user || !obj.user._id) return null;
               const user = obj.user;
-              const isCreator = user._id === event.createdBy._id;
               return (
                 <div
                   key={user._id}
-                  className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
+                  className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2"
                   onClick={() => navigate(`/organizer/${user._id}`)}
                 >
-                                        <img
-                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                        alt={user.name}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                      />
+                  <img
+                    src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
+                    alt={user.name}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                  />
                   <span className="font-medium text-blue-800 text-lg">{user.name}</span>
-                  {isCreator && (
-                    <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
-                  )}
                 </div>
               );
             })}

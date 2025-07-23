@@ -2,7 +2,7 @@
 const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
-const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance } = require('../controllers/eventController');
+const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance, leaveAsOrganizer, requestJoinAsOrganizer, approveJoinRequest, rejectJoinRequest, withdrawJoinRequest } = require('../controllers/eventController');
 const { eventMultiUpload } = require('../middlewares/upload');
 
 const Event = require("../models/event");
@@ -17,10 +17,26 @@ router.get('/', getAllEvents);
 router.get('/my-events', protect, async (req, res) => {
   try {
     const userId = req.user._id;
-    const events = await require('../models/event').find({ createdBy: userId })
+    const Event = require('../models/event');
+    // Find events where user is creator OR in organizerTeam
+    const events = await Event.find({
+      $or: [
+        { createdBy: userId },
+        { 'organizerTeam.user': userId }
+      ]
+    })
       .sort({ startDateTime: -1 })
       .populate('organization');
-    res.status(200).json(events);
+    // Remove duplicates (if any)
+    const uniqueEvents = [];
+    const seen = new Set();
+    for (const event of events) {
+      if (!seen.has(event._id.toString())) {
+        uniqueEvents.push(event);
+        seen.add(event._id.toString());
+      }
+    }
+    res.status(200).json(uniqueEvents);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -92,6 +108,19 @@ router.get('/by-organizer-and-org/:userId/:orgId', async (req, res) => {
 
 // Organizer joins an event as a team member
 router.post('/:eventId/join-organizer', protect, requireOrganizer, joinAsOrganizer);
+
+// Organizer leaves an event as organizer
+router.post('/:eventId/leave-organizer', protect, requireOrganizer, leaveAsOrganizer);
+
+// Organizer requests to join as organizer
+router.post('/:eventId/request-join-organizer', protect, requireOrganizer, requestJoinAsOrganizer);
+// Creator approves a join request
+router.post('/:eventId/approve-join-request', protect, approveJoinRequest);
+// Creator rejects a join request
+router.post('/:eventId/reject-join-request', protect, rejectJoinRequest);
+
+// Organizer withdraws join request
+router.post('/:eventId/withdraw-join-request', protect, requireOrganizer, withdrawJoinRequest);
 
 // Get the organizer team for an event
 router.get('/:eventId/organizer-team', protect, getOrganizerTeam);

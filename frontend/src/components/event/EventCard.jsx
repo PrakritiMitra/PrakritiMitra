@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import defaultImages from "../../utils/eventTypeImages";
 import { format } from "date-fns";
 import { joinAsOrganizer, getOrganizerTeam } from "../../api/event";
+import axiosInstance from "../../api/axiosInstance";
 
 export default function EventCard({ event }) {
   const {
@@ -36,11 +37,18 @@ export default function EventCard({ event }) {
   const [joinError, setJoinError] = useState("");
   const [joinSuccess, setJoinSuccess] = useState("");
   const [isTeamMember, setIsTeamMember] = useState(false);
+  const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'pending', 'rejected', null
 
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const isCreator = createdBy === currentUser?._id || createdBy?._id === currentUser?._id;
   const isOrganizer = currentUser?.role === "organizer";
   const canJoinAsOrganizer = isOrganizer && !isCreator && !isTeamMember;
+
+  // Helper: check if user has a rejected request (even if not pending)
+  const hasRejectedRequest = event?.organizerJoinRequests?.some(r => {
+    const userId = r.user?._id || r.user;
+    return userId === currentUser?._id && (r.status === 'rejected' || r._wasRejected);
+  });
 
   useEffect(() => {
     const fetchTeam = async () => {
@@ -48,27 +56,44 @@ export default function EventCard({ event }) {
         const team = await getOrganizerTeam(_id);
         setOrganizerTeam(team);
         setIsTeamMember(team.some((user) => user._id === currentUser?._id));
+        // Fetch event details to check join request status
+        const res = await axiosInstance.get(`/api/events/${_id}`);
+        if (res.data.organizerJoinRequests && currentUser) {
+          const reqObj = res.data.organizerJoinRequests.find(r => r.user === currentUser._id || (r.user && r.user._id === currentUser._id));
+          if (reqObj) setJoinRequestStatus(reqObj.status);
+          else setJoinRequestStatus(null);
+        } else {
+          setJoinRequestStatus(null);
+        }
       } catch (err) {
         setOrganizerTeam([]);
         setIsTeamMember(false);
+        setJoinRequestStatus(null);
       }
     };
     fetchTeam();
   }, [_id, currentUser?._id]);
 
-  const handleJoinAsOrganizer = async (e) => {
+  // Handler to send join request as organizer
+  const handleRequestJoinAsOrganizer = async (e) => {
     e.preventDefault();
     setJoining(true);
     setJoinError("");
     setJoinSuccess("");
     try {
-      await joinAsOrganizer(_id);
-      setJoinSuccess("You have joined as an organizer!");
-      const team = await getOrganizerTeam(_id);
-      setOrganizerTeam(team);
-      setIsTeamMember(true);
+      await axiosInstance.post(`/api/events/${_id}/request-join-organizer`);
+      // Always fetch latest status from backend after reapply
+      const res = await axiosInstance.get(`/api/events/${_id}`);
+      if (res.data.organizerJoinRequests && currentUser) {
+        const reqObj = res.data.organizerJoinRequests.find(r => r.user === currentUser._id || (r.user && r.user._id === currentUser._id));
+        if (reqObj) setJoinRequestStatus(reqObj.status);
+        else setJoinRequestStatus(null);
+      } else {
+        setJoinRequestStatus(null);
+      }
+      setJoinSuccess('Join request sent!');
     } catch (err) {
-      setJoinError(err?.response?.data?.message || "Failed to join as organizer.");
+      setJoinError(err?.response?.data?.message || "Failed to send join request.");
     } finally {
       setJoining(false);
     }
@@ -104,14 +129,38 @@ export default function EventCard({ event }) {
         </div>
       </Link>
 
-      {canJoinAsOrganizer && (
+      {canJoinAsOrganizer && joinRequestStatus !== 'pending' && (
         <button
-          onClick={handleJoinAsOrganizer}
+          onClick={handleRequestJoinAsOrganizer}
           className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
           disabled={joining}
         >
-          {joining ? "Joining..." : "Join as Organizer"}
+          {joining ? "Requesting..." : "Join as Organizer"}
         </button>
+      )}
+      {canJoinAsOrganizer && joinRequestStatus === 'pending' && (
+        <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 px-3 py-1 rounded z-10 text-xs font-semibold">Join request sent</div>
+      )}
+      {canJoinAsOrganizer && joinRequestStatus !== 'pending' && hasRejectedRequest && !joining && (
+        <button
+          onClick={handleRequestJoinAsOrganizer}
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
+          disabled={joining}
+        >
+          {joining ? "Reapplying..." : "Reapply as Organizer"}
+        </button>
+      )}
+      {canJoinAsOrganizer && joinRequestStatus !== 'pending' && !hasRejectedRequest && (
+        <button
+          onClick={handleRequestJoinAsOrganizer}
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
+          disabled={joining}
+        >
+          {joining ? "Requesting..." : "Join as Organizer"}
+        </button>
+      )}
+      {canJoinAsOrganizer && joinRequestStatus === 'rejected' && joining && (
+        <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 px-3 py-1 rounded z-10 text-xs font-semibold">Reapplying...</div>
       )}
       {joinError && <p className="text-xs text-red-600 mt-1 ml-2">{joinError}</p>}
       {joinSuccess && <p className="text-xs text-green-600 mt-1 ml-2">{joinSuccess}</p>}
