@@ -12,8 +12,9 @@ import { QRCodeSVG } from "qrcode.react";
 import { getFullOrganizerTeam } from "../api/event";
 import { useCallback } from "react";
 import { io } from "socket.io-client";
-import EventChatbox from '../components/chat/EventChatbox';
+import EventChatbox from '../components/chat/EventChatBox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
+import { format } from "date-fns";
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -500,8 +501,8 @@ export default function VolunteerEventDetailsPage() {
                   <span className="font-semibold text-gray-700">Location:</span> {event.location}
                 </div>
                 <div className="mb-2">
-                  <span className="font-semibold text-gray-700">Timing:</span> <br/>
-                  <span className="text-sm text-gray-600">{new Date(event.startDateTime).toLocaleString()} — {new Date(event.endDateTime).toLocaleString()}</span>
+                  <span className="font-semibold text-gray-700">Timing: &nbsp;</span>
+                  <span className="font-medium text-gray-700">{`(${format(new Date(event.startDateTime), 'hh:mm a, d MMMM yyyy')}) — (${format(new Date(event.endDateTime), 'hh:mm a, d MMMM yyyy')})`}</span>
                 </div>
                 <div className="mb-2">
                   <span className="font-semibold text-gray-700">Type:</span> {event.eventType || "Not specified"}
