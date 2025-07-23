@@ -107,12 +107,18 @@ exports.joinOrganization = async (req, res) => {
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-    const alreadyRequested = org.team.some(member =>
-      member.userId.toString() === req.user._id.toString()
-    );
-    if (alreadyRequested) {
-      console.log("⚠️ Already requested or member");
-      return res.status(400).json({ message: 'Already requested or a member' });
+    const existingMember = org.team.find(member => member.userId.toString() === req.user._id.toString());
+    if (existingMember) {
+      if (existingMember.status === 'pending') {
+        return res.status(400).json({ message: 'Already requested or a member' });
+      } else if (existingMember.status === 'approved') {
+        return res.status(400).json({ message: 'Already requested or a member' });
+      } else if (existingMember.status === 'rejected') {
+        // Allow reapply: set status back to pending
+        existingMember.status = 'pending';
+        await org.save();
+        return res.json({ message: 'Join request sent' });
+      }
     }
 
     org.team.push({ userId: req.user._id, status: 'pending' });
@@ -287,10 +293,17 @@ exports.rejectTeamMember = async (req, res) => {
       return res.status(403).json({ message: 'Only admins can reject requests' });
     }
 
-    const memberIndex = org.team.findIndex(m => m.userId.equals(userId));
-    if (memberIndex === -1) return res.status(404).json({ message: 'User not in team' });
+    const member = org.team.find(m => m.userId.equals(userId));
+    if (!member) return res.status(404).json({ message: 'User not in team' });
 
-    org.team.splice(memberIndex, 1); // remove the request
+    if (member.status === 'rejected') {
+      // If already rejected, remove from team
+      org.team = org.team.filter(m => !m.userId.equals(userId));
+      await org.save();
+      return res.json({ message: 'User removed from team (already rejected)' });
+    }
+
+    member.status = 'rejected';
     await org.save();
 
     console.log("✅ User rejected successfully");
