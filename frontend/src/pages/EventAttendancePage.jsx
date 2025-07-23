@@ -75,7 +75,7 @@ export default function EventAttendancePage() {
       const registrationId = data.registrationId;
       console.log("Parsed registrationId:", registrationId);
       if (!registrationId) throw new Error("Invalid QR code");
-      const response = await axiosInstance.patch(`/registrations/${registrationId}/attendance`, { hasAttended: true });
+      const response = await axiosInstance.patch(`/api/registrations/${registrationId}/attendance`, { hasAttended: true });
       console.log("Attendance API response:", response.data);
       alert("Attendance marked!");
       setVolunteers((prev) => prev.map((v) => v.registrationId === registrationId ? { ...v, hasAttended: true } : v));

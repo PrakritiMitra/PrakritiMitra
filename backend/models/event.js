@@ -8,7 +8,13 @@ const eventSchema = new mongoose.Schema({
 
   description: String,
 
-  location: String,
+  location: String, // The original string field remains untouched
+
+  mapLocation: {
+    address: { type: String, trim: true },
+    lat: { type: Number },
+    lng: { type: Number },
+  },
 
   startDateTime: {
     type: Date,

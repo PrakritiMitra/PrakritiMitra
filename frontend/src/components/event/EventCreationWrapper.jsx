@@ -20,7 +20,12 @@ export default function EventCreationWrapper({
     initialFormData || {
       title: "",
       description: "",
-      location: "",
+      location: "", // Keep original location for backward compatibility or simple text entry
+      mapLocation: {
+        address: "",
+        lat: null,
+        lng: null,
+      },
       startDateTime: "",
       endDateTime: "",
       maxVolunteers: "",
@@ -93,6 +98,12 @@ export default function EventCreationWrapper({
         (Array.isArray(formData.eventImages) ? formData.eventImages : []).forEach((file) =>
           data.append("eventImages", file)
         );
+      } else if (key === 'mapLocation') {
+        if (formData.mapLocation) {
+          data.append('mapLocation[address]', formData.mapLocation.address || '');
+          data.append('mapLocation[lat]', formData.mapLocation.lat || '');
+          data.append('mapLocation[lng]', formData.mapLocation.lng || '');
+        }
       } else if (key === "govtApprovalLetter") {
         if (formData.govtApprovalLetter) {
           data.append("govtApprovalLetter", formData.govtApprovalLetter);
