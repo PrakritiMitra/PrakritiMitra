@@ -6,8 +6,9 @@ import Navbar from "../components/layout/Navbar";
 import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/event";
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
-import EventChatbox from '../components/chat/EventChatbox';
+import EventChatbox from '../components/chat/EventChatBox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
+import { format } from "date-fns";
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -475,8 +476,7 @@ export default function EventDetailsPage() {
         </div>
         <div className="mb-4">
           <strong>Timing:</strong>{" "}
-          {new Date(event.startDateTime).toLocaleString()} —{" "}
-          {new Date(event.endDateTime).toLocaleString()}
+          {`(${format(new Date(event.startDateTime), 'hh:mm a, d MMMM yyyy')}) — (${format(new Date(event.endDateTime), 'hh:mm a, d MMMM yyyy')})`}
         </div>
         <div className="mb-4">
           <strong>Type:</strong> {event.eventType || "Not specified"}
