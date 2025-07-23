@@ -13,73 +13,67 @@ export default function JoinOrganizationPage() {
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        const allOrgsRes = await axios.get("/api/organizations", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const allOrgs = allOrgsRes.data;
-
-        const teamStatuses = {}; // orgId => "approved" | "pending" | "none"
-        const pending = new Set();
-        const approved = new Set();
-        const createdByMe = new Set();
-
-        for (const org of allOrgs) {
-          if (org.createdBy === user._id) {
-            createdByMe.add(org._id);
-            continue;
-          }
-
-          try {
-            const teamRes = await axios.get(
-              `/api/organizations/${org._id}/team`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-
-            const member = teamRes.data.find((m) => m.userId._id === user._id);
-            if (member?.status === "approved") {
-              approved.add(org._id);
-            } else if (member?.status === "pending") {
-              pending.add(org._id);
-            }
-          } catch (err) {
-            console.warn(
-              `⚠️ Couldn't fetch team for org ${org._id}:`,
-              err.message
-            );
-          }
+  const fetchOrganizations = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const allOrgsRes = await axios.get("/api/organizations", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const allOrgs = allOrgsRes.data;
+      const teamStatuses = {};
+      const pending = new Set();
+      const approved = new Set();
+      const rejected = new Set();
+      const createdByMe = new Set();
+      for (const org of allOrgs) {
+        if (org.createdBy === user._id) {
+          createdByMe.add(org._id);
+          continue;
         }
-
-        const visible = allOrgs.map((org) => ({
-          ...org,
-          status: approved.has(org._id)
-            ? "approved"
-            : pending.has(org._id)
-            ? "pending"
-            : createdByMe.has(org._id)
-            ? "creator"
-            : "none",
-        }));
-
-        const filtered = visible.filter(
-          (org) => org.status !== "approved" && org.status !== "creator"
-        );
-        setOrganizations(filtered);
-       
-      } catch (err) {
-        console.error("❌ Failed to load organizations:", err);
-      } finally {
-        setLoading(false);
+        try {
+          const teamRes = await axios.get(
+            `/api/organizations/${org._id}/team`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          const member = teamRes.data.find((m) => m.userId._id === user._id);
+          if (member?.status === "approved") {
+            approved.add(org._id);
+          } else if (member?.status === "pending") {
+            pending.add(org._id);
+          } else if (member?.status === "rejected") {
+            rejected.add(org._id);
+          }
+        } catch (err) {
+          // ignore
+        }
       }
-    };
+      const visible = allOrgs.map((org) => ({
+        ...org,
+        status: approved.has(org._id)
+          ? "approved"
+          : pending.has(org._id)
+          ? "pending"
+          : rejected.has(org._id)
+          ? "rejected"
+          : createdByMe.has(org._id)
+          ? "creator"
+          : "none",
+      }));
+      const filtered = visible.filter(
+        (org) => org.status !== "approved" && org.status !== "creator"
+      );
+      setOrganizations(filtered);
+    } catch (err) {
+      console.error("❌ Failed to load organizations:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
+  useEffect(() => {
+    fetchOrganizations();
   }, []);
 
   const handleJoinRequest = async (orgId) => {
@@ -95,8 +89,11 @@ export default function JoinOrganizationPage() {
       );
       alert("Join request sent");
       setPendingOrgIds((prev) => new Set(prev).add(orgId));
-      setOrganizations((prev) => prev.map(org => org._id === orgId ? { ...org, status: "pending" } : org));
+      await fetchOrganizations();
     } catch (err) {
+      if (err.response?.data?.message?.toLowerCase().includes("rejected")) {
+        setOrganizations((prev) => prev.map(org => org._id === orgId ? { ...org, status: "rejected" } : org));
+      }
       alert(err.response?.data?.message || "Request failed");
       console.error(err);
     }
@@ -115,7 +112,7 @@ export default function JoinOrganizationPage() {
         newSet.delete(orgId);
         return newSet;
       });
-      setOrganizations((prev) => prev.map(org => org._id === orgId ? { ...org, status: "none" } : org));
+      await fetchOrganizations();
     } catch (err) {
       alert(err.response?.data?.message || "Withdraw failed");
       console.error(err);
@@ -154,6 +151,18 @@ export default function JoinOrganizationPage() {
                       onClick={(e) => { e.stopPropagation(); handleWithdrawRequest(org._id); }}
                     >
                       Withdraw Join
+                    </button>
+                  </>
+                ) : org.status === "rejected" ? (
+                  <>
+                    <p className="text-sm text-red-600 font-medium">
+                      Request Rejected
+                    </p>
+                    <button
+                      className="ml-2 px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 text-sm"
+                      onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
+                    >
+                      Reapply to Join
                     </button>
                   </>
                 ) : (
