@@ -2,8 +2,8 @@
 const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
-const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance, leaveAsOrganizer, requestJoinAsOrganizer, approveJoinRequest, rejectJoinRequest, withdrawJoinRequest } = require('../controllers/eventController');
-const { eventMultiUpload } = require('../middlewares/upload');
+const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance, leaveAsOrganizer, requestJoinAsOrganizer, approveJoinRequest, rejectJoinRequest, withdrawJoinRequest, completeQuestionnaire } = require('../controllers/eventController');
+const { eventMultiUpload, completedEventUpload } = require('../middlewares/upload');
 
 const Event = require("../models/event");
 
@@ -72,6 +72,9 @@ router.post("/batch", protect, async (req, res) => {
 router.get('/:id', getEventById);
 router.put('/:id', protect, eventMultiUpload, updateEvent);
 router.delete('/:id', protect, deleteEvent);
+
+// Complete questionnaire for an event
+router.post('/:id/complete-questionnaire', protect, requireOrganizer, completedEventUpload.array('media', 10), completeQuestionnaire);
 
 // @route   GET /api/events/organization/:orgId
 router.get('/organization/:orgId', getEventsByOrganization);

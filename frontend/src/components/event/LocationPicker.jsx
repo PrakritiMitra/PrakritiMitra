@@ -1,76 +1,59 @@
-import React, { useState, useCallback } from "react";
-import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from "@react-google-maps/api";
+import React, { useRef, useCallback } from "react";
+import { GoogleMap, Marker, useLoadScript, Autocomplete } from "@react-google-maps/api";
 
-const containerStyle = { width: "100%", height: "300px" };
-const LIBRARIES = ['places']; // Define libraries as a constant
+const libraries = ["places"];
+const mapContainerStyle = { width: "100%", height: "300px" };
+const defaultCenter = { lat: 19.076, lng: 72.8777 }; // Mumbai
 
 export default function LocationPicker({ value, onChange }) {
-  // Use a default center if the initial value is invalid
-  const initialCenter = 
-    value && typeof value.lat === 'number' && typeof value.lng === 'number'
-      ? { lat: value.lat, lng: value.lng }
-      : { lat: 28.6139, lng: 77.2090 }; // Default: Delhi
-
-  const [center, setCenter] = useState(initialCenter);
-  // Only set an initial marker if the value is valid
-  const [marker, setMarker] = useState(
-    value && typeof value.lat === 'number' && typeof value.lng === 'number' ? value : null
-  );
-  const [autocomplete, setAutocomplete] = useState(null);
-
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES,
+    libraries,
   });
+  const autocompleteRef = useRef(null);
 
-  const onMapClick = useCallback(
-    (e) => {
-      const pos = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-      setMarker(pos);
-      onChange && onChange(pos);
-    },
-    [onChange]
-  );
-
-  const onPlaceChanged = () => {
-    if (autocomplete) {
-      const place = autocomplete.getPlace();
-      if (place.geometry) {
-        const pos = {
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-        };
-        setCenter(pos);
-        setMarker(pos);
-        onChange && onChange(pos);
-      }
+  const handlePlaceChanged = useCallback(() => {
+    const place = autocompleteRef.current.getPlace();
+    if (place && place.geometry) {
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      onChange({
+        lat,
+        lng,
+        address: place.formatted_address,
+      });
     }
-  };
+  }, [onChange]);
 
   if (!isLoaded) return <div>Loading map...</div>;
 
   return (
     <div>
-      <Autocomplete onLoad={setAutocomplete} onPlaceChanged={onPlaceChanged}>
+      <Autocomplete
+        onLoad={ref => (autocompleteRef.current = ref)}
+        onPlaceChanged={handlePlaceChanged}
+      >
         <input
           type="text"
           placeholder="Search location"
-          className="w-full border rounded px-3 py-2 mb-2"
+          defaultValue={value?.address || ""}
+          style={{ width: "100%", padding: 8, marginBottom: 8 }}
         />
       </Autocomplete>
       <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={center}
-        zoom={15}
-        onClick={onMapClick}
+        mapContainerStyle={mapContainerStyle}
+        center={value?.lat && value?.lng ? { lat: value.lat, lng: value.lng } : defaultCenter}
+        zoom={value?.lat && value?.lng ? 15 : 10}
+        onClick={e => {
+          onChange({
+            ...value,
+            lat: e.latLng.lat(),
+            lng: e.latLng.lng(),
+          });
+        }}
       >
-        {marker && <Marker position={marker} />}
+        {value?.lat && value?.lng && <Marker position={{ lat: value.lat, lng: value.lng }} />}
       </GoogleMap>
-      {marker && typeof marker.lat === 'number' && typeof marker.lng === 'number' && (
-        <div className="mt-2 text-sm text-gray-700">
-          <b>Selected Location:</b> {marker.lat.toFixed(5)}, {marker.lng.toFixed(5)}
-        </div>
-      )}
     </div>
   );
 }

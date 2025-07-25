@@ -102,6 +102,7 @@ export default function EventCard({ event }) {
   // Determine if event is live
   const now = new Date();
   const isLive = new Date(startDateTime) <= now && now < new Date(endDateTime);
+  const isPast = now > new Date(endDateTime);
 
   return (
     <div className="relative">
@@ -111,6 +112,18 @@ export default function EventCard({ event }) {
             <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10 animate-pulse">
               LIVE
             </div>
+          )}
+          {/* Questionnaire badge for organizers on past events */}
+          {isPast && isOrganizer && (
+            event.questionnaire?.completed ? (
+              <div className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10">
+                Completed
+              </div>
+            ) : (
+              <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10">
+                Questionnaire Pending
+              </div>
+            )
           )}
           <img
             src={eventImage}
