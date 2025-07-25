@@ -83,7 +83,6 @@ exports.registerOrganization = async (req, res) => {
 // Get organization created by current user
 exports.getMyOrganization = async (req, res) => {
   try {
-    console.log("🔹 Fetching org for user:", req.user._id);
     const org = await Organization.findOne({
       $or: [
         { createdBy: req.user._id },
@@ -92,7 +91,6 @@ exports.getMyOrganization = async (req, res) => {
     });
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-    console.log("✅ Organization found:", org._id);
     res.json(org);
   } catch (err) {
     console.error("❌ Server error in getMyOrganization:", err);
@@ -103,7 +101,6 @@ exports.getMyOrganization = async (req, res) => {
 // Request to join organization
 exports.joinOrganization = async (req, res) => {
   try {
-    console.log(`🔹 ${req.user._id} requesting to join org: ${req.params.id}`);
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
@@ -124,7 +121,6 @@ exports.joinOrganization = async (req, res) => {
     org.team.push({ userId: req.user._id, status: 'pending' });
     await org.save();
 
-    console.log("✅ Join request sent");
     res.json({ message: 'Join request sent' });
   } catch (err) {
     console.error("❌ Failed to send join request:", err);
@@ -136,7 +132,6 @@ exports.joinOrganization = async (req, res) => {
 exports.approveTeamMember = async (req, res) => {
   try {
     const { orgId, userId } = req.params;
-    console.log(`🔹 Approving user ${userId} for org ${orgId}`);
 
     const org = await Organization.findById(orgId);
     if (!org) return res.status(404).json({ message: 'Organization not found' });
@@ -145,7 +140,6 @@ exports.approveTeamMember = async (req, res) => {
       org.team.some(m => m.userId.equals(req.user._id) && m.isAdmin);
 
     if (!isAdmin) {
-      console.log("⛔ Not authorized to approve");
       return res.status(403).json({ message: 'Only admins can approve' });
     }
 
@@ -155,7 +149,6 @@ exports.approveTeamMember = async (req, res) => {
     member.status = 'approved';
     await org.save();
 
-    console.log("✅ User approved successfully");
     res.json({ message: 'User approved successfully' });
   } catch (err) {
     console.error("❌ Approval failed:", err);
@@ -166,15 +159,12 @@ exports.approveTeamMember = async (req, res) => {
 // Get all organizations NOT already joined by current user
 exports.getAllOrganizations = async (req, res) => {
   try {
-    console.log("🔹 Fetching all organizations");
 
     const userId = req.user?._id;
     if (userId) {
-      console.log("🔹 Called by user:", userId);
     }
 
     const orgs = await Organization.find({}, "name description logoUrl");
-    console.log(`✅ ${orgs.length} organizations fetched`);
 
     res.json(orgs);
   } catch (err) {
@@ -189,7 +179,6 @@ exports.getAllOrganizations = async (req, res) => {
 // Get org by ID (excluding team)
 exports.getOrganizationById = async (req, res) => {
   const orgId = req.params.id;
-  console.log("🔹 Fetching org by ID:", orgId);
 
   if (!mongoose.Types.ObjectId.isValid(orgId)) {
     return res.status(400).json({ message: "Invalid organization ID" });
@@ -199,7 +188,6 @@ exports.getOrganizationById = async (req, res) => {
     const org = await Organization.findById(orgId).select("-team");
     if (!org) return res.status(404).json({ message: "Organization not found" });
 
-    console.log("✅ Org found:", org._id);
     res.json(org);
   } catch (err) {
     console.error("❌ Failed to fetch org by ID:", err);
@@ -211,12 +199,10 @@ exports.getOrganizationById = async (req, res) => {
 exports.getOrganizationTeam = async (req, res) => {
   try {
     const orgId = req.params.id;
-    console.log("🔹 Fetching team for org:", orgId);
     // Populate name, email, role, profileImage, and govtIdProofUrl for each user
     const org = await Organization.findById(orgId).populate('team.userId', 'name email role profileImage govtIdProofUrl');
     if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-    console.log(`✅ Team of ${org.team.length} members fetched`);
     res.json(org.team);
   } catch (err) {
     console.error("❌ Failed to fetch team:", err);
@@ -227,7 +213,6 @@ exports.getOrganizationTeam = async (req, res) => {
 // Get all approved organizations
 exports.getApprovedOrganizations = async (req, res) => {
   try {
-    console.log("🔹 Fetching approved orgs for user:", req.user._id);
 
     const orgs = await Organization.find({
       $or: [
@@ -243,7 +228,6 @@ exports.getApprovedOrganizations = async (req, res) => {
       ]
     }).select('name _id description');
 
-    console.log(`✅ ${orgs.length} approved/created orgs found`);
     res.json(orgs);
   } catch (err) {
     console.error("❌ Failed to fetch approved orgs:", err);
@@ -254,7 +238,6 @@ exports.getApprovedOrganizations = async (req, res) => {
 // Get all requests (approved + pending)
 exports.getMyRequests = async (req, res) => {
   try {
-    console.log("🔹 Fetching requests for:", req.user._id);
 
     const orgs = await Organization.find({
       'team.userId': req.user._id
@@ -269,7 +252,6 @@ exports.getMyRequests = async (req, res) => {
       else if (member?.status === 'pending') pending.push(org);
     });
 
-    console.log(`✅ ${approved.length} approved, ${pending.length} pending`);
     res.json({ approved, pending });
   } catch (err) {
     console.error("❌ Failed to fetch my requests:", err);
@@ -281,7 +263,6 @@ exports.getMyRequests = async (req, res) => {
 exports.rejectTeamMember = async (req, res) => {
   try {
     const { orgId, userId } = req.params;
-    console.log(`🔹 Rejecting user ${userId} for org ${orgId}`);
 
     const org = await Organization.findById(orgId);
     if (!org) return res.status(404).json({ message: 'Organization not found' });
@@ -306,7 +287,6 @@ exports.rejectTeamMember = async (req, res) => {
     member.status = 'rejected';
     await org.save();
 
-    console.log("✅ User rejected successfully");
     res.json({ message: 'User rejected successfully' });
   } catch (err) {
     console.error("❌ Rejection failed:", err);
@@ -351,7 +331,6 @@ exports.getOrganizationsByUserId = async (req, res) => {
 exports.deleteOrganization = async (req, res) => {
   try {
     const orgId = req.params.id;
-    console.log(`🔹 Deleting organization: ${orgId}`);
 
     const org = await Organization.findById(orgId);
     if (!org) {
@@ -374,7 +353,6 @@ exports.deleteOrganization = async (req, res) => {
         const logoPath = path.join(__dirname, "../uploads/OrganizationDetails", org.logo);
         if (fs.existsSync(logoPath)) {
           fs.unlinkSync(logoPath);
-          console.log(`✅ Deleted logo: ${org.logo}`);
         }
       }
 
@@ -392,7 +370,6 @@ exports.deleteOrganization = async (req, res) => {
             const docPath = path.join(__dirname, "../uploads/OrganizationDetails", doc);
             if (fs.existsSync(docPath)) {
               fs.unlinkSync(docPath);
-              console.log(`✅ Deleted document: ${doc}`);
             }
           }
         });
@@ -405,7 +382,6 @@ exports.deleteOrganization = async (req, res) => {
     // ✅ Delete the organization from database
     await Organization.findByIdAndDelete(orgId);
 
-    console.log("✅ Organization deleted successfully");
     return res.status(200).json({ message: 'Organization deleted successfully' });
   } catch (err) {
     console.error('❌ Failed to delete organization:', err);

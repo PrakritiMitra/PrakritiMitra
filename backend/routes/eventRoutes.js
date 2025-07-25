@@ -2,16 +2,16 @@
 const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
-const { createEvent, getAllEvents, getEventsByOrganization, getUpcomingEvents, getEventById, updateEvent, deleteEvent, joinAsOrganizer, getOrganizerTeam, updateOrganizerAttendance, leaveAsOrganizer, requestJoinAsOrganizer, approveJoinRequest, rejectJoinRequest, withdrawJoinRequest, completeQuestionnaire } = require('../controllers/eventController');
+const eventController = require('../controllers/eventController');
 const { eventMultiUpload, completedEventUpload } = require('../middlewares/upload');
 
 const Event = require("../models/event");
 
 // @route   POST /api/events/create
-router.post( '/create', protect, eventMultiUpload, createEvent);
+router.post( '/create', protect, eventMultiUpload, eventController.createEvent);
 
 // @route   GET /api/events
-router.get('/', getAllEvents);
+router.get('/', eventController.getAllEvents);
 
 // @route   GET /api/events/my-events
 router.get('/my-events', protect, async (req, res) => {
@@ -69,18 +69,18 @@ router.post("/batch", protect, async (req, res) => {
 });
 
 // Get event by ID /api/events/:id
-router.get('/:id', getEventById);
-router.put('/:id', protect, eventMultiUpload, updateEvent);
-router.delete('/:id', protect, deleteEvent);
+router.get('/:id', eventController.getEventById);
+router.put('/:id', protect, eventMultiUpload, eventController.updateEvent);
+router.delete('/:id', protect, eventController.deleteEvent);
 
 // Complete questionnaire for an event
-router.post('/:id/complete-questionnaire', protect, requireOrganizer, completedEventUpload.array('media', 10), completeQuestionnaire);
+router.post('/:id/complete-questionnaire', protect, requireOrganizer, completedEventUpload.array('media', 10), eventController.completeQuestionnaire);
 
 // @route   GET /api/events/organization/:orgId
-router.get('/organization/:orgId', getEventsByOrganization);
+router.get('/organization/:orgId', eventController.getEventsByOrganization);
 
 // @route   GET /api/events/upcoming
-router.get('/upcoming', getUpcomingEvents);
+router.get('/upcoming', eventController.getUpcomingEvents);
 
 // @route   GET /api/events/created-by/:userId
 router.get('/created-by/:userId', async (req, res) => {
@@ -110,25 +110,28 @@ router.get('/by-organizer-and-org/:userId/:orgId', async (req, res) => {
 });
 
 // Organizer joins an event as a team member
-router.post('/:eventId/join-organizer', protect, requireOrganizer, joinAsOrganizer);
+router.post('/:eventId/join-organizer', protect, requireOrganizer, eventController.joinAsOrganizer);
 
 // Organizer leaves an event as organizer
-router.post('/:eventId/leave-organizer', protect, requireOrganizer, leaveAsOrganizer);
+router.post('/:eventId/leave-organizer', protect, requireOrganizer, eventController.leaveAsOrganizer);
 
 // Organizer requests to join as organizer
-router.post('/:eventId/request-join-organizer', protect, requireOrganizer, requestJoinAsOrganizer);
+router.post('/:eventId/request-join-organizer', protect, requireOrganizer, eventController.requestJoinAsOrganizer);
 // Creator approves a join request
-router.post('/:eventId/approve-join-request', protect, approveJoinRequest);
+router.post('/:eventId/approve-join-request', protect, eventController.approveJoinRequest);
 // Creator rejects a join request
-router.post('/:eventId/reject-join-request', protect, rejectJoinRequest);
+router.post('/:eventId/reject-join-request', protect, eventController.rejectJoinRequest);
 
 // Organizer withdraws join request
-router.post('/:eventId/withdraw-join-request', protect, requireOrganizer, withdrawJoinRequest);
+router.post('/:eventId/withdraw-join-request', protect, requireOrganizer, eventController.withdrawJoinRequest);
 
 // Get the organizer team for an event
-router.get('/:eventId/organizer-team', protect, getOrganizerTeam);
+router.get('/:eventId/organizer-team', protect, eventController.getOrganizerTeam);
 
 // PATCH /api/events/:eventId/organizer/:organizerId/attendance - mark attendance for an organizer
-router.patch('/:eventId/organizer/:organizerId/attendance', protect, requireOrganizer, updateOrganizerAttendance);
+router.patch('/:eventId/organizer/:organizerId/attendance', protect, requireOrganizer, eventController.updateOrganizerAttendance);
+
+// Get available slots for an event
+router.get('/:id/slots', eventController.getEventSlots);
 
 module.exports = router;

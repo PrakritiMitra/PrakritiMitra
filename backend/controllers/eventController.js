@@ -616,7 +616,33 @@ exports.updateOrganizerAttendance = async (req, res) => {
   }
 };
 
-// Complete Questionnaire for an Event
+// Get available slots for an event
+exports.getEventSlots = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const Event = require('../models/event');
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found.' });
+    }
+    if (event.unlimitedVolunteers) {
+      return res.json({
+        availableSlots: null,
+        maxVolunteers: null,
+        unlimitedVolunteers: true
+      });
+    }
+    const availableSlots = event.maxVolunteers - (event.volunteers ? event.volunteers.length : 0);
+    res.json({
+      availableSlots,
+      maxVolunteers: event.maxVolunteers,
+      unlimitedVolunteers: false
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error fetching slots.' });
+};
+  
+ // Complete Questionnaire for an Event
 exports.completeQuestionnaire = async (req, res) => {
   try {
     const eventId = req.params.id;

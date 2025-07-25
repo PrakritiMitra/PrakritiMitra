@@ -29,13 +29,14 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: [
-      'http://localhost:5173', // dev
-      'https://your-production-frontend.com' // <-- replace with your deployed frontend URL
-    ],
-    methods: ['GET', 'POST']
-  }
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true,
+  },
 });
+
+// Attach io to app for controller access
+app.set('io', io);
 
 // ✅ Enable CORS for all origins (for dev)
 app.use(cors({

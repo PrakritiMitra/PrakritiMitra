@@ -12,7 +12,6 @@ const deleteFile = (filePath, fileName) => {
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
-      console.log(`Deleted file: ${fileName}`);
       return true;
     }
   } catch (error) {
@@ -27,10 +26,6 @@ router.get('/profile', protect, (req, res) => {
 
 router.put('/profile', protect, profileMultiUpload, async (req, res) => {
   try {
-    console.log('Profile update request received');
-    console.log('Files:', req.files);
-    console.log('Body:', req.body);
-    
     const userId = req.user._id;
     
     // Get current user data to check for existing files

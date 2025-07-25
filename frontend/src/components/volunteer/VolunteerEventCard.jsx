@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import defaultImages from "../../utils/eventTypeImages";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
+import useEventSlots from '../../hooks/useEventSlots';
 
 const VolunteerEventCard = ({ event }) => {
   const navigate = useNavigate();
@@ -48,8 +49,33 @@ const VolunteerEventCard = ({ event }) => {
     location,
   } = event;
 
-  const filled = volunteers.length;
-  const total = unlimitedVolunteers ? "∞" : maxVolunteers;
+  // Use the new hook for live slot info
+  const { availableSlots, maxVolunteers: hookMaxVolunteers, unlimitedVolunteers: hookUnlimitedVolunteers, loading: slotsLoading } = useEventSlots(_id);
+
+  // User-friendly slot message with color
+  let slotMessage = '';
+  let slotColor = '';
+  if (slotsLoading) {
+    slotMessage = 'Loading slots...';
+    slotColor = '';
+  } else if (hookUnlimitedVolunteers) {
+    slotMessage = 'Unlimited slots';
+    slotColor = '';
+  } else if (typeof availableSlots === 'number') {
+    if (availableSlots <= 0) {
+      slotMessage = 'No slots left';
+      slotColor = 'text-red-600';
+    } else if (availableSlots === 1 || availableSlots === 2) {
+      slotMessage = `Only ${availableSlots} slot${availableSlots === 1 ? '' : 's'} remaining`;
+      slotColor = 'text-red-600';
+    } else if (availableSlots >= 3 && availableSlots <= 5) {
+      slotMessage = `Only ${availableSlots} slots remaining`;
+      slotColor = 'text-orange-500';
+    } else {
+      slotMessage = `${availableSlots} slots left`;
+      slotColor = 'text-green-700';
+    }
+  }
 
   const formattedDate = `${format(new Date(startDateTime), "d MMMM, yyyy")} — ${format(
     new Date(endDateTime),
@@ -94,18 +120,18 @@ const VolunteerEventCard = ({ event }) => {
         <p className="text-sm text-gray-800 mt-2">
           <strong>Date:</strong> {formattedDate}
         </p>
-        <p className="text-sm text-gray-800">
-          <strong>Slots:</strong> {filled} / {total}
+        <p className={`text-sm ${slotColor}`}>
+          <strong>Slots:</strong> {slotMessage}
         </p>
         <p className="text-sm text-gray-800">
           <strong>Location:</strong> {cityState || location}
         </p>
-
+        {/* Registration button logic: hide/disable if no slots left */}
         {isPastEvent ? (
           <p className="text-red-600 font-semibold mt-4">This event has ended</p>
         ) : isRegistered ? (
           <p className="text-green-700 font-semibold">✅ Registered Successfully</p>
-        ) : (
+        ) : (availableSlots > 0 || hookUnlimitedVolunteers) && (
           <button
             onClick={handleRegister}
             className="mt-4 bg-green-600 text-white px-3 py-1 text-sm rounded hover:bg-green-700"

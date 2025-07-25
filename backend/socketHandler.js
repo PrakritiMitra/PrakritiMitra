@@ -20,18 +20,23 @@ const initializeSocket = (io) => {
 
   // Socket.IO connection handler with chat logic
   io.on('connection', (socket) => {
-    console.log('A user connected:', socket.id, 'user:', socket.user.id);
 
     // Join an event-specific room
     socket.on('joinEventRoom', (eventId) => {
       socket.join(`event:${eventId}`);
-      console.log(`User ${socket.user.id} joined room for event ${eventId}`);
     });
 
     // Leave an event-specific room
     socket.on('leaveEventRoom', (eventId) => {
       socket.leave(`event:${eventId}`);
-      console.log(`User ${socket.user.id} left room for event ${eventId}`);
+    });
+
+    // --- Slot update rooms for live slot updates ---
+    socket.on('joinEventSlotsRoom', (eventId) => {
+      socket.join(`eventSlotsRoom:${eventId}`);
+    });
+    socket.on('leaveEventSlotsRoom', (eventId) => {
+      socket.leave(`eventSlotsRoom:${eventId}`);
     });
 
     // Handle new messages
@@ -180,7 +185,6 @@ const initializeSocket = (io) => {
     });
 
     socket.on('disconnect', () => {
-      console.log('User disconnected:', socket.id);
     });
   });
 };

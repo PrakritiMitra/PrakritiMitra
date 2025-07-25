@@ -4,6 +4,7 @@ import defaultImages from "../../utils/eventTypeImages";
 import { format } from "date-fns";
 import { joinAsOrganizer, getOrganizerTeam } from "../../api/event";
 import axiosInstance from "../../api/axiosInstance";
+import useEventSlots from '../../hooks/useEventSlots';
 
 export default function EventCard({ event }) {
   const {
@@ -14,15 +15,37 @@ export default function EventCard({ event }) {
     organization,
     startDateTime,
     endDateTime,
-    maxVolunteers,
-    unlimitedVolunteers,
-    volunteers = [],
     location,
     createdBy,
   } = event;
 
-  const filled = volunteers.length;
-  const total = unlimitedVolunteers ? "∞" : maxVolunteers;
+  // Use the new hook for live slot info
+  const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(_id);
+
+  // User-friendly slot message with color
+  let slotMessage = '';
+  let slotColor = '';
+  if (slotsLoading) {
+    slotMessage = 'Loading slots...';
+    slotColor = '';
+  } else if (unlimitedVolunteers) {
+    slotMessage = 'Unlimited slots';
+    slotColor = '';
+  } else if (typeof availableSlots === 'number') {
+    if (availableSlots <= 0) {
+      slotMessage = 'No slots left';
+      slotColor = 'text-red-600';
+    } else if (availableSlots === 1 || availableSlots === 2) {
+      slotMessage = `Only ${availableSlots} slot${availableSlots === 1 ? '' : 's'} remaining`;
+      slotColor = 'text-red-600';
+    } else if (availableSlots >= 3 && availableSlots <= 5) {
+      slotMessage = `Only ${availableSlots} slots remaining`;
+      slotColor = 'text-orange-500';
+    } else {
+      slotMessage = `${availableSlots} slots left`;
+      slotColor = 'text-green-700';
+    }
+  }
 
   const formattedDate = `${format(new Date(startDateTime), "d MMMM, yyyy")} — ${format(
     new Date(endDateTime),
@@ -104,10 +127,14 @@ export default function EventCard({ event }) {
   const isLive = new Date(startDateTime) <= now && now < new Date(endDateTime);
   const isPast = now > new Date(endDateTime);
 
+  // Check if event is in the past
+  const isPastEvent = new Date(endDateTime) < new Date();
+
   return (
     <div className="relative">
       <Link to={`/events/${_id}`}>
         <div className="bg-white border rounded-lg shadow hover:shadow-md transition overflow-hidden relative">
+          {/* Show LIVE or Ended badge */}
           {isLive && (
             <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10 animate-pulse">
               LIVE
@@ -136,13 +163,14 @@ export default function EventCard({ event }) {
             <p className="text-sm text-gray-800 mb-1"><strong>Organization:</strong> {organization?.name || "Unknown Org"}</p>
             <p className="text-sm text-gray-800 line-clamp-2"><strong>Description: </strong>{description}</p>
             <p className="text-sm text-gray-800 mt-2"><strong>Date:</strong> {formattedDate}</p>
-            <p className="text-sm text-gray-800"><strong>Slots:</strong> {filled} / {total}</p>
+            <p className={`text-sm ${slotColor}`}><strong>Slots:</strong> {slotMessage}</p>
             <p className="text-sm text-gray-800"><strong>Location:</strong> {cityState || location}</p>
           </div>
         </div>
       </Link>
 
-      {canJoinAsOrganizer && joinRequestStatus !== 'pending' && (
+      {/* Only show join as organizer buttons if event is not completed */}
+      {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && (
         <button
           onClick={handleRequestJoinAsOrganizer}
           className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
@@ -151,10 +179,10 @@ export default function EventCard({ event }) {
           {joining ? "Requesting..." : "Join as Organizer"}
         </button>
       )}
-      {canJoinAsOrganizer && joinRequestStatus === 'pending' && (
+      {!isPastEvent && canJoinAsOrganizer && joinRequestStatus === 'pending' && (
         <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 px-3 py-1 rounded z-10 text-xs font-semibold">Join request sent</div>
       )}
-      {canJoinAsOrganizer && joinRequestStatus !== 'pending' && hasRejectedRequest && !joining && (
+      {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && hasRejectedRequest && !joining && (
         <button
           onClick={handleRequestJoinAsOrganizer}
           className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
@@ -163,7 +191,7 @@ export default function EventCard({ event }) {
           {joining ? "Reapplying..." : "Reapply as Organizer"}
         </button>
       )}
-      {canJoinAsOrganizer && joinRequestStatus !== 'pending' && !hasRejectedRequest && (
+      {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && !hasRejectedRequest && (
         <button
           onClick={handleRequestJoinAsOrganizer}
           className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-10"
@@ -172,7 +200,7 @@ export default function EventCard({ event }) {
           {joining ? "Requesting..." : "Join as Organizer"}
         </button>
       )}
-      {canJoinAsOrganizer && joinRequestStatus === 'rejected' && joining && (
+      {!isPastEvent && canJoinAsOrganizer && joinRequestStatus === 'rejected' && joining && (
         <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 px-3 py-1 rounded z-10 text-xs font-semibold">Reapplying...</div>
       )}
       {joinError && <p className="text-xs text-red-600 mt-1 ml-2">{joinError}</p>}

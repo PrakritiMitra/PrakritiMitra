@@ -12,9 +12,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { getFullOrganizerTeam } from "../api/event";
 import { useCallback } from "react";
 import { io } from "socket.io-client";
-import EventChatbox from '../components/chat/EventChatBox';
+import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
 import { format } from "date-fns";
+import useEventSlots from '../hooks/useEventSlots';
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -51,6 +52,34 @@ export default function VolunteerEventDetailsPage() {
   const [volunteersLoading, setVolunteersLoading] = useState(false);
   const [showExitQr, setShowExitQr] = useState(false);
   const [exitQrPath, setExitQrPath] = useState(null);
+
+  // Use the new hook for live slot info
+  const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
+
+  // User-friendly slot message with color
+  let slotMessage = '';
+  let slotColor = '';
+  if (slotsLoading) {
+    slotMessage = 'Loading slots...';
+    slotColor = '';
+  } else if (unlimitedVolunteers) {
+    slotMessage = 'Unlimited slots';
+    slotColor = '';
+  } else if (typeof availableSlots === 'number') {
+    if (availableSlots <= 0) {
+      slotMessage = 'No slots left';
+      slotColor = 'text-red-600';
+    } else if (availableSlots === 1 || availableSlots === 2) {
+      slotMessage = `Only ${availableSlots} slot${availableSlots === 1 ? '' : 's'} remaining`;
+      slotColor = 'text-red-600';
+    } else if (availableSlots >= 3 && availableSlots <= 5) {
+      slotMessage = `Only ${availableSlots} slots remaining`;
+      slotColor = 'text-orange-500';
+    } else {
+      slotMessage = `${availableSlots} slots left`;
+      slotColor = 'text-green-700';
+    }
+  }
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -392,6 +421,12 @@ export default function VolunteerEventDetailsPage() {
           </div>
         </div>
       )}
+      {/* LIVE badge */}
+      {isLiveEvent && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow z-20 animate-pulse">
+          LIVE
+        </div>
+      )}
       <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         <button
           className="mb-4 text-blue-600 underline"
@@ -460,14 +495,17 @@ export default function VolunteerEventDetailsPage() {
                 </p>
               </div>
             )}
-            {!hasCompletedEvent && !isRegistered && (
+            {/* Registration button logic: hide/disable if no slots left, or if event is live or completed */}
+            {isPastEvent ? (
+              <p className="text-red-600 font-semibold mt-6">This event has ended</p>
+            ) : isLiveEvent ? null : (!hasCompletedEvent && !isRegistered && (availableSlots > 0 || unlimitedVolunteers) && (
               <button
                 onClick={() => setShowRegisterModal(true)}
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mt-6"
               >
                 Register
               </button>
-            )}
+            ))}
             {hasCompletedEvent && (
               <p className="text-green-700 font-semibold mt-6">Thank you for attending! Your attendance is complete.</p>
             )}
@@ -507,8 +545,8 @@ export default function VolunteerEventDetailsPage() {
                 <div className="mb-2">
                   <span className="font-semibold text-gray-700">Type:</span> {event.eventType || "Not specified"}
                 </div>
-                <div className="mb-2">
-                  <span className="font-semibold text-gray-700">Volunteer Slots:</span> {event.unlimitedVolunteers ? "Unlimited" : event.maxVolunteers}
+                <div className={`mb-2`}>
+                  <span className="font-semibold text-gray-700">Volunteer Slots:</span> <span className={slotColor}>{slotMessage}</span>
                 </div>
                 {event.groupRegistration && (
                   <div className="text-xs text-green-700 font-medium mt-1">Group Registration Enabled</div>

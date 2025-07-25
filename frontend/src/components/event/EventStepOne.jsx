@@ -152,7 +152,7 @@ export default function EventStepOne({
 
       <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
         <TextField fullWidth type="datetime-local" name="startDateTime" label="Start Date & Time" InputLabelProps={{ shrink: true }} value={formData.startDateTime} onChange={handleChange} required />
-        <TextField fullWidth type="datetime-local" name="endDateTime" label="End Date & Time" InputLabelProps={{ shrink: true }} value={formData.endDateTime} onChange={handleChange} required />
+        <TextField fullWidth type="datetime-local" name="endDateTime" label="End Date & Time" InputLabelProps={{ shrink: true }} value={formData.endDateTime} onChange={handleChange} required min={formData.startDateTime || undefined} />
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 2 }}>
