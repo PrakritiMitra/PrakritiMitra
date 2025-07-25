@@ -260,8 +260,10 @@ export default function EventDetailsPage() {
     }
   };
 
-  const now = new Date();
-  const isPast = event && now > new Date(event.endDateTime);
+  // Find the current user's organizerTeam object
+  const myOrganizerObj = organizerTeam.find(obj => obj.user && obj.user._id === currentUser?._id);
+  const myQuestionnaireCompleted = myOrganizerObj?.questionnaire?.completed;
+  const isPast = event && new Date() > new Date(event.endDateTime);
 
   if (loading) {
     return (
@@ -636,7 +638,7 @@ export default function EventDetailsPage() {
       {event && (
         <EventChatbox eventId={event._id} currentUser={currentUser} />
       )}
-      {isOrganizer && isPast && !event.questionnaire?.completed && (
+      {isOrganizer && isPast && myOrganizerObj && !myQuestionnaireCompleted && (
         <button
           className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mb-4"
           onClick={() => setShowQuestionnaireModal(true)}
@@ -649,6 +651,7 @@ export default function EventDetailsPage() {
         onClose={() => setShowQuestionnaireModal(false)}
         eventType={event?.eventType}
         onSubmit={handleQuestionnaireSubmit}
+        isCreator={organizerTeam.length > 0 && organizerTeam[0].user._id === currentUser?._id}
       />
     </div>
   );

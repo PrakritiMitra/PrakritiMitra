@@ -640,32 +640,45 @@ exports.getEventSlots = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error fetching slots.' });
+  }
 };
   
  // Complete Questionnaire for an Event
 exports.completeQuestionnaire = async (req, res) => {
   try {
     const eventId = req.params.id;
-    // answers may be sent as JSON string in multipart
     let answers = req.body.answers;
     if (typeof answers === 'string') {
       try { answers = JSON.parse(answers); } catch { answers = {}; }
     }
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found' });
-    // Handle media files
+
+    // Find the organizer in organizerTeam
+    const organizer = event.organizerTeam.find(obj => obj.user.toString() === req.user._id.toString());
+    if (!organizer) return res.status(404).json({ message: 'Organizer not found in team' });
+    if (organizer.questionnaire && organizer.questionnaire.completed) {
+      return res.status(400).json({ message: 'You have already submitted your questionnaire.' });
+    }
+
+    // Handle media files (optional, only for creator)
     let media = [];
     if (req.files && req.files.length > 0) {
       media = req.files.map(f => f.filename);
     }
-    event.questionnaire = {
+
+    // Determine if this user is the creator (first in organizerTeam)
+    const isCreator = event.organizerTeam.length > 0 && event.organizerTeam[0].user.toString() === req.user._id.toString();
+
+    // Save answers and mark as completed
+    organizer.questionnaire = {
       completed: true,
       answers: answers || {},
-      domain: event.eventType,
-      media,
+      submittedAt: new Date(),
+      ...(isCreator ? { media } : {}) // Only save media for creator
     };
     await event.save();
-    res.status(200).json({ message: 'Questionnaire completed', questionnaire: event.questionnaire });
+    res.status(200).json({ message: 'Questionnaire completed', questionnaire: organizer.questionnaire });
   } catch (err) {
     res.status(500).json({ message: 'Failed to complete questionnaire', error: err.message });
   }
