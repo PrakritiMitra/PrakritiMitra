@@ -4,9 +4,6 @@ const User = require('../models/user');
 const protect = async (req, res, next) => {
   let token;
 
-  // Log the actual header sent
-  console.log("Authorization Header:", req.headers.authorization);
-
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')

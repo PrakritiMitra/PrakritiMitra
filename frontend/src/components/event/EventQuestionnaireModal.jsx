@@ -191,6 +191,22 @@ const QUESTION_SETS = {
   ]
 };
 
+const FEEDBACK_QUESTIONS = [
+  { key: "overallExperience", label: "How was your overall experience?", type: "emoji", options: [
+    { value: "excellent", label: "Excellent", emoji: "😃" },
+    { value: "good", label: "Good", emoji: "🙂" },
+    { value: "average", label: "Average", emoji: "😐" },
+    { value: "poor", label: "Poor", emoji: "😞" }
+  ] },
+  { key: "organization", label: "How well was the event organized?", type: "emoji", options: [
+    { value: "excellent", label: "Excellent", emoji: "🏅" },
+    { value: "good", label: "Good", emoji: "👍" },
+    { value: "average", label: "Average", emoji: "👌" },
+    { value: "poor", label: "Poor", emoji: "👎" }
+  ] },
+  { key: "comments", label: "Any comments or suggestions?", type: "text" }
+];
+
 function renderQuestion(q, answers, setAnswers) {
   if (q.showIf && !q.showIf(answers)) return null;
   switch (q.type) {
@@ -276,8 +292,11 @@ function renderQuestion(q, answers, setAnswers) {
   }
 }
 
-export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit }) {
-  const questions = QUESTION_SETS[eventType?.toLowerCase()] || [];
+export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit, isCreator }) {
+  // If creator, use full question set; else, use feedback only
+  const questions = isCreator
+    ? (QUESTION_SETS[eventType?.toLowerCase()] || [])
+    : FEEDBACK_QUESTIONS;
   const [answers, setAnswers] = useState({});
   const [mediaFiles, setMediaFiles] = useState([]);
 

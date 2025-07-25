@@ -73,6 +73,15 @@ export default function EventCard({ event }) {
     return userId === currentUser?._id && (r.status === 'rejected' || r._wasRejected);
   });
 
+  // Find the current user's organizerTeam object (handle both object and ID)
+  const myOrganizerObj = event.organizerTeam?.find(obj => {
+    if (!obj.user) return false;
+    if (typeof obj.user === 'object') return obj.user._id === currentUser?._id;
+    return obj.user === currentUser?._id;
+  });
+  const myQuestionnaireCompleted = myOrganizerObj?.questionnaire?.completed;
+  const isPast = new Date() > new Date(endDateTime);
+
   useEffect(() => {
     const fetchTeam = async () => {
       try {
@@ -125,9 +134,6 @@ export default function EventCard({ event }) {
   // Determine if event is live
   const now = new Date();
   const isLive = new Date(startDateTime) <= now && now < new Date(endDateTime);
-  const isPast = now > new Date(endDateTime);
-
-  // Check if event is in the past
   const isPastEvent = new Date(endDateTime) < new Date();
 
   return (
@@ -141,8 +147,8 @@ export default function EventCard({ event }) {
             </div>
           )}
           {/* Questionnaire badge for organizers on past events */}
-          {isPast && isOrganizer && (
-            event.questionnaire?.completed ? (
+          {isPast && isOrganizer && myOrganizerObj && (
+            myQuestionnaireCompleted ? (
               <div className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10">
                 Completed
               </div>

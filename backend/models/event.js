@@ -133,7 +133,12 @@ const eventSchema = new mongoose.Schema({
   organizerTeam: [
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      hasAttended: { type: Boolean, default: false }
+      hasAttended: { type: Boolean, default: false },
+      questionnaire: {
+        completed: { type: Boolean, default: false },
+        answers: { type: Object, default: {} },
+        submittedAt: { type: Date }
+      }
     }
   ],
 
