@@ -26,5 +26,7 @@ router.patch('/:registrationId/out-time', require('../controllers/registrationCo
 router.post('/:registrationId/entry-scan', entryScan);
 router.post('/exit/:exitQrToken', require('../controllers/registrationController').exitScan);
 router.get('/:registrationId/exit-qr', require('../controllers/registrationController').generateExitQr);
+// POST /api/registrations/event/:eventId/questionnaire - complete volunteer questionnaire
+router.post('/event/:eventId/questionnaire', protect, require('../controllers/registrationController').completeVolunteerQuestionnaire);
 
 module.exports = router;

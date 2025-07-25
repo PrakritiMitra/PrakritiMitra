@@ -6,34 +6,53 @@ import defaultImages from "../../utils/eventTypeImages";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import useEventSlots from '../../hooks/useEventSlots';
+import { isEventPast, getRegistrationWithQuestionnaireStatus } from '../../utils/questionnaireUtils';
 
 const VolunteerEventCard = ({ event }) => {
   const navigate = useNavigate();
   const [isRegistered, setIsRegistered] = useState(false);
+  const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
   const user = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
-    if (event && event._id && user) {
-      axiosInstance.get(`/api/registrations/${event._id}/check`)
-        .then(res => {
-          if (res.data.registered) {
-            setIsRegistered(true);
+    const checkRegistrationAndQuestionnaire = async () => {
+      if (!event?._id || !user) return;
+      
+      try {
+        // Check if user is registered
+        const registrationCheck = await axiosInstance.get(`/api/registrations/${event._id}/check`);
+        
+        if (registrationCheck.data.registered) {
+          setIsRegistered(true);
+          
+          // If registered and event is past, check questionnaire status
+          if (isEventPast(event.endDateTime)) {
+            const { questionnaireCompleted } = await getRegistrationWithQuestionnaireStatus(event._id);
+            setQuestionnaireCompleted(questionnaireCompleted);
           } else {
-            setIsRegistered(false);
-            // Remove from localStorage if not registered
-            const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
-            const idx = registeredEvents.indexOf(event._id);
-            if (idx !== -1) {
-              registeredEvents.splice(idx, 1);
-              localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
-            }
+            setQuestionnaireCompleted(false);
           }
-        })
-        .catch(() => {
-          // Optionally handle error
-        });
-    }
-  }, [event._id, user]);
+        } else {
+          setIsRegistered(false);
+          setQuestionnaireCompleted(false);
+          
+          // Remove from localStorage if not registered
+          const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
+          const idx = registeredEvents.indexOf(event._id);
+          if (idx !== -1) {
+            registeredEvents.splice(idx, 1);
+            localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
+          }
+        }
+      } catch (error) {
+        console.error('Error checking registration and questionnaire status:', error);
+        setIsRegistered(false);
+        setQuestionnaireCompleted(false);
+      }
+    };
+    
+    checkRegistrationAndQuestionnaire();
+  }, [event._id, user, event.endDateTime]);
 
   const {
     _id,
@@ -106,6 +125,18 @@ const VolunteerEventCard = ({ event }) => {
         <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10 animate-pulse">
           LIVE
         </div>
+      )}
+      {/* Questionnaire badge for registered volunteers on past events */}
+      {isPastEvent && isRegistered && (
+        questionnaireCompleted ? (
+          <div className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10">
+            Completed
+          </div>
+        ) : (
+          <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10">
+            Questionnaire Pending
+          </div>
+        )
       )}
       <img src={eventImage} alt={eventType} className="w-full h-40 object-cover" />
       <div className="p-4">
