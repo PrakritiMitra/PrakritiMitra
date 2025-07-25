@@ -640,5 +640,33 @@ exports.getEventSlots = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Server error fetching slots.' });
+};
+  
+ // Complete Questionnaire for an Event
+exports.completeQuestionnaire = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    // answers may be sent as JSON string in multipart
+    let answers = req.body.answers;
+    if (typeof answers === 'string') {
+      try { answers = JSON.parse(answers); } catch { answers = {}; }
+    }
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    // Handle media files
+    let media = [];
+    if (req.files && req.files.length > 0) {
+      media = req.files.map(f => f.filename);
+    }
+    event.questionnaire = {
+      completed: true,
+      answers: answers || {},
+      domain: event.eventType,
+      media,
+    };
+    await event.save();
+    res.status(200).json({ message: 'Questionnaire completed', questionnaire: event.questionnaire });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to complete questionnaire', error: err.message });
   }
 };

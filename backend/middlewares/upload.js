@@ -91,6 +91,21 @@ const chatStorage = multer.diskStorage({
 });
 const chatUpload = multer({ storage: chatStorage });
 
+// Completed Event storage - store in ./uploads/Events/Completed
+const completedEventStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/Events/Completed';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const completedEventUpload = multer({ storage: completedEventStorage });
+
 module.exports = {
   organizationUpload,
   eventUpload,
@@ -100,4 +115,5 @@ module.exports = {
   profileMultiUpload,
   profileSingleUpload,
   chatUpload, // <-- Export chat upload
+  completedEventUpload, // <-- Export completed event upload
 };

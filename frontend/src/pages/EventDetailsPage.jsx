@@ -10,6 +10,7 @@ import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
 import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
+import EventQuestionnaireModal from "../components/event/EventQuestionnaireModal";
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -23,6 +24,7 @@ export default function EventDetailsPage() {
   const [joinError, setJoinError] = useState("");
   const [joinSuccess, setJoinSuccess] = useState("");
   const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
+  const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const isCreator = (() => {
@@ -238,6 +240,28 @@ export default function EventDetailsPage() {
 
   // Check if event is in the past
   const isPastEvent = event && event.endDateTime ? new Date(event.endDateTime) < new Date() : false;
+  // Updated handler to support media files
+  const handleQuestionnaireSubmit = async (answers, mediaFiles) => {
+    try {
+      const formData = new FormData();
+      formData.append('answers', JSON.stringify(answers));
+      if (mediaFiles && mediaFiles.length > 0) {
+        mediaFiles.forEach((file, idx) => {
+          formData.append('media', file);
+        });
+      }
+      await axiosInstance.post(`/api/events/${event._id}/complete-questionnaire`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      await fetchAndSetEvent();
+      setShowQuestionnaireModal(false);
+    } catch (err) {
+      alert("Failed to submit questionnaire.");
+    }
+  };
+
+  const now = new Date();
+  const isPast = event && now > new Date(event.endDateTime);
 
   if (loading) {
     return (
@@ -612,6 +636,20 @@ export default function EventDetailsPage() {
       {event && (
         <EventChatbox eventId={event._id} currentUser={currentUser} />
       )}
+      {isOrganizer && isPast && !event.questionnaire?.completed && (
+        <button
+          className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mb-4"
+          onClick={() => setShowQuestionnaireModal(true)}
+        >
+          Complete Questionnaire
+        </button>
+      )}
+      <EventQuestionnaireModal
+        open={showQuestionnaireModal}
+        onClose={() => setShowQuestionnaireModal(false)}
+        eventType={event?.eventType}
+        onSubmit={handleQuestionnaireSubmit}
+      />
     </div>
   );
 }

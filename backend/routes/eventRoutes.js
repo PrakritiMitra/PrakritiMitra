@@ -3,7 +3,7 @@ const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/eventController');
-const { eventMultiUpload } = require('../middlewares/upload');
+const { eventMultiUpload, completedEventUpload } = require('../middlewares/upload');
 
 const Event = require("../models/event");
 
@@ -72,6 +72,9 @@ router.post("/batch", protect, async (req, res) => {
 router.get('/:id', eventController.getEventById);
 router.put('/:id', protect, eventMultiUpload, eventController.updateEvent);
 router.delete('/:id', protect, eventController.deleteEvent);
+
+// Complete questionnaire for an event
+router.post('/:id/complete-questionnaire', protect, requireOrganizer, completedEventUpload.array('media', 10), eventController.completeQuestionnaire);
 
 // @route   GET /api/events/organization/:orgId
 router.get('/organization/:orgId', eventController.getEventsByOrganization);

@@ -123,6 +123,13 @@ const eventSchema = new mongoose.Schema({
     type: String,
   },
 
+  // Gamified Questionnaire Completion
+  questionnaire: {
+    completed: { type: Boolean, default: false },
+    answers: { type: Object, default: {} }, // Store answers as an object
+    domain: { type: String }, // Optionally store the event domain/type
+  },
+
   organizerTeam: [
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
