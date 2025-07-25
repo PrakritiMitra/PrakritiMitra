@@ -53,6 +53,11 @@ const registrationSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  questionnaire: {
+    completed: { type: Boolean, default: false },
+    answers: { type: Object, default: {} },
+    submittedAt: { type: Date }
+  },
 });
 
 // Optional: static method to ensure indexes are built

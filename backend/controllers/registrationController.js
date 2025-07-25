@@ -310,7 +310,11 @@ exports.getRegistrationForVolunteerEvent = async (req, res) => {
       return res.status(404).json({ message: "Registration not found." });
     }
 
-    res.json(registration);
+    // Return registration with proper structure for frontend
+    res.json({ 
+      registration: registration,
+      questionnaireCompleted: registration.questionnaire?.completed || false
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error fetching registration details." });
   }
@@ -440,5 +444,46 @@ exports.updateOutTime = async (req, res) => {
     res.json({ message: 'Out-time updated.', outTime: registration.outTime });
   } catch (err) {
     res.status(500).json({ message: 'Server error updating out-time.' });
+  }
+};
+
+// Complete volunteer questionnaire
+exports.completeVolunteerQuestionnaire = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const volunteerId = req.user._id;
+    let answers = req.body.answers;
+    if (typeof answers === 'string') {
+      try { answers = JSON.parse(answers); } catch { answers = {}; }
+    }
+
+    // Find the registration for this volunteer and event
+    const registration = await Registration.findOne({ eventId, volunteerId });
+    if (!registration) {
+      return res.status(404).json({ message: 'Registration not found' });
+    }
+
+    // Check if questionnaire is already completed
+    if (registration.questionnaire && registration.questionnaire.completed) {
+      return res.status(400).json({ message: 'You have already submitted your questionnaire.' });
+    }
+
+    // Save answers and mark as completed
+    registration.questionnaire = {
+      completed: true,
+      answers: answers || {},
+      submittedAt: new Date()
+    };
+    await registration.save();
+    
+    res.status(200).json({ 
+      message: 'Questionnaire completed', 
+      questionnaire: registration.questionnaire 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      message: 'Failed to complete questionnaire', 
+      error: err.message 
+    });
   }
 };
