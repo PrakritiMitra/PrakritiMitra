@@ -4,10 +4,35 @@ const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require('uuid');
 
+// Helper to create registration and QR code
+async function createRegistrationAndQRCode({ eventId, volunteerId, groupMembers }) {
+  const registration = new Registration({
+    eventId,
+    volunteerId,
+    groupMembers: groupMembers || [],
+  });
+  await registration.save();
+
+  const qrData = JSON.stringify({
+    registrationId: registration._id,
+    eventId,
+    volunteerId,
+  });
+
+  const fileName = `qr-${registration._id}-${Date.now()}.png`;
+  const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  await QRCode.toFile(filePath, qrData);
+  registration.qrCodePath = `/uploads/qrcodes/${fileName}`;
+  await registration.save();
+  return registration;
+}
+
 exports.registerForEvent = async (req, res) => {
   try {
     const { eventId, groupMembers } = req.body;
     const volunteerId = req.user._id;
+    const io = req.app.get('io');
 
     // Prevent duplicate registration
     const alreadyRegistered = await Registration.findOne({ eventId, volunteerId });
@@ -15,31 +40,51 @@ exports.registerForEvent = async (req, res) => {
       return res.status(400).json({ message: "You have already registered for this event." });
     }
 
-    // 1. Create registration first (without QR code)
-    const registration = new Registration({
+    // Fetch the event
+    const Event = require('../models/event');
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Unlimited volunteers: allow registration
+    if (event.unlimitedVolunteers) {
+      const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
+      io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+        eventId,
+        availableSlots: null, // unlimited
+        maxVolunteers: null,
+        unlimitedVolunteers: true
+      });
+      return res.status(201).json({
+        message: "Registered successfully.",
+        registrationId: registration._id,
+        qrCodePath: registration.qrCodePath,
+      });
+    }
+
+    // Not unlimited: atomic slot check and update
+    const updatedEvent = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        $expr: { $lt: [ { $size: "$volunteers" }, event.maxVolunteers ] },
+        volunteers: { $ne: volunteerId }
+      },
+      { $addToSet: { volunteers: volunteerId } },
+      { new: true }
+    );
+    if (!updatedEvent) {
+      return res.status(400).json({ message: "No slots available." });
+    }
+
+    const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
+    const availableSlots = updatedEvent.maxVolunteers - updatedEvent.volunteers.length;
+    io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
       eventId,
-      volunteerId,
-      groupMembers: groupMembers || [],
+      availableSlots,
+      maxVolunteers: updatedEvent.maxVolunteers,
+      unlimitedVolunteers: false
     });
-    await registration.save();
-
-    // 2. Generate QR code with registrationId
-    const qrData = JSON.stringify({
-      registrationId: registration._id,
-      eventId,
-      volunteerId,
-    });
-
-    const fileName = `qr-${registration._id}-${Date.now()}.png`;
-    const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
-
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    await QRCode.toFile(filePath, qrData);
-
-    // 3. Update registration with QR code path
-    registration.qrCodePath = `/uploads/qrcodes/${fileName}`;
-    await registration.save();
-
     res.status(201).json({
       message: "Registered successfully.",
       registrationId: registration._id,
@@ -68,6 +113,7 @@ exports.withdrawRegistration = async (req, res) => {
   try {
     const eventId = req.params.eventId;
     const volunteerId = req.user._id;
+    const io = req.app.get('io');
     const registration = await Registration.findOne({ eventId, volunteerId });
     if (!registration) {
       return res.status(404).json({ message: "Registration not found." });
@@ -85,6 +131,35 @@ exports.withdrawRegistration = async (req, res) => {
       }
     }
     await Registration.deleteOne({ _id: registration._id });
+
+    // Remove the user from the event's volunteers array
+    const Event = require('../models/event');
+    const updatedEvent = await Event.findByIdAndUpdate(
+      eventId,
+      { $pull: { volunteers: volunteerId } },
+      { new: true }
+    );
+
+    // Emit slotsUpdated event
+    if (updatedEvent) {
+      if (updatedEvent.unlimitedVolunteers) {
+        io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+          eventId,
+          availableSlots: null,
+          maxVolunteers: null,
+          unlimitedVolunteers: true
+        });
+      } else {
+        const availableSlots = updatedEvent.maxVolunteers - updatedEvent.volunteers.length;
+        io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+          eventId,
+          availableSlots,
+          maxVolunteers: updatedEvent.maxVolunteers,
+          unlimitedVolunteers: false
+        });
+      }
+    }
+
     res.json({ message: "Registration withdrawn successfully." });
   } catch (err) {
     res.status(500).json({ message: "Server error during withdrawal." });

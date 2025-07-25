@@ -6,9 +6,10 @@ import Navbar from "../components/layout/Navbar";
 import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/event";
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
-import EventChatbox from '../components/chat/EventChatBox';
+import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
 import { format } from "date-fns";
+import useEventSlots from '../hooks/useEventSlots';
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -221,6 +222,23 @@ export default function EventDetailsPage() {
     return userId === currentUser?._id && (r.status === 'rejected' || r._wasRejected);
   });
 
+  // Use the new hook for live slot info
+  const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
+
+  // Volunteer slots filled display
+  let slotMessage = '';
+  if (slotsLoading) {
+    slotMessage = 'Loading slots...';
+  } else if (unlimitedVolunteers) {
+    slotMessage = 'Unlimited slots';
+  } else if (typeof availableSlots === 'number' && typeof maxVolunteers === 'number') {
+    const filled = maxVolunteers - availableSlots;
+    slotMessage = `${filled}/${maxVolunteers} slots filled`;
+  }
+
+  // Check if event is in the past
+  const isPastEvent = event && event.endDateTime ? new Date(event.endDateTime) < new Date() : false;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -349,6 +367,10 @@ export default function EventDetailsPage() {
         >
           ← Back
         </button>
+        {/* Show event ended message if completed */}
+        {isPastEvent && (
+          <div className="text-red-600 font-semibold mb-4">This event has ended</div>
+        )}
         {(canEdit || isTeamMember) && (
           <div className="mt-6 flex gap-4">
             {canEdit && (
@@ -375,7 +397,8 @@ export default function EventDetailsPage() {
             </button>
           </div>
         )}
-        {canJoinAsOrganizer && joinRequestStatus !== 'pending' && hasRejectedRequest && !joining && (
+        {/* Only show join as organizer buttons if event is not completed */}
+        {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && hasRejectedRequest && !joining && (
           <div className="mb-4">
             <div className="text-red-700 font-semibold mb-2">Join request rejected</div>
             <button
@@ -387,7 +410,7 @@ export default function EventDetailsPage() {
             </button>
           </div>
         )}
-        {canJoinAsOrganizer && joinRequestStatus !== 'pending' && !hasRejectedRequest && (
+        {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && !hasRejectedRequest && (
           <button
             onClick={handleRequestJoinAsOrganizer}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4"
@@ -397,7 +420,7 @@ export default function EventDetailsPage() {
           </button>
         )}
         {/* Only show one status/button at a time */}
-        {canJoinAsOrganizer && joinRequestStatus === 'pending' && (
+        {!isPastEvent && canJoinAsOrganizer && joinRequestStatus === 'pending' && (
           <div className="mb-4 flex items-center gap-4">
             <span className="text-blue-700 font-semibold">Join request sent (awaiting approval)</span>
             <button
@@ -409,7 +432,7 @@ export default function EventDetailsPage() {
             </button>
           </div>
         )}
-        {canJoinAsOrganizer && joinRequestStatus === 'rejected' && joining && (
+        {!isPastEvent && canJoinAsOrganizer && joinRequestStatus === 'rejected' && joining && (
           <div className="text-blue-700 font-semibold mb-4">Reapplying...</div>
         )}
         {/* Show pending join requests to creator */}
@@ -476,14 +499,16 @@ export default function EventDetailsPage() {
         </div>
         <div className="mb-4">
           <strong>Timing:</strong>{" "}
-          {`(${format(new Date(event.startDateTime), 'hh:mm a, d MMMM yyyy')}) — (${format(new Date(event.endDateTime), 'hh:mm a, d MMMM yyyy')})`}
+          {event && event.startDateTime && event.endDateTime ?
+            `(${format(new Date(event.startDateTime), 'hh:mm a, d MMMM yyyy')}) — (${format(new Date(event.endDateTime), 'hh:mm a, d MMMM yyyy')})`
+            : ''}
         </div>
         <div className="mb-4">
           <strong>Type:</strong> {event.eventType || "Not specified"}
         </div>
         <div className="mb-4">
-          <strong>Volunteer Slots:</strong>{" "}
-          {event.unlimitedVolunteers ? "Unlimited" : event.maxVolunteers}
+          <strong>Volunteer Slots:</strong>{' '}
+          {slotMessage}
         </div>
 
         {event.groupRegistration && (

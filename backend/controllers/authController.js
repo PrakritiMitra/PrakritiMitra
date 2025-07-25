@@ -55,7 +55,6 @@ exports.signupVolunteer = async (req, res) => {
       profileImage: req.file ? req.file.filename : null,
     });
 
-    console.log("✅ Volunteer created:", user.email);
 
     res.status(201).json({ token: generateToken(user._id), user });
   } catch (err) {
@@ -67,7 +66,6 @@ exports.signupVolunteer = async (req, res) => {
 // Organizer Signup
 exports.signupOrganizer = async (req, res) => {
   try {
-    console.log("🔹 Organizer Signup Request:", req.body);
 
     const {
       name,
@@ -111,12 +109,10 @@ exports.signupOrganizer = async (req, res) => {
 
     if (organization) {
       userData.organization = organization;
-      console.log("ℹ️ Organizer is joining existing organization:", organization);
     }
 
     const user = await User.create(userData);
 
-    console.log("✅ Organizer created:", user.email);
 
     res.status(201).json({ token: generateToken(user._id), user });
   } catch (err) {
@@ -128,7 +124,6 @@ exports.signupOrganizer = async (req, res) => {
 // Login
 exports.login = async (req, res) => {
   try {
-    console.log("🔹 Login Request:", req.body);
 
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -144,7 +139,6 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    console.log("✅ Login successful:", email);
 
     res.status(200).json({ token: generateToken(user._id), user });
   } catch (err) {

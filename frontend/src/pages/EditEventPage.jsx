@@ -129,7 +129,7 @@ export default function EditEventPage() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       alert("Event updated successfully");
-      navigate(`/events/${id}`);
+      navigate(`/events/${id}`, { replace: true });
     } catch (err) {
       console.error("❌ Failed to update event:", err);
       alert("Failed to update event");
@@ -175,6 +175,7 @@ export default function EditEventPage() {
             existingLetter={existingLetter}
             onRemoveExistingImage={handleRemoveExistingImage}
             onRemoveExistingLetter={handleRemoveExistingLetter}
+            startDateTime={formData.startDateTime}
           />
         )}
 

@@ -38,7 +38,7 @@ const registrationSchema = new mongoose.Schema({
     type: String,
     default: null,
     unique: true,
-    sparse: true,
+    sparse: true, // Required so multiple nulls are allowed; only non-null values are unique
   },
   // Exit QR code (generated on demand after inTime, deleted after exit scan)
   exitQrPath: {
@@ -54,5 +54,10 @@ const registrationSchema = new mongoose.Schema({
     default: false,
   },
 });
+
+// Optional: static method to ensure indexes are built
+registrationSchema.statics.ensureIndexes = async function() {
+  await this.init();
+};
 
 module.exports = mongoose.model('Registration', registrationSchema);
