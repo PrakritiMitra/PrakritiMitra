@@ -241,10 +241,12 @@ export default function EventDetailsPage() {
   // Check if event is in the past
   const isPastEvent = event && event.endDateTime ? new Date(event.endDateTime) < new Date() : false;
   // Updated handler to support media files
-  const handleQuestionnaireSubmit = async (answers, mediaFiles) => {
+  const handleQuestionnaireSubmit = async (answers, mediaFiles, awards) => {
     try {
       const formData = new FormData();
       formData.append('answers', JSON.stringify(answers));
+      // Always send awards, even if it's empty
+      formData.append('awards', JSON.stringify(awards || {}));
       if (mediaFiles && mediaFiles.length > 0) {
         mediaFiles.forEach((file, idx) => {
           formData.append('media', file);
@@ -253,8 +255,11 @@ export default function EventDetailsPage() {
       await axiosInstance.post(`/api/events/${event._id}/complete-questionnaire`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      await fetchAndSetEvent();
-      setShowQuestionnaireModal(false);
+      // Wait 1 second before refetching to ensure certificates are saved
+      setTimeout(async () => {
+        await fetchAndSetEvent();
+        setShowQuestionnaireModal(false);
+      }, 1000);
     } catch (err) {
       alert("Failed to submit questionnaire.");
     }
@@ -264,6 +269,23 @@ export default function EventDetailsPage() {
   const myOrganizerObj = organizerTeam.find(obj => obj.user && obj.user._id === currentUser?._id);
   const myQuestionnaireCompleted = myOrganizerObj?.questionnaire?.completed;
   const isPast = event && new Date() > new Date(event.endDateTime);
+
+  // Combine volunteers and organizerTeam user objects for award selection
+  const allParticipants = [
+    ...volunteers,
+    ...organizerTeam.map(obj => obj.user)
+  ].filter((u, idx, arr) => u && arr.findIndex(x => x._id === u._id) === idx);
+
+  // Use only volunteers for award selection
+  const awardParticipants = volunteers;
+
+  // Handler to open questionnaire modal, refetch volunteers if empty
+  const handleOpenQuestionnaireModal = () => {
+    if (volunteers.length === 0) {
+      fetchVolunteers();
+    }
+    setShowQuestionnaireModal(true);
+  };
 
   if (loading) {
     return (
@@ -641,7 +663,7 @@ export default function EventDetailsPage() {
       {isOrganizer && isPast && myOrganizerObj && !myQuestionnaireCompleted && (
         <button
           className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mb-4"
-          onClick={() => setShowQuestionnaireModal(true)}
+          onClick={handleOpenQuestionnaireModal}
         >
           Complete Questionnaire
         </button>
@@ -652,6 +674,7 @@ export default function EventDetailsPage() {
         eventType={event?.eventType}
         onSubmit={handleQuestionnaireSubmit}
         isCreator={organizerTeam.length > 0 && organizerTeam[0].user._id === currentUser?._id}
+        participants={awardParticipants}
       />
     </div>
   );

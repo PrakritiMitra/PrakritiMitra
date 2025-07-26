@@ -53,6 +53,7 @@ app.use(express.json());
 // Make the 'uploads' folder publicly accessible
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/uploads/qrcodes', express.static(path.join(__dirname, 'uploads/qrcodes')));
+app.use('/uploads/certificates', express.static(path.join(__dirname, 'uploads/certificates')));
 
 
 // ✅ Routes
