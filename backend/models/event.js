@@ -155,6 +155,13 @@ const eventSchema = new mongoose.Schema({
     default: '',
   },
 
+  report: {
+    content: { type: String, default: '' },
+    generatedAt: { type: Date },
+    generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    isGenerated: { type: Boolean, default: false }
+  },
+
   certificates: [
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
