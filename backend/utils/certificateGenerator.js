@@ -69,6 +69,11 @@ async function generateCertificate({
   await page.pdf({ path: pdfPath, width: '900px', height: '650px', printBackground: true });
   await browser.close();
 
+  // Verify the file was created
+  if (!fs.existsSync(pdfPath)) {
+    throw new Error(`Certificate file was not created at ${pdfPath}`);
+  }
+
   // Store the web-accessible path, not the absolute path
   const webPath = `/uploads/certificates/${certificateId}.pdf`;
 

@@ -185,7 +185,8 @@ exports.getEventById = async (req, res) => {
         select: 'name profileImage',
       })
       .populate('organizerTeam.user', 'name email phone profileImage')
-      .populate('organizerJoinRequests.user', 'name email profileImage');
+      .populate('organizerJoinRequests.user', 'name email profileImage')
+      .populate('certificates.user', 'name email profileImage');
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -688,86 +689,212 @@ exports.completeQuestionnaire = async (req, res) => {
       ...(isCreator ? { media } : {}) // Only save media for creator
     };
 
-    // If creator, process awards and generate certificates
+    // If creator, process awards and save assignments (no certificate generation)
     if (isCreator && awards) {
-      console.log('Processing certificates for awards...');
-      // Gather all participants (volunteers + organizerTeam)
-      const participantIds = [
-        ...(event.volunteers || []),
-        ...event.organizerTeam.map(obj => obj.user._id)
-      ].map(id => id.toString());
-      // Remove duplicates
-      const uniqueParticipantIds = [...new Set(participantIds)];
-      // Fetch user details
-      const users = await User.find({ _id: { $in: uniqueParticipantIds } });
-      // Helper to get user info
-      const getUserInfo = (id) => {
-        const user = users.find(u => u._id.toString() === id.toString());
-        return user ? { name: user.name, profileImage: user.profileImage } : { name: '', profileImage: '' };
-      };
-      // Map userId to award
-      const awardMap = {};
-      (awards.bestVolunteers || []).forEach(id => { awardMap[id] = 'Best Volunteer'; });
-      (awards.mostPunctual || []).forEach(id => { awardMap[id] = 'Most Punctual'; });
-      (awards.customAwards || []).forEach(a => {
-        (a.userIds || []).forEach(id => { awardMap[id] = a.title; });
-      });
-      // Generate certificates
+      // Clear previous assignments
       event.certificates = [];
-      for (const id of uniqueParticipantIds) {
-        const award = awardMap[id] || 'Participation';
-        let templateName = 'participation';
-        if (award === 'Best Volunteer') templateName = 'best_volunteer';
-        else if (award === 'Most Punctual') templateName = 'most_punctual';
-        else if (award !== 'Participation') templateName = 'custom_award';
-        const userInfo = getUserInfo(id);
-        // Generate certificate
-        const { filePath, certificateId } = await generateCertificate({
-          participantName: userInfo.name,
-          eventName: event.title,
-          eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : '',
-          eventLocation: event.location || '',
-          awardTitle: award,
-          templateName,
-          organizationLogo: '/public/images/default-logo.png', // Update as needed
-          signatureImage: '/public/images/default-signature.png', // Update as needed
-          issueDate: new Date().toLocaleDateString(),
-          verificationUrl: 'https://yourdomain.com/verify-certificate/'
+      // Process volunteer awards
+      if (awards.volunteers) {
+        const { bestVolunteers = [], mostPunctual = [], customAwards = [] } = awards.volunteers;
+        bestVolunteers.forEach(id => {
+          event.certificates.push({ user: id, role: 'volunteer', award: 'Best Volunteer' });
         });
-        event.certificates.push({
-          user: id,
-          award,
-          certId: certificateId,
-          filePath,
-          issuedAt: new Date(),
-          verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
-          name: userInfo.name,
-          profileImage: userInfo.profileImage
+        mostPunctual.forEach(id => {
+          event.certificates.push({ user: id, role: 'volunteer', award: 'Most Punctual' });
         });
-        // Also add to user model
-        await User.updateOne(
-          { _id: id, 'certificates.certId': { $ne: certificateId } },
-          {
-            $push: {
-              certificates: {
-                event: event._id,
-                award,
-                certId: certificateId,
-                filePath,
-                issuedAt: new Date(),
-                verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
-                eventName: event.title,
-                eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : ''
-              }
-            }
-          }
-        );
+        customAwards.forEach(a => {
+          (a.userIds || []).forEach(id => {
+            event.certificates.push({ user: id, role: 'volunteer', award: a.title });
+          });
+        });
       }
+      // Process organizer awards
+      if (awards.organizers) {
+        const { bestOrganizers = [], mostDedicated = [], customAwards = [] } = awards.organizers;
+        bestOrganizers.forEach(id => {
+          event.certificates.push({ user: id, role: 'organizer', award: 'Best Organizer' });
+        });
+        mostDedicated.forEach(id => {
+          event.certificates.push({ user: id, role: 'organizer', award: 'Most Dedicated Organizer' });
+        });
+        customAwards.forEach(a => {
+          (a.userIds || []).forEach(id => {
+            event.certificates.push({ user: id, role: 'organizer', award: a.title });
+          });
+        });
+      }
+      // Add participation for all volunteers not already assigned
+      const allVolunteerIds = (event.volunteers || []).map(id => id.toString());
+      const assignedVolunteerIds = event.certificates.filter(c => c.role === 'volunteer').map(c => c.user.toString());
+      allVolunteerIds.forEach(id => {
+        if (!assignedVolunteerIds.includes(id)) {
+          event.certificates.push({ user: id, role: 'volunteer', award: 'Participation' });
+        }
+      });
+      // Add participation for all organizers (except creator) not already assigned
+      const allOrganizerIds = event.organizerTeam.map(obj => obj.user._id.toString()).filter(id => id !== req.user._id.toString());
+      const assignedOrganizerIds = event.certificates.filter(c => c.role === 'organizer').map(c => c.user.toString());
+      allOrganizerIds.forEach(id => {
+        if (!assignedOrganizerIds.includes(id)) {
+          event.certificates.push({ user: id, role: 'organizer', award: 'Participation' });
+        }
+      });
     }
     await event.save();
     res.status(200).json({ message: 'Questionnaire completed', questionnaire: organizer.questionnaire });
   } catch (err) {
     console.error('Error in completeQuestionnaire:', err);
     res.status(500).json({ message: 'Failed to complete questionnaire', error: err.message });
+  }
+};
+
+// Generate certificate for a user
+exports.generateCertificate = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const userId = req.user._id;
+    
+    // Find the event and populate necessary fields
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email profileImage');
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    // Check if event is past
+    const isPastEvent = new Date(event.endDateTime) < new Date();
+    if (!isPastEvent) {
+      return res.status(400).json({ message: 'Certificates can only be generated for past events' });
+    }
+    
+    // Find the user's certificate assignment
+    const certificateAssignment = event.certificates.find(
+      cert => {
+        const certUserId = cert.user?._id || cert.user;
+        return certUserId && certUserId.toString() === userId.toString();
+      }
+    );
+    
+    if (!certificateAssignment) {
+      return res.status(404).json({ message: 'No certificate assignment found for this user' });
+    }
+    
+    // Check if certificate is already generated
+    if (certificateAssignment.filePath) {
+      return res.status(400).json({ message: 'Certificate already generated' });
+    }
+    
+    // Validate eligibility based on role
+    if (certificateAssignment.role === 'volunteer') {
+      // For volunteers: check if they have completed questionnaire
+      const registration = await require('../models/registration').findOne({
+        eventId: eventId,
+        volunteerId: userId
+      });
+      
+      if (!registration || !registration.questionnaire || !registration.questionnaire.completed) {
+        return res.status(400).json({ message: 'You must complete your questionnaire before generating a certificate' });
+      }
+    } else if (certificateAssignment.role === 'organizer') {
+      // For organizers: check if they have completed questionnaire
+      const organizer = event.organizerTeam.find(obj => obj.user._id.toString() === userId.toString());
+      if (!organizer || !organizer.questionnaire || !organizer.questionnaire.completed) {
+        return res.status(400).json({ message: 'You must complete your questionnaire before generating a certificate' });
+      }
+    }
+    
+    // Get user details
+    const user = await require('../models/user').findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Determine template name based on award and role
+    let templateName = 'participation';
+    const award = certificateAssignment.award;
+    
+    if (certificateAssignment.role === 'volunteer') {
+      if (award === 'Best Volunteer') templateName = 'best_volunteer';
+      else if (award === 'Most Punctual') templateName = 'most_punctual';
+      else if (award !== 'Participation') templateName = 'custom_award';
+    } else if (certificateAssignment.role === 'organizer') {
+      if (award === 'Best Organizer') templateName = 'best_organizer';
+      else if (award === 'Most Dedicated Organizer') templateName = 'most_dedicated_organizer';
+      else if (award !== 'Participation') templateName = 'organizer_custom_award';
+    }
+    
+    // Generate the certificate
+    const { filePath, certificateId } = await generateCertificate({
+      participantName: user.name || user.email,
+      eventName: event.title,
+      eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : '',
+      eventLocation: event.location || '',
+      awardTitle: award,
+      templateName,
+      organizationLogo: '/public/images/default-logo.png', // Update as needed
+      signatureImage: '/public/images/default-signature.png', // Update as needed
+      issueDate: new Date().toLocaleDateString(),
+      verificationUrl: 'https://yourdomain.com/verify-certificate/'
+    });
+    
+    // Small delay to ensure file is fully written
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update the certificate assignment in the event
+    const certificateIndex = event.certificates.findIndex(
+      cert => {
+        const certUserId = cert.user?._id || cert.user;
+        return certUserId && certUserId.toString() === userId.toString();
+      }
+    );
+    
+    if (certificateIndex !== -1) {
+      event.certificates[certificateIndex] = {
+        user: event.certificates[certificateIndex].user,
+        role: event.certificates[certificateIndex].role,
+        award: event.certificates[certificateIndex].award,
+        certId: certificateId,
+        filePath,
+        issuedAt: new Date(),
+        verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
+        name: user.name || user.email,
+        profileImage: user.profileImage || ''
+      };
+    }
+    
+    // Also add to user model
+    await require('../models/user').updateOne(
+      { _id: userId, 'certificates.certId': { $ne: certificateId } },
+      {
+        $push: {
+          certificates: {
+            event: event._id,
+            award,
+            certId: certificateId,
+            filePath,
+            issuedAt: new Date(),
+            verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
+            eventName: event.title,
+            eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : ''
+          }
+        }
+      }
+    );
+    
+    await event.save();
+    
+    res.status(200).json({ 
+      message: 'Certificate generated successfully',
+      certificate: {
+        certId: certificateId,
+        filePath,
+        issuedAt: new Date(),
+        award,
+        role: certificateAssignment.role
+      }
+    });
+    
+  } catch (err) {
+    console.error('Error in generateCertificate:', err);
+    res.status(500).json({ message: 'Failed to generate certificate', error: err.message });
   }
 };

@@ -58,6 +58,8 @@ export default function VolunteerEventDetailsPage() {
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
   const [questionnaireSubmitting, setQuestionnaireSubmitting] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0);
+  const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
 
   // Use the new hook for live slot info
   const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
@@ -93,8 +95,6 @@ export default function VolunteerEventDetailsPage() {
         const res = await axiosInstance.get(`/api/events/${id}`);
         setEvent(res.data);
         // Debug: Log the full event and certificates
-        console.log('Fetched event:', res.data);
-        console.log('Event certificates:', res.data.certificates);
         // If organizerTeam is present and populated, set it for organizer drawer
         if (res.data.organizerTeam && Array.isArray(res.data.organizerTeam)) {
           setOrganizerTeam(res.data.organizerTeam);
@@ -303,24 +303,71 @@ export default function VolunteerEventDetailsPage() {
     }
   };
 
-  // Find the current user's certificate (if any)
-  const myCertificate = event?.certificates?.find(
-    cert =>
-      (typeof cert.user === 'string' && cert.user === user?._id) ||
-      (cert.user && cert.user._id === user?._id) ||
-      (cert.user && cert.user._id?.toString() === user?._id) ||
-      (cert.user && cert.user.toString && cert.user.toString() === user?._id)
+  // Check if event is in the past
+  const isPastEvent = event && event.endDateTime ? new Date(event.endDateTime) < new Date() : false;
+
+  // Find the current user's certificate assignment (if any)
+  const myCertificateAssignment = event?.certificates?.find(
+    cert => {
+      // Check if the certificate is for the current user
+      const certUserId = cert.user?._id || cert.user;
+      return certUserId === user?._id;
+    }
   );
-  // Debug: Log user and certificates
-  console.log('Current user:', user);
-  if (event) {
-    console.log('Event certificates (for matching):', event.certificates);
-  }
-  console.log('My certificate:', myCertificate);
-  if (myCertificate) {
-    const downloadUrl = `http://localhost:5000${myCertificate.filePath.replace(/\\/g, '/')}`;
-    console.log('Certificate download URL:', downloadUrl);
-  }
+  
+  // Check if user is eligible to generate certificate
+  const canGenerateCertificate = isPastEvent && 
+    isRegistered && 
+    questionnaireCompleted && 
+    myCertificateAssignment && 
+    myCertificateAssignment.role === 'volunteer' &&
+    !myCertificateAssignment.filePath; // No filePath means certificate not generated yet
+  
+  // Check if certificate is already generated
+  const certificateGenerated = myCertificateAssignment && myCertificateAssignment.filePath;
+  
+  // Certificate generation handler
+  const handleGenerateCertificate = async () => {
+    if (!canGenerateCertificate) {
+      alert('You are not eligible to generate a certificate at this time.');
+      return;
+    }
+    
+    setIsGeneratingCertificate(true);
+    try {
+      // Show loading state
+      const response = await axiosInstance.post(`/api/events/${event._id}/generate-certificate`);
+      
+      // Wait longer for the backend to save the data and generate the file
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Refresh the event to get the updated certificate data
+      const updatedEvent = await axiosInstance.get(`/api/events/${id}`);
+      setEvent(updatedEvent.data);
+      
+      // Force a re-render by updating state
+      setForceRefresh(prev => prev + 1);
+      
+      // Also refresh registration details to ensure questionnaire status is up to date
+      if (user && user._id) {
+        try {
+          const regRes = await axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`);
+          setRegistrationDetails(regRes.data.registration);
+        } catch (err) {
+          console.log('Could not refresh registration details:', err);
+        }
+      }
+      
+      alert('Certificate generated successfully! You can now download it.');
+    } catch (err) {
+      console.error('Certificate generation error:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to generate certificate. Please try again.';
+      alert(errorMessage);
+    } finally {
+      setIsGeneratingCertificate(false);
+    }
+  };
+
   // Questionnaire submission handler
   const handleQuestionnaireSubmit = async (answers) => {
     if (questionnaireCompleted) {
@@ -384,8 +431,6 @@ export default function VolunteerEventDetailsPage() {
   handlePrev = () => setCarouselIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   handleNext = () => setCarouselIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
 
-  // Check if event is in the past
-  const isPastEvent = new Date(event.endDateTime) < new Date();
   // Check if event is live (ongoing)
   const now = new Date();
   const isLiveEvent = new Date(event.startDateTime) <= now && now < new Date(event.endDateTime);
@@ -502,17 +547,44 @@ export default function VolunteerEventDetailsPage() {
         </div>
       )}
       <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        {/* Certificate Download Button */}
-        {myCertificate && (
-          <div className="mb-4 flex items-center gap-4">
-            <a
-              href={`http://localhost:5000${myCertificate.filePath.replace(/\\/g, '/')}`}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              download
-            >
-              Download Certificate
-            </a>
-            <span className="text-gray-700">Award: <b>{myCertificate.award}</b></span>
+        {/* Certificate Section */}
+        {isPastEvent && isRegistered && (
+          <div className="mb-4">
+            {myCertificateAssignment ? (
+              <div className="flex items-center gap-4">
+                {certificateGenerated ? (
+                  <a
+                    href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    download
+                  >
+                    Download Certificate
+                  </a>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={handleGenerateCertificate}
+                      className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      disabled={!canGenerateCertificate || isGeneratingCertificate}
+                    >
+                      {isGeneratingCertificate ? "Generating..." : "Generate Certificate"}
+                    </button>
+                    {!questionnaireCompleted && (
+                      <span className="text-sm text-red-600">Please complete your questionnaire to generate your certificate.</span>
+                    )}
+                  </div>
+                )}
+                <span className="text-gray-700">Award: <b>{myCertificateAssignment?.award}</b></span>
+              </div>
+            ) : (
+              <div className="text-gray-600">
+                {!questionnaireCompleted ? (
+                  <span>Complete your questionnaire to be eligible for a certificate.</span>
+                ) : (
+                  <span>Certificate not available yet. The event organizer needs to assign awards.</span>
+                )}
+              </div>
+            )}
           </div>
         )}
         <button
@@ -778,6 +850,18 @@ export default function VolunteerEventDetailsPage() {
         eventType={event?.eventType}
         onSubmit={handleQuestionnaireSubmit}
       />
+      {/* Loader overlay for certificate generation */}
+      {isGeneratingCertificate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col items-center">
+            <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span className="text-lg font-semibold text-blue-700">Generating certificate...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

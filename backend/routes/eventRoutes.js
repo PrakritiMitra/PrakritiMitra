@@ -134,4 +134,7 @@ router.patch('/:eventId/organizer/:organizerId/attendance', protect, requireOrga
 // Get available slots for an event
 router.get('/:id/slots', eventController.getEventSlots);
 
+// Generate certificate for a user
+router.post('/:eventId/generate-certificate', protect, eventController.generateCertificate);
+
 module.exports = router;

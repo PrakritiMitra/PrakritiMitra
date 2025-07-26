@@ -158,11 +158,14 @@ const eventSchema = new mongoose.Schema({
   certificates: [
     {
       user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      role: { type: String, enum: ['volunteer', 'organizer', 'creator'] }, // NEW
       award: { type: String },
       certId: { type: String },
       filePath: { type: String },
       issuedAt: { type: Date },
-      verificationUrl: { type: String }
+      verificationUrl: { type: String },
+      name: { type: String },
+      profileImage: { type: String }
     }
   ],
 

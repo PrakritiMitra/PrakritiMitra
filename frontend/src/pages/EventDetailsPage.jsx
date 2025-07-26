@@ -25,6 +25,8 @@ export default function EventDetailsPage() {
   const [joinSuccess, setJoinSuccess] = useState("");
   const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0);
+  const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const isCreator = (() => {
@@ -270,6 +272,60 @@ export default function EventDetailsPage() {
   const myQuestionnaireCompleted = myOrganizerObj?.questionnaire?.completed;
   const isPast = event && new Date() > new Date(event.endDateTime);
 
+  // Find the current user's certificate assignment (if any)
+  const myCertificateAssignment = event?.certificates?.find(
+    cert => {
+      // Check if the certificate is for the current user
+      const certUserId = cert.user?._id || cert.user;
+      return certUserId === currentUser?._id;
+    }
+  );
+  
+  // Check if user is eligible to generate certificate (for organizers, not creators)
+  const canGenerateCertificate = isPast && 
+    isTeamMember && 
+    !isCreator && // Only non-creator organizers can generate certificates
+    myQuestionnaireCompleted && 
+    myCertificateAssignment && 
+    myCertificateAssignment.role === 'organizer' &&
+    !myCertificateAssignment.filePath; // No filePath means certificate not generated yet
+  
+  // Check if certificate is already generated
+  const certificateGenerated = myCertificateAssignment && myCertificateAssignment.filePath;
+  
+  // Certificate generation handler
+  const handleGenerateCertificate = async () => {
+    if (!canGenerateCertificate) {
+      alert('You are not eligible to generate a certificate at this time.');
+      return;
+    }
+    
+    setIsGeneratingCertificate(true);
+    try {
+      // Show loading state
+      const response = await axiosInstance.post(`/api/events/${event._id}/generate-certificate`);
+      
+      // Wait longer for the backend to save the data and generate the file
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Refresh the event to get the updated certificate data
+      const updatedEvent = await axiosInstance.get(`/api/events/${id}`);
+      setEvent(updatedEvent.data);
+      setOrganizerTeam(updatedEvent.data.organizerTeam || []);
+      
+      // Force a re-render by updating state
+      setForceRefresh(prev => prev + 1);
+      
+      alert('Certificate generated successfully! You can now download it.');
+    } catch (err) {
+      console.error('Certificate generation error:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to generate certificate. Please try again.';
+      alert(errorMessage);
+    } finally {
+      setIsGeneratingCertificate(false);
+    }
+  };
+
   // Combine volunteers and organizerTeam user objects for award selection
   const allParticipants = [
     ...volunteers,
@@ -278,6 +334,10 @@ export default function EventDetailsPage() {
 
   // Use only volunteers for award selection
   const awardParticipants = volunteers;
+
+  // Prepare separate arrays for volunteers and organizers
+  const volunteerParticipants = volunteers;
+  const organizerParticipants = organizerTeam.map(obj => obj.user).filter(u => u && u._id !== currentUser?._id); // Exclude creator from organizer awards
 
   // Handler to open questionnaire modal, refetch volunteers if empty
   const handleOpenQuestionnaireModal = () => {
@@ -668,13 +728,66 @@ export default function EventDetailsPage() {
           Complete Questionnaire
         </button>
       )}
+      {/* Certificate Section for Organizers */}
+      {isPast && isTeamMember && !isCreator && (
+        <div className="mb-4">
+          {myCertificateAssignment ? (
+            <div className="flex items-center gap-4">
+              {certificateGenerated ? (
+                <a
+                  href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`}
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                  download
+                >
+                  Download Certificate
+                </a>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleGenerateCertificate}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={!canGenerateCertificate || isGeneratingCertificate}
+                  >
+                    {isGeneratingCertificate ? "Generating..." : "Generate Certificate"}
+                  </button>
+                  {!myQuestionnaireCompleted && (
+                    <span className="text-sm text-red-600">Please complete your questionnaire to generate your certificate.</span>
+                  )}
+                </div>
+              )}
+              <span className="text-gray-700">Award: <b>{myCertificateAssignment?.award}</b></span>
+            </div>
+          ) : (
+            <div className="text-gray-600">
+              {!myQuestionnaireCompleted ? (
+                <span>Complete your questionnaire to be eligible for a certificate.</span>
+              ) : (
+                <span>Certificate not available yet. The event creator needs to assign awards.</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {/* Loader overlay for certificate generation */}
+      {isGeneratingCertificate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 flex flex-col items-center">
+            <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span className="text-lg font-semibold text-blue-700">Generating certificate...</span>
+          </div>
+        </div>
+      )}
       <EventQuestionnaireModal
         open={showQuestionnaireModal}
         onClose={() => setShowQuestionnaireModal(false)}
         eventType={event?.eventType}
         onSubmit={handleQuestionnaireSubmit}
         isCreator={organizerTeam.length > 0 && organizerTeam[0].user._id === currentUser?._id}
-        participants={awardParticipants}
+        volunteerParticipants={volunteerParticipants}
+        organizerParticipants={organizerParticipants}
       />
     </div>
   );
