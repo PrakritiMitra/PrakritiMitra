@@ -11,6 +11,7 @@ import StaticMap from '../components/event/StaticMap'; // Import the new compone
 import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
 import EventQuestionnaireModal from "../components/event/EventQuestionnaireModal";
+import { checkReportEligibility, generateEventReport } from "../utils/reportUtils";
 
 export default function EventDetailsPage() {
   const { id } = useParams();
@@ -25,6 +26,11 @@ export default function EventDetailsPage() {
   const [joinSuccess, setJoinSuccess] = useState("");
   const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  
+  // Report generation states
+  const [reportEligibility, setReportEligibility] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState("");
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const isCreator = (() => {
@@ -109,6 +115,13 @@ export default function EventDetailsPage() {
   useEffect(() => {
     fetchAndSetEvent();
   }, [id]);
+
+  // Check report eligibility when event loads
+  useEffect(() => {
+    if (event && isCreator) {
+      checkEligibility();
+    }
+  }, [event, isCreator]);
 
   // Poll for summary if missing
   useEffect(() => {
@@ -285,6 +298,43 @@ export default function EventDetailsPage() {
       fetchVolunteers();
     }
     setShowQuestionnaireModal(true);
+  };
+
+  // Check report eligibility
+  const checkEligibility = async () => {
+    if (!event?._id) return;
+    
+    const result = await checkReportEligibility(event._id);
+    if (result.success) {
+      setReportEligibility(result.data);
+    } else {
+      console.error('Failed to check eligibility:', result.error);
+    }
+  };
+
+  // Handle report generation
+  const handleGenerateReport = async () => {
+    if (!event?._id) return;
+    
+    setGeneratingReport(true);
+    setReportError("");
+    
+    const result = await generateEventReport(event._id);
+    
+    if (result.success) {
+      const message = result.data.isUpdate ? 'Report updated successfully!' : 'Report generated successfully!';
+      alert(message);
+      // Refresh event data to get the updated report
+      fetchAndSetEvent();
+      // Refresh eligibility to update UI
+      checkEligibility();
+    } else {
+      setReportError(result.error);
+      const action = reportEligibility?.reportGenerated ? 'update' : 'generate';
+      alert(`Failed to ${action} report: ${result.error}`);
+    }
+    
+    setGeneratingReport(false);
   };
 
   if (loading) {
@@ -645,6 +695,254 @@ export default function EventDetailsPage() {
             <p className="italic text-gray-500">Generating AI summary...</p>
           )}
         </div>
+
+        {/* AI Report Generation Section - Only for creator of past events */}
+        {isCreator && isPast && (
+          <div className="mt-8 mb-8 p-6 bg-blue-50 border-l-4 border-blue-400 rounded shadow">
+            <h2 className="text-xl font-bold text-blue-700 mb-4">AI Event Report</h2>
+            
+            {reportEligibility && (
+              <div className="mb-4">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-white p-4 rounded shadow">
+                    <h3 className="font-semibold text-gray-700 mb-2">Organizer Questionnaires</h3>
+                    <div className="flex items-center">
+                      <div className={`w-4 h-4 rounded-full mr-2 ${
+                        reportEligibility.organizerCompletionRate >= 50 ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
+                      <span>{reportEligibility.completedOrganizerQuestionnaires}/{reportEligibility.totalOrganizers} completed ({reportEligibility.organizerCompletionRate}%)</span>
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded shadow">
+                    <h3 className="font-semibold text-gray-700 mb-2">Volunteer Questionnaires</h3>
+                    <div className="flex items-center">
+                      <div className={`w-4 h-4 rounded-full mr-2 ${
+                        reportEligibility.volunteerCompletionRate >= 50 ? 'bg-green-500' : 'bg-red-500'
+                      }`}></div>
+                      <span>{reportEligibility.completedVolunteerQuestionnaires}/{reportEligibility.totalVolunteers} completed ({reportEligibility.volunteerCompletionRate}%)</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {reportEligibility.reportGenerated ? (
+                  <div>
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                      ✅ Report has been generated successfully!
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => {
+                          // View report functionality for creator
+                          if (event?.report?.content) {
+                            const reportWindow = window.open('', '_blank');
+                            const htmlContent = `
+                              <!DOCTYPE html>
+                              <html>
+                              <head>
+                                <title>Event Report: ${event.title}</title>
+                                <style>
+                                  body {
+                                    font-family: 'Times New Roman', serif;
+                                    line-height: 1.8;
+                                    color: #2c3e50;
+                                    max-width: 900px;
+                                    margin: 0 auto;
+                                    padding: 40px;
+                                    background: #ffffff;
+                                  }
+                                  .report-header {
+                                    text-align: center;
+                                    border-bottom: 3px solid #2c5530;
+                                    padding-bottom: 20px;
+                                    margin-bottom: 40px;
+                                  }
+                                  .report-title {
+                                    font-size: 32px;
+                                    font-weight: bold;
+                                    color: #2c5530;
+                                    margin-bottom: 10px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 1px;
+                                  }
+                                  .report-subtitle {
+                                    font-size: 18px;
+                                    color: #7f8c8d;
+                                    font-style: italic;
+                                  }
+                                  h1 {
+                                    font-size: 28px;
+                                    color: #2c5530;
+                                    border-bottom: 2px solid #4CAF50;
+                                    padding-bottom: 10px;
+                                    margin-top: 40px;
+                                    margin-bottom: 20px;
+                                    font-weight: bold;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                  }
+                                  h2 {
+                                    font-size: 22px;
+                                    color: #34495e;
+                                    border-left: 5px solid #4CAF50;
+                                    padding-left: 20px;
+                                    margin-top: 35px;
+                                    margin-bottom: 15px;
+                                    font-weight: bold;
+                                    background: #f8f9fa;
+                                    padding-top: 10px;
+                                    padding-bottom: 10px;
+                                  }
+                                  h3 {
+                                    font-size: 18px;
+                                    color: #1976d2;
+                                    margin-top: 25px;
+                                    margin-bottom: 12px;
+                                    font-weight: bold;
+                                    border-bottom: 1px solid #e0e0e0;
+                                    padding-bottom: 5px;
+                                  }
+                                  p {
+                                    margin-bottom: 15px;
+                                    text-align: justify;
+                                    text-indent: 20px;
+                                  }
+                                  ul, ol {
+                                    margin-bottom: 15px;
+                                    padding-left: 30px;
+                                  }
+                                  li {
+                                    margin-bottom: 8px;
+                                    line-height: 1.6;
+                                  }
+                                  .section {
+                                    margin-bottom: 30px;
+                                    padding: 20px;
+                                    border-radius: 8px;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                  }
+                                  .executive-summary {
+                                    background: #e8f5e8;
+                                    border-left: 5px solid #4CAF50;
+                                  }
+                                  .impact-section {
+                                    background: #e3f2fd;
+                                    border-left: 5px solid #2196F3;
+                                  }
+                                  .recommendations {
+                                    background: #fff3e0;
+                                    border-left: 5px solid #FF9800;
+                                  }
+                                  .conclusion {
+                                    background: #f3e5f5;
+                                    border-left: 5px solid #9C27B0;
+                                  }
+                                  strong {
+                                    color: #2c5530;
+                                    font-weight: bold;
+                                  }
+                                  em {
+                                    color: #7f8c8d;
+                                    font-style: italic;
+                                  }
+                                  .page-break {
+                                    page-break-before: always;
+                                  }
+                                  @media print {
+                                    body { font-size: 12pt; }
+                                    h1 { font-size: 18pt; }
+                                    h2 { font-size: 16pt; }
+                                    h3 { font-size: 14pt; }
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="report-header">
+                                  <div class="report-title">Event Impact Report</div>
+                                  <div class="report-subtitle">${event.title}</div>
+                                </div>
+                                <div class="report-content">
+                                  ${event.report.content
+                                    .replace(/\n/g, '<br>')
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                    .replace(/# (.*?)(<br>|$)/g, '<h1>$1</h1>')
+                                    .replace(/## (.*?)(<br>|$)/g, '<h2>$1</h2>')
+                                    .replace(/### (.*?)(<br>|$)/g, '<h3>$1</h3>')
+                                    .replace(/(Executive Summary[\s\S]*?)(?=##|$)/gi, '<div class="section executive-summary">$1</div>')
+                                    .replace(/(Impact Assessment[\s\S]*?)(?=##|$)/gi, '<div class="section impact-section">$1</div>')
+                                    .replace(/(Recommendations[\s\S]*?)(?=##|$)/gi, '<div class="section recommendations">$1</div>')
+                                    .replace(/(Conclusion[\s\S]*?)(?=##|$)/gi, '<div class="section conclusion">$1</div>')}
+                                </div>
+                              </body>
+                              </html>
+                            `;
+                            reportWindow.document.write(htmlContent);
+                            reportWindow.document.close();
+                          }
+                        }}
+                        className="px-6 py-3 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        📄 View Report
+                      </button>
+                      <button
+                        onClick={handleGenerateReport}
+                        disabled={generatingReport}
+                        className={`px-6 py-3 rounded font-semibold transition-colors ${
+                          generatingReport
+                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                            : 'bg-orange-600 text-white hover:bg-orange-700'
+                        }`}
+                      >
+                        {generatingReport ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Updating Report...
+                          </div>
+                        ) : (
+                          '🔄 Update Report'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : reportEligibility.isEligible ? (
+                  <div>
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                      ✅ Event is eligible for report generation (50%+ questionnaires completed)
+                    </div>
+                    <button
+                      onClick={handleGenerateReport}
+                      disabled={generatingReport}
+                      className={`px-6 py-3 rounded font-semibold transition-colors ${
+                        generatingReport
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      {generatingReport ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Generating Report...
+                        </div>
+                      ) : (
+                        '📊 Generate AI Report'
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                    ⚠️ Need 50% questionnaire completion from both organizers and volunteers to generate report
+                  </div>
+                )}
+                
+                {reportError && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4">
+                    ❌ {reportError}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {event.govtApprovalLetter && (
           <a
