@@ -16,6 +16,7 @@ import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
 import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
+import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuestionnaireModal';
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -52,6 +53,11 @@ export default function VolunteerEventDetailsPage() {
   const [volunteersLoading, setVolunteersLoading] = useState(false);
   const [showExitQr, setShowExitQr] = useState(false);
   const [exitQrPath, setExitQrPath] = useState(null);
+  
+  // Questionnaire state
+  const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
+  const [questionnaireSubmitting, setQuestionnaireSubmitting] = useState(false);
 
   // Use the new hook for live slot info
   const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
@@ -137,14 +143,20 @@ export default function VolunteerEventDetailsPage() {
       axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`)
         .then(res => {
           setIsRegistered(true);
-          setRegistrationDetails(res.data);
+          setRegistrationDetails(res.data.registration);
+          // Check questionnaire status for past events
+          const isPast = new Date() > new Date(event.endDateTime);
+          if (isPast && res.data.questionnaireCompleted) {
+            setQuestionnaireCompleted(true);
+          }
         })
         .catch(() => {
           setIsRegistered(false);
           setRegistrationDetails(null);
+          setQuestionnaireCompleted(false);
         });
     }
-  }, [event?._id, user?._id]);
+  }, [event?._id, user?._id, event?.endDateTime]);
 
   // Poll for registration details if registered but inTime is not set
   useEffect(() => {
@@ -309,6 +321,46 @@ export default function VolunteerEventDetailsPage() {
     const downloadUrl = `http://localhost:5000${myCertificate.filePath.replace(/\\/g, '/')}`;
     console.log('Certificate download URL:', downloadUrl);
   }
+  // Questionnaire submission handler
+  const handleQuestionnaireSubmit = async (answers) => {
+    if (questionnaireCompleted) {
+      alert('You have already submitted your questionnaire.');
+      return;
+    }
+    
+    setQuestionnaireSubmitting(true);
+    try {
+      const response = await axiosInstance.post(`/api/registrations/event/${event._id}/questionnaire`, {
+        answers
+      });
+      
+      // Update state immediately to reflect completion
+      setQuestionnaireCompleted(true);
+      setShowQuestionnaireModal(false);
+      
+      // Update registration details to reflect the new questionnaire data
+      if (registrationDetails) {
+        setRegistrationDetails({
+          ...registrationDetails,
+          questionnaire: response.data.questionnaire
+        });
+      }
+      
+      alert('Questionnaire submitted successfully! Thank you for your feedback.');
+    } catch (err) {
+      console.error('Questionnaire submission error:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to submit questionnaire. Please try again.';
+      alert(errorMessage);
+      
+      // If already submitted error, update state
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('already submitted')) {
+        setQuestionnaireCompleted(true);
+        setShowQuestionnaireModal(false);
+      }
+    } finally {
+      setQuestionnaireSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -544,6 +596,19 @@ export default function VolunteerEventDetailsPage() {
             {hasCompletedEvent && (
               <p className="text-green-700 font-semibold mt-6">Thank you for attending! Your attendance is complete.</p>
             )}
+            {/* Questionnaire button for past events */}
+            {isPastEvent && isRegistered && !questionnaireCompleted && (
+              <button
+                onClick={() => setShowQuestionnaireModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-6"
+                disabled={questionnaireSubmitting}
+              >
+                {questionnaireSubmitting ? 'Submitting...' : 'Complete Questionnaire'}
+              </button>
+            )}
+            {isPastEvent && isRegistered && questionnaireCompleted && (
+              <p className="text-green-700 font-semibold mt-6">✅ Questionnaire completed! Thank you for your feedback.</p>
+            )}
             {!hasCompletedEvent && isRegistered && !registrationDetails?.inTime && (
               <button
                 onClick={handleWithdrawRegistration}
@@ -706,6 +771,13 @@ export default function VolunteerEventDetailsPage() {
           </div>
         </div>
       )}
+      {/* Volunteer Questionnaire Modal */}
+      <VolunteerQuestionnaireModal
+        open={showQuestionnaireModal}
+        onClose={() => setShowQuestionnaireModal(false)}
+        eventType={event?.eventType}
+        onSubmit={handleQuestionnaireSubmit}
+      />
     </div>
   );
 }
