@@ -293,7 +293,7 @@ function renderQuestion(q, answers, setAnswers) {
   }
 }
 
-export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit, isCreator, participants = [] }) {
+export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit, isCreator, volunteerParticipants = [], organizerParticipants = [] }) {
   // If creator, use full question set; else, use feedback only
   const questions = isCreator
     ? (QUESTION_SETS[eventType?.toLowerCase()] || [])
@@ -301,36 +301,58 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
   const [answers, setAnswers] = useState({});
   const [mediaFiles, setMediaFiles] = useState([]);
 
-  // Award selection state (only for creator)
+  // Volunteer awards state
   const [bestVolunteers, setBestVolunteers] = useState([]);
   const [mostPunctual, setMostPunctual] = useState([]);
-  const [customAwards, setCustomAwards] = useState([]); // [{ title: '', userIds: [] }]
+  const [customVolunteerAwards, setCustomVolunteerAwards] = useState([]); // [{ title: '', userIds: [] }]
+  // Organizer awards state
+  const [bestOrganizers, setBestOrganizers] = useState([]);
+  const [mostDedicated, setMostDedicated] = useState([]);
+  const [customOrganizerAwards, setCustomOrganizerAwards] = useState([]); // [{ title: '', userIds: [] }]
 
-  // For adding a new custom award
-  const [newAwardTitle, setNewAwardTitle] = useState("");
-  const [newAwardUsers, setNewAwardUsers] = useState([]);
+  // For adding a new custom award (volunteer)
+  const [newVolunteerAwardTitle, setNewVolunteerAwardTitle] = useState("");
+  const [newVolunteerAwardUsers, setNewVolunteerAwardUsers] = useState([]);
+  // For adding a new custom award (organizer)
+  const [newOrganizerAwardTitle, setNewOrganizerAwardTitle] = useState("");
+  const [newOrganizerAwardUsers, setNewOrganizerAwardUsers] = useState([]);
 
   const handleMediaChange = (e) => {
     setMediaFiles(Array.from(e.target.files));
   };
 
-  const handleAddCustomAward = () => {
-    if (!newAwardTitle.trim() || newAwardUsers.length === 0) return;
-    setCustomAwards([...customAwards, { title: newAwardTitle.trim(), userIds: newAwardUsers }]);
-    setNewAwardTitle("");
-    setNewAwardUsers([]);
+  const handleAddCustomVolunteerAward = () => {
+    if (!newVolunteerAwardTitle.trim() || newVolunteerAwardUsers.length === 0) return;
+    setCustomVolunteerAwards([...customVolunteerAwards, { title: newVolunteerAwardTitle.trim(), userIds: newVolunteerAwardUsers }]);
+    setNewVolunteerAwardTitle("");
+    setNewVolunteerAwardUsers([]);
   };
-
-  const handleRemoveCustomAward = (idx) => {
-    setCustomAwards(customAwards.filter((_, i) => i !== idx));
+  const handleRemoveCustomVolunteerAward = (idx) => {
+    setCustomVolunteerAwards(customVolunteerAwards.filter((_, i) => i !== idx));
+  };
+  const handleAddCustomOrganizerAward = () => {
+    if (!newOrganizerAwardTitle.trim() || newOrganizerAwardUsers.length === 0) return;
+    setCustomOrganizerAwards([...customOrganizerAwards, { title: newOrganizerAwardTitle.trim(), userIds: newOrganizerAwardUsers }]);
+    setNewOrganizerAwardTitle("");
+    setNewOrganizerAwardUsers([]);
+  };
+  const handleRemoveCustomOrganizerAward = (idx) => {
+    setCustomOrganizerAwards(customOrganizerAwards.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = () => {
     // Pass answers, mediaFiles, and awards
     const awards = isCreator ? {
-      bestVolunteers,
-      mostPunctual,
-      customAwards
+      volunteers: {
+        bestVolunteers,
+        mostPunctual,
+        customAwards: customVolunteerAwards
+      },
+      organizers: {
+        bestOrganizers,
+        mostDedicated,
+        customAwards: customOrganizerAwards
+      }
     } : undefined;
     onSubmit(answers, mediaFiles, awards);
   };
@@ -359,99 +381,183 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
           questions.map(q => renderQuestion(q, answers, setAnswers))
         )}
         {/* Award selection for creator only */}
-        {isCreator && participants.length === 0 && (
-          <Box display="flex" alignItems="center" justifyContent="center" mt={2} mb={2}>
-            <CircularProgress size={28} sx={{ mr: 2 }} />
-            <Typography>Loading volunteers...</Typography>
-          </Box>
-        )}
-        {isCreator && participants.length > 0 && (
-          <Box mt={3} mb={2}>
-            <Typography variant="subtitle1" gutterBottom>Award Selection</Typography>
-            {/* Best Volunteer */}
-            <Autocomplete
-              multiple
-              options={participants}
-              getOptionLabel={u => u.name || u.email || u._id}
-              value={participants.filter(u => bestVolunteers.includes(u._id))}
-              onChange={(_, vals) => setBestVolunteers(vals.map(u => u._id))}
-              renderInput={params => <TextField {...params} label="Best Volunteer(s)" margin="normal" />}
-              renderOption={(props, option) => (
-                <Box component="li" {...props} display="flex" alignItems="center">
-                  <img
-                    src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                    alt={option.name}
-                    style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
-                  />
-                  <span>{option.name || option.email || option._id}</span>
-                </Box>
-              )}
-            />
-            {/* Most Punctual */}
-            <Autocomplete
-              multiple
-              options={participants}
-              getOptionLabel={u => u.name || u.email || u._id}
-              value={participants.filter(u => mostPunctual.includes(u._id))}
-              onChange={(_, vals) => setMostPunctual(vals.map(u => u._id))}
-              renderInput={params => <TextField {...params} label="Most Punctual" margin="normal" />}
-              renderOption={(props, option) => (
-                <Box component="li" {...props} display="flex" alignItems="center">
-                  <img
-                    src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                    alt={option.name}
-                    style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
-                  />
-                  <span>{option.name || option.email || option._id}</span>
-                </Box>
-              )}
-            />
-            {/* Custom Awards */}
-            <Box mt={2} mb={1}>
-              <Typography variant="subtitle2">Add Custom Award</Typography>
-              <TextField
-                label="Award Title"
-                value={newAwardTitle}
-                onChange={e => setNewAwardTitle(e.target.value)}
-                size="small"
-                sx={{ mr: 1, width: 180 }}
-              />
+        {isCreator && (
+          <>
+            {/* Volunteer Awards Section */}
+            <Box mt={3} mb={2}>
+              <Typography variant="subtitle1" gutterBottom>Volunteer Awards</Typography>
+              {/* Best Volunteer */}
               <Autocomplete
                 multiple
-                options={participants}
+                options={volunteerParticipants}
                 getOptionLabel={u => u.name || u.email || u._id}
-                value={participants.filter(u => newAwardUsers.includes(u._id))}
-                onChange={(_, vals) => setNewAwardUsers(vals.map(u => u._id))}
-                renderInput={params => <TextField {...params} label="Recipients" size="small" sx={{ width: 180 }} />}
-                sx={{ display: 'inline-block', mr: 1 }}
+                value={volunteerParticipants.filter(u => bestVolunteers.includes(u._id))}
+                onChange={(_, vals) => setBestVolunteers(vals.map(u => u._id))}
+                renderInput={params => <TextField {...params} label="Best Volunteer(s)" margin="normal" />}
                 renderOption={(props, option) => (
                   <Box component="li" {...props} display="flex" alignItems="center">
                     <img
                       src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
                       alt={option.name}
-                      style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
+                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
                     />
                     <span>{option.name || option.email || option._id}</span>
                   </Box>
                 )}
               />
-              <Button onClick={handleAddCustomAward} variant="outlined" size="small">Add</Button>
-            </Box>
-            {/* List of custom awards */}
-            {customAwards.length > 0 && (
-              <Box mt={1}>
-                {customAwards.map((award, idx) => (
-                  <Box key={idx} display="flex" alignItems="center" mb={1}>
-                    <Typography sx={{ fontWeight: 500, mr: 1 }}>{award.title}:</Typography>
-                    <Typography sx={{ color: '#555', mr: 2 }}>
-                      {participants.filter(u => award.userIds.includes(u._id)).map(u => u.name || u.email || u._id).join(', ')}
-                    </Typography>
-                    <Button onClick={() => handleRemoveCustomAward(idx)} size="small" color="error">Remove</Button>
+              {/* Most Punctual */}
+              <Autocomplete
+                multiple
+                options={volunteerParticipants}
+                getOptionLabel={u => u.name || u.email || u._id}
+                value={volunteerParticipants.filter(u => mostPunctual.includes(u._id))}
+                onChange={(_, vals) => setMostPunctual(vals.map(u => u._id))}
+                renderInput={params => <TextField {...params} label="Most Punctual" margin="normal" />}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} display="flex" alignItems="center">
+                    <img
+                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                      alt={option.name}
+                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                    />
+                    <span>{option.name || option.email || option._id}</span>
                   </Box>
-                ))}
+                )}
+              />
+              {/* Custom Volunteer Awards */}
+              <Box mt={2} mb={1}>
+                <Typography variant="subtitle2">Add Custom Volunteer Award</Typography>
+                <TextField
+                  label="Award Title"
+                  value={newVolunteerAwardTitle}
+                  onChange={e => setNewVolunteerAwardTitle(e.target.value)}
+                  size="small"
+                  sx={{ mr: 1, width: 180 }}
+                />
+                <Autocomplete
+                  multiple
+                  options={volunteerParticipants}
+                  getOptionLabel={u => u.name || u.email || u._id}
+                  value={volunteerParticipants.filter(u => newVolunteerAwardUsers.includes(u._id))}
+                  onChange={(_, vals) => setNewVolunteerAwardUsers(vals.map(u => u._id))}
+                  renderInput={params => <TextField {...params} label="Recipients" size="small" sx={{ width: 180 }} />}
+                  sx={{ display: 'inline-block', mr: 1 }}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} display="flex" alignItems="center">
+                      <img
+                        src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                        alt={option.name}
+                        style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
+                      />
+                      <span>{option.name || option.email || option._id}</span>
+                    </Box>
+                  )}
+                />
+                <Button onClick={handleAddCustomVolunteerAward} variant="outlined" size="small">Add</Button>
               </Box>
-            )}
-          </Box>
+              {/* List of custom volunteer awards */}
+              {customVolunteerAwards.length > 0 && (
+                <Box mt={1}>
+                  {customVolunteerAwards.map((award, idx) => (
+                    <Box key={idx} display="flex" alignItems="center" mb={1}>
+                      <Typography sx={{ fontWeight: 500, mr: 1 }}>{award.title}:</Typography>
+                      <Typography sx={{ color: '#555', mr: 2 }}>
+                        {volunteerParticipants.filter(u => award.userIds.includes(u._id)).map(u => u.name || u.email || u._id).join(', ')}
+                      </Typography>
+                      <Button onClick={() => handleRemoveCustomVolunteerAward(idx)} size="small" color="error">Remove</Button>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+            {/* Organizer Awards Section */}
+            <Box mt={3} mb={2}>
+              <Typography variant="subtitle1" gutterBottom>Organizer Awards</Typography>
+              {/* Best Organizer */}
+              <Autocomplete
+                multiple
+                options={organizerParticipants}
+                getOptionLabel={u => u.name || u.email || u._id}
+                value={organizerParticipants.filter(u => bestOrganizers.includes(u._id))}
+                onChange={(_, vals) => setBestOrganizers(vals.map(u => u._id))}
+                renderInput={params => <TextField {...params} label="Best Organizer(s)" margin="normal" />}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} display="flex" alignItems="center">
+                    <img
+                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                      alt={option.name}
+                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                    />
+                    <span>{option.name || option.email || option._id}</span>
+                  </Box>
+                )}
+              />
+              {/* Most Dedicated Organizer */}
+              <Autocomplete
+                multiple
+                options={organizerParticipants}
+                getOptionLabel={u => u.name || u.email || u._id}
+                value={organizerParticipants.filter(u => mostDedicated.includes(u._id))}
+                onChange={(_, vals) => setMostDedicated(vals.map(u => u._id))}
+                renderInput={params => <TextField {...params} label="Most Dedicated" margin="normal" />}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} display="flex" alignItems="center">
+                    <img
+                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                      alt={option.name}
+                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                    />
+                    <span>{option.name || option.email || option._id}</span>
+                  </Box>
+                )}
+              />
+              {/* Custom Organizer Awards */}
+              <Box mt={2} mb={1}>
+                <Typography variant="subtitle2">Add Custom Organizer Award</Typography>
+                <TextField
+                  label="Award Title"
+                  value={newOrganizerAwardTitle}
+                  onChange={e => setNewOrganizerAwardTitle(e.target.value)}
+                  size="small"
+                  sx={{ mr: 1, width: 180 }}
+                />
+                <Autocomplete
+                  multiple
+                  options={organizerParticipants}
+                  getOptionLabel={u => u.name || u.email || u._id}
+                  value={organizerParticipants.filter(u => newOrganizerAwardUsers.includes(u._id))}
+                  onChange={(_, vals) => setNewOrganizerAwardUsers(vals.map(u => u._id))}
+                  renderInput={params => <TextField {...params} label="Recipients" size="small" sx={{ width: 180 }} />}
+                  sx={{ display: 'inline-block', mr: 1 }}
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} display="flex" alignItems="center">
+                      <img
+                        src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                        alt={option.name}
+                        style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
+                      />
+                      <span>{option.name || option.email || option._id}</span>
+                    </Box>
+                  )}
+                />
+                <Button onClick={handleAddCustomOrganizerAward} variant="outlined" size="small">Add</Button>
+              </Box>
+              {/* List of custom organizer awards */}
+              {customOrganizerAwards.length > 0 && (
+                <Box mt={1}>
+                  {customOrganizerAwards.map((award, idx) => (
+                    <Box key={idx} display="flex" alignItems="center" mb={1}>
+                      <Typography sx={{ fontWeight: 500, mr: 1 }}>{award.title}:</Typography>
+                      <Typography sx={{ color: '#555', mr: 2 }}>
+                        {organizerParticipants.filter(u => award.userIds.includes(u._id)).map(u => u.name || u.email || u._id).join(', ')}
+                      </Typography>
+                      <Button onClick={() => handleRemoveCustomOrganizerAward(idx)} size="small" color="error">Remove</Button>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+          </>
         )}
         {/* Media upload section */}
         <Box mt={2} mb={2}>
