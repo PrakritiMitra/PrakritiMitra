@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Modal, Box, Typography, Button, TextField, Slider, Checkbox, FormControlLabel, IconButton, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Modal, Box, Typography, Button, TextField, Slider, Checkbox, FormControlLabel, IconButton, ToggleButton, ToggleButtonGroup, Autocomplete } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Helper: Emoji/Face rating
 const EmojiRating = ({ value, onChange, options }) => (
@@ -292,7 +293,7 @@ function renderQuestion(q, answers, setAnswers) {
   }
 }
 
-export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit, isCreator }) {
+export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit, isCreator, participants = [] }) {
   // If creator, use full question set; else, use feedback only
   const questions = isCreator
     ? (QUESTION_SETS[eventType?.toLowerCase()] || [])
@@ -300,13 +301,38 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
   const [answers, setAnswers] = useState({});
   const [mediaFiles, setMediaFiles] = useState([]);
 
+  // Award selection state (only for creator)
+  const [bestVolunteers, setBestVolunteers] = useState([]);
+  const [mostPunctual, setMostPunctual] = useState([]);
+  const [customAwards, setCustomAwards] = useState([]); // [{ title: '', userIds: [] }]
+
+  // For adding a new custom award
+  const [newAwardTitle, setNewAwardTitle] = useState("");
+  const [newAwardUsers, setNewAwardUsers] = useState([]);
+
   const handleMediaChange = (e) => {
     setMediaFiles(Array.from(e.target.files));
   };
 
+  const handleAddCustomAward = () => {
+    if (!newAwardTitle.trim() || newAwardUsers.length === 0) return;
+    setCustomAwards([...customAwards, { title: newAwardTitle.trim(), userIds: newAwardUsers }]);
+    setNewAwardTitle("");
+    setNewAwardUsers([]);
+  };
+
+  const handleRemoveCustomAward = (idx) => {
+    setCustomAwards(customAwards.filter((_, i) => i !== idx));
+  };
+
   const handleSubmit = () => {
-    // Pass both answers and mediaFiles to onSubmit
-    onSubmit(answers, mediaFiles);
+    // Pass answers, mediaFiles, and awards
+    const awards = isCreator ? {
+      bestVolunteers,
+      mostPunctual,
+      customAwards
+    } : undefined;
+    onSubmit(answers, mediaFiles, awards);
   };
 
   return (
@@ -331,6 +357,101 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
           <Typography>No questionnaire for this event type.</Typography>
         ) : (
           questions.map(q => renderQuestion(q, answers, setAnswers))
+        )}
+        {/* Award selection for creator only */}
+        {isCreator && participants.length === 0 && (
+          <Box display="flex" alignItems="center" justifyContent="center" mt={2} mb={2}>
+            <CircularProgress size={28} sx={{ mr: 2 }} />
+            <Typography>Loading volunteers...</Typography>
+          </Box>
+        )}
+        {isCreator && participants.length > 0 && (
+          <Box mt={3} mb={2}>
+            <Typography variant="subtitle1" gutterBottom>Award Selection</Typography>
+            {/* Best Volunteer */}
+            <Autocomplete
+              multiple
+              options={participants}
+              getOptionLabel={u => u.name || u.email || u._id}
+              value={participants.filter(u => bestVolunteers.includes(u._id))}
+              onChange={(_, vals) => setBestVolunteers(vals.map(u => u._id))}
+              renderInput={params => <TextField {...params} label="Best Volunteer(s)" margin="normal" />}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} display="flex" alignItems="center">
+                  <img
+                    src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                    alt={option.name}
+                    style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                  />
+                  <span>{option.name || option.email || option._id}</span>
+                </Box>
+              )}
+            />
+            {/* Most Punctual */}
+            <Autocomplete
+              multiple
+              options={participants}
+              getOptionLabel={u => u.name || u.email || u._id}
+              value={participants.filter(u => mostPunctual.includes(u._id))}
+              onChange={(_, vals) => setMostPunctual(vals.map(u => u._id))}
+              renderInput={params => <TextField {...params} label="Most Punctual" margin="normal" />}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} display="flex" alignItems="center">
+                  <img
+                    src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                    alt={option.name}
+                    style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                  />
+                  <span>{option.name || option.email || option._id}</span>
+                </Box>
+              )}
+            />
+            {/* Custom Awards */}
+            <Box mt={2} mb={1}>
+              <Typography variant="subtitle2">Add Custom Award</Typography>
+              <TextField
+                label="Award Title"
+                value={newAwardTitle}
+                onChange={e => setNewAwardTitle(e.target.value)}
+                size="small"
+                sx={{ mr: 1, width: 180 }}
+              />
+              <Autocomplete
+                multiple
+                options={participants}
+                getOptionLabel={u => u.name || u.email || u._id}
+                value={participants.filter(u => newAwardUsers.includes(u._id))}
+                onChange={(_, vals) => setNewAwardUsers(vals.map(u => u._id))}
+                renderInput={params => <TextField {...params} label="Recipients" size="small" sx={{ width: 180 }} />}
+                sx={{ display: 'inline-block', mr: 1 }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} display="flex" alignItems="center">
+                    <img
+                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
+                      alt={option.name}
+                      style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
+                    />
+                    <span>{option.name || option.email || option._id}</span>
+                  </Box>
+                )}
+              />
+              <Button onClick={handleAddCustomAward} variant="outlined" size="small">Add</Button>
+            </Box>
+            {/* List of custom awards */}
+            {customAwards.length > 0 && (
+              <Box mt={1}>
+                {customAwards.map((award, idx) => (
+                  <Box key={idx} display="flex" alignItems="center" mb={1}>
+                    <Typography sx={{ fontWeight: 500, mr: 1 }}>{award.title}:</Typography>
+                    <Typography sx={{ color: '#555', mr: 2 }}>
+                      {participants.filter(u => award.userIds.includes(u._id)).map(u => u.name || u.email || u._id).join(', ')}
+                    </Typography>
+                    <Button onClick={() => handleRemoveCustomAward(idx)} size="small" color="error">Remove</Button>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
         )}
         {/* Media upload section */}
         <Box mt={2} mb={2}>

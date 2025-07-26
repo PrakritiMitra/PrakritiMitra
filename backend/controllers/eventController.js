@@ -6,6 +6,8 @@ const fs = require("fs");
 const path = require("path");
 const Organization = require("../models/organization");
 const axios = require('axios');
+const User = require('../models/user');
+const { generateCertificate } = require('../utils/certificateGenerator');
 
 // Create new event
 exports.createEvent = async (req, res) => {
@@ -646,16 +648,22 @@ exports.getEventSlots = async (req, res) => {
  // Complete Questionnaire for an Event
 exports.completeQuestionnaire = async (req, res) => {
   try {
+    console.log('completeQuestionnaire called');
     const eventId = req.params.id;
     let answers = req.body.answers;
     if (typeof answers === 'string') {
       try { answers = JSON.parse(answers); } catch { answers = {}; }
     }
-    const event = await Event.findById(eventId);
+    let awards = req.body.awards;
+    if (typeof awards === 'string') {
+      try { awards = JSON.parse(awards); } catch { awards = {}; }
+    }
+    console.log('User:', req.user);
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email profileImage');
     if (!event) return res.status(404).json({ message: 'Event not found' });
 
     // Find the organizer in organizerTeam
-    const organizer = event.organizerTeam.find(obj => obj.user.toString() === req.user._id.toString());
+    const organizer = event.organizerTeam.find(obj => obj.user._id.toString() === req.user._id.toString());
     if (!organizer) return res.status(404).json({ message: 'Organizer not found in team' });
     if (organizer.questionnaire && organizer.questionnaire.completed) {
       return res.status(400).json({ message: 'You have already submitted your questionnaire.' });
@@ -668,7 +676,9 @@ exports.completeQuestionnaire = async (req, res) => {
     }
 
     // Determine if this user is the creator (first in organizerTeam)
-    const isCreator = event.organizerTeam.length > 0 && event.organizerTeam[0].user.toString() === req.user._id.toString();
+    const isCreator = event.organizerTeam.length > 0 && event.organizerTeam[0].user._id.toString() === req.user._id.toString();
+    console.log('isCreator:', isCreator);
+    console.log('awards:', awards);
 
     // Save answers and mark as completed
     organizer.questionnaire = {
@@ -677,9 +687,87 @@ exports.completeQuestionnaire = async (req, res) => {
       submittedAt: new Date(),
       ...(isCreator ? { media } : {}) // Only save media for creator
     };
+
+    // If creator, process awards and generate certificates
+    if (isCreator && awards) {
+      console.log('Processing certificates for awards...');
+      // Gather all participants (volunteers + organizerTeam)
+      const participantIds = [
+        ...(event.volunteers || []),
+        ...event.organizerTeam.map(obj => obj.user._id)
+      ].map(id => id.toString());
+      // Remove duplicates
+      const uniqueParticipantIds = [...new Set(participantIds)];
+      // Fetch user details
+      const users = await User.find({ _id: { $in: uniqueParticipantIds } });
+      // Helper to get user info
+      const getUserInfo = (id) => {
+        const user = users.find(u => u._id.toString() === id.toString());
+        return user ? { name: user.name, profileImage: user.profileImage } : { name: '', profileImage: '' };
+      };
+      // Map userId to award
+      const awardMap = {};
+      (awards.bestVolunteers || []).forEach(id => { awardMap[id] = 'Best Volunteer'; });
+      (awards.mostPunctual || []).forEach(id => { awardMap[id] = 'Most Punctual'; });
+      (awards.customAwards || []).forEach(a => {
+        (a.userIds || []).forEach(id => { awardMap[id] = a.title; });
+      });
+      // Generate certificates
+      event.certificates = [];
+      for (const id of uniqueParticipantIds) {
+        const award = awardMap[id] || 'Participation';
+        let templateName = 'participation';
+        if (award === 'Best Volunteer') templateName = 'best_volunteer';
+        else if (award === 'Most Punctual') templateName = 'most_punctual';
+        else if (award !== 'Participation') templateName = 'custom_award';
+        const userInfo = getUserInfo(id);
+        // Generate certificate
+        const { filePath, certificateId } = await generateCertificate({
+          participantName: userInfo.name,
+          eventName: event.title,
+          eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : '',
+          eventLocation: event.location || '',
+          awardTitle: award,
+          templateName,
+          organizationLogo: '/public/images/default-logo.png', // Update as needed
+          signatureImage: '/public/images/default-signature.png', // Update as needed
+          issueDate: new Date().toLocaleDateString(),
+          verificationUrl: 'https://yourdomain.com/verify-certificate/'
+        });
+        event.certificates.push({
+          user: id,
+          award,
+          certId: certificateId,
+          filePath,
+          issuedAt: new Date(),
+          verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
+          name: userInfo.name,
+          profileImage: userInfo.profileImage
+        });
+        // Also add to user model
+        await User.updateOne(
+          { _id: id, 'certificates.certId': { $ne: certificateId } },
+          {
+            $push: {
+              certificates: {
+                event: event._id,
+                award,
+                certId: certificateId,
+                filePath,
+                issuedAt: new Date(),
+                verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
+                eventName: event.title,
+                eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : ''
+              }
+            }
+          }
+        );
+      }
+    }
     await event.save();
     res.status(200).json({ message: 'Questionnaire completed', questionnaire: organizer.questionnaire });
   } catch (err) {
+    console.error('Error in completeQuestionnaire:', err);
     res.status(500).json({ message: 'Failed to complete questionnaire', error: err.message });
   }
 };

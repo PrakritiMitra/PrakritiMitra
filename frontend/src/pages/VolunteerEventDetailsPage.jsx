@@ -92,6 +92,9 @@ export default function VolunteerEventDetailsPage() {
       try {
         const res = await axiosInstance.get(`/api/events/${id}`);
         setEvent(res.data);
+        // Debug: Log the full event and certificates
+        console.log('Fetched event:', res.data);
+        console.log('Event certificates:', res.data.certificates);
         // If organizerTeam is present and populated, set it for organizer drawer
         if (res.data.organizerTeam && Array.isArray(res.data.organizerTeam)) {
           setOrganizerTeam(res.data.organizerTeam);
@@ -300,6 +303,24 @@ export default function VolunteerEventDetailsPage() {
     }
   };
 
+  // Find the current user's certificate (if any)
+  const myCertificate = event?.certificates?.find(
+    cert =>
+      (typeof cert.user === 'string' && cert.user === user?._id) ||
+      (cert.user && cert.user._id === user?._id) ||
+      (cert.user && cert.user._id?.toString() === user?._id) ||
+      (cert.user && cert.user.toString && cert.user.toString() === user?._id)
+  );
+  // Debug: Log user and certificates
+  console.log('Current user:', user);
+  if (event) {
+    console.log('Event certificates (for matching):', event.certificates);
+  }
+  console.log('My certificate:', myCertificate);
+  if (myCertificate) {
+    const downloadUrl = `http://localhost:5000${myCertificate.filePath.replace(/\\/g, '/')}`;
+    console.log('Certificate download URL:', downloadUrl);
+  }
   // Questionnaire submission handler
   const handleQuestionnaireSubmit = async (answers) => {
     if (questionnaireCompleted) {
@@ -481,6 +502,19 @@ export default function VolunteerEventDetailsPage() {
         </div>
       )}
       <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        {/* Certificate Download Button */}
+        {myCertificate && (
+          <div className="mb-4 flex items-center gap-4">
+            <a
+              href={`http://localhost:5000${myCertificate.filePath.replace(/\\/g, '/')}`}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              download
+            >
+              Download Certificate
+            </a>
+            <span className="text-gray-700">Award: <b>{myCertificate.award}</b></span>
+          </div>
+        )}
         <button
           className="mb-4 text-blue-600 underline"
           onClick={() => navigate(-1)}

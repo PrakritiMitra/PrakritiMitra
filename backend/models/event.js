@@ -155,6 +155,17 @@ const eventSchema = new mongoose.Schema({
     default: '',
   },
 
+  certificates: [
+    {
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      award: { type: String },
+      certId: { type: String },
+      filePath: { type: String },
+      issuedAt: { type: Date },
+      verificationUrl: { type: String }
+    }
+  ],
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);

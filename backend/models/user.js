@@ -100,6 +100,19 @@ const userSchema = new mongoose.Schema({
     default: "",
   },
 
+  certificates: [
+    {
+      event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
+      award: { type: String },
+      certId: { type: String },
+      filePath: { type: String },
+      issuedAt: { type: Date },
+      verificationUrl: { type: String },
+      eventName: { type: String },
+      eventDate: { type: String },
+    }
+  ],
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
