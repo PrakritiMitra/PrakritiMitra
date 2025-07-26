@@ -17,6 +17,7 @@ import StaticMap from '../components/event/StaticMap'; // Import the new compone
 import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
 import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuestionnaireModal';
+import { getEventReport, downloadReportAsPDF } from '../utils/reportUtils';
 
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
@@ -60,6 +61,11 @@ export default function VolunteerEventDetailsPage() {
   const [questionnaireSubmitting, setQuestionnaireSubmitting] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
+  
+  // Report state
+  const [eventReport, setEventReport] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Use the new hook for live slot info
   const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
@@ -89,6 +95,9 @@ export default function VolunteerEventDetailsPage() {
     }
   }
 
+  // Check if event is in the past (needs to be declared before useEffect)
+  const isPastEvent = event ? new Date(event.endDateTime) < new Date() : false;
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
@@ -109,6 +118,13 @@ export default function VolunteerEventDetailsPage() {
 
     fetchEvent();
   }, [id]);
+
+  // Check for available report when event loads (for past events)
+  useEffect(() => {
+    if (event && isPastEvent && isRegistered) {
+      fetchEventReport();
+    }
+  }, [event, isPastEvent, isRegistered]);
 
   // Poll for summary if missing
   useEffect(() => {
@@ -409,6 +425,35 @@ export default function VolunteerEventDetailsPage() {
     }
   };
 
+  // Fetch event report
+  const fetchEventReport = async () => {
+    if (!event?._id) return;
+    
+    setReportLoading(true);
+    const result = await getEventReport(event._id);
+    
+    if (result.success) {
+      setEventReport(result.data);
+    } else {
+      console.error('Failed to fetch report:', result.error);
+    }
+    
+    setReportLoading(false);
+  };
+
+  // Handle report viewing
+  const handleViewReport = () => {
+    setShowReportModal(true);
+  };
+
+  // Handle report download
+  const handleDownloadReport = () => {
+    if (eventReport?.report?.content) {
+      const filename = `${event.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_report.pdf`;
+      downloadReportAsPDF(eventReport.report.content, filename);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -585,6 +630,7 @@ export default function VolunteerEventDetailsPage() {
                 )}
               </div>
             )}
+
           </div>
         )}
         <button
@@ -778,6 +824,44 @@ export default function VolunteerEventDetailsPage() {
               )}
             </div>
 
+            {/* AI Event Report Section - Only for registered volunteers of past events */}
+            {isPastEvent && isRegistered && (
+              <div className="mt-8 mb-8 p-6 bg-green-50 border-l-4 border-green-400 rounded shadow">
+                <h2 className="text-xl font-bold text-green-700 mb-4">AI Event Report</h2>
+                
+                {reportLoading ? (
+                  <div className="flex items-center text-gray-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                    Checking for available report...
+                  </div>
+                ) : eventReport ? (
+                  <div>
+                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                      ✅ Event report is available! Generated on {new Date(eventReport.report.generatedAt).toLocaleDateString()}
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={handleViewReport}
+                        className="px-6 py-3 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        📄 View Report
+                      </button>
+                      <button
+                        onClick={handleDownloadReport}
+                        className="px-6 py-3 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700 transition-colors"
+                      >
+                        📥 Download PDF
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-100 border border-gray-300 text-gray-600 px-4 py-3 rounded">
+                    📋 No report available yet. Reports are generated after sufficient feedback is collected.
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Event Images Carousel at the bottom */}
             {hasImages && (
               <div className="mt-10 w-full flex flex-col items-center">
@@ -859,6 +943,61 @@ export default function VolunteerEventDetailsPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
             </svg>
             <span className="text-lg font-semibold text-blue-700">Generating certificate...</span>
+      
+      {/* Report Viewing Modal */}
+      {showReportModal && eventReport && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setShowReportModal(false)}>
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b bg-gray-50">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800">Event Report: {event.title}</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleDownloadReport}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    📥 Download PDF
+                  </button>
+                  <button
+                    onClick={() => setShowReportModal(false)}
+                    className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                Generated on {new Date(eventReport.report.generatedAt).toLocaleDateString()} • 
+                Event Date: {new Date(eventReport.eventDate).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[70vh]">
+              <div className="report-header text-center border-b-2 border-green-700 pb-4 mb-6">
+                <h1 className="text-3xl font-bold text-green-700 uppercase tracking-wide mb-2">Event Impact Report</h1>
+                <p className="text-lg text-gray-600 italic">{event.title}</p>
+              </div>
+              <div 
+                className="prose prose-lg max-w-none report-content"
+                style={{
+                  fontFamily: 'Times New Roman, serif',
+                  lineHeight: '1.8',
+                  color: '#2c3e50'
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: eventReport.report.content
+                    .replace(/\n/g, '<br>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #2c5530; font-weight: bold;">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em style="color: #7f8c8d; font-style: italic;">$1</em>')
+                    .replace(/^# (.*$)/gm, '<h1 style="font-size: 24px; color: #2c5530; border-bottom: 2px solid #4CAF50; padding-bottom: 8px; margin-top: 30px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">$1</h1>')
+                    .replace(/^## (.*$)/gm, '<h2 style="font-size: 20px; color: #34495e; border-left: 4px solid #4CAF50; padding-left: 15px; margin-top: 25px; margin-bottom: 12px; font-weight: bold; background: #f8f9fa; padding-top: 8px; padding-bottom: 8px;">$1</h2>')
+                    .replace(/^### (.*$)/gm, '<h3 style="font-size: 16px; color: #1976d2; margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;">$1</h3>')
+                    .replace(/(Executive Summary[\s\S]*?)(?=<h2|$)/gi, '<div style="background: #e8f5e8; padding: 15px; border-left: 4px solid #4CAF50; margin: 15px 0; border-radius: 4px;">$1</div>')
+                    .replace(/(Impact Assessment[\s\S]*?)(?=<h2|$)/gi, '<div style="background: #e3f2fd; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0; border-radius: 4px;">$1</div>')
+                    .replace(/(Recommendations[\s\S]*?)(?=<h2|$)/gi, '<div style="background: #fff3e0; padding: 15px; border-left: 4px solid #FF9800; margin: 15px 0; border-radius: 4px;">$1</div>')
+                    .replace(/(Conclusion[\s\S]*?)(?=<h2|$)/gi, '<div style="background: #f3e5f5; padding: 15px; border-left: 4px solid #9C27B0; margin: 15px 0; border-radius: 4px;">$1</div>')
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
