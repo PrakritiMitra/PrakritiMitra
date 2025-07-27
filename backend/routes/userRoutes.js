@@ -51,6 +51,63 @@ router.get('/check-username/:username', async (req, res) => {
   }
 });
 
+// Search volunteers
+router.get('/volunteers', protect, async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = { role: 'volunteer' };
+    
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { name: searchRegex },
+        { username: searchRegex },
+        { email: searchRegex },
+        { city: searchRegex }
+      ];
+    }
+    
+    const volunteers = await User.find(query)
+      .select('name username email profileImage city role')
+      .limit(20)
+      .sort({ name: 1 });
+    
+    res.json(volunteers);
+  } catch (error) {
+    console.error('Error searching volunteers:', error);
+    res.status(500).json({ message: 'Failed to search volunteers' });
+  }
+});
+
+// Search organizers
+router.get('/organizers', protect, async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = { role: 'organizer' };
+    
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { name: searchRegex },
+        { username: searchRegex },
+        { email: searchRegex },
+        { city: searchRegex },
+        { position: searchRegex }
+      ];
+    }
+    
+    const organizers = await User.find(query)
+      .select('name username email profileImage city role position')
+      .limit(20)
+      .sort({ name: 1 });
+    
+    res.json(organizers);
+  } catch (error) {
+    console.error('Error searching organizers:', error);
+    res.status(500).json({ message: 'Failed to search organizers' });
+  }
+});
+
 router.put('/profile', protect, profileMultiUpload, async (req, res) => {
   try {
     const userId = req.user._id;
