@@ -35,8 +35,7 @@ export default function MyEvents() {
   const upcoming = validEvents.filter(e => new Date(e.startDateTime) >= now).sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
   const past = validEvents.filter(e => new Date(e.startDateTime) < now).sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
   // Debug output
-  console.log("All events:", events);
-  console.log("Past events:", past);
+  
 
   return (
     <div className="min-h-screen bg-gray-50">

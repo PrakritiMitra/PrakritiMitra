@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+
 import { format } from "date-fns";
 
 import axiosInstance from "../api/axiosInstance";
@@ -37,7 +38,7 @@ const CommentAvatarAndName = ({ comment }) => {
         alt={comment.volunteer?.name} 
         className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
       />
-      <span className="font-medium text-green-800">{comment.volunteer?.name}</span>
+      <span className="font-medium text-green-800">{comment.volunteer?.username ? `@${comment.volunteer.username}` : comment.volunteer?.name}</span>
     </div>
   );
 };
@@ -228,13 +229,26 @@ export default function VolunteerEventDetailsPage() {
     }
   }, [isPastEvent, isRegistered]); // Simplified dependencies
 
-  // Socket.IO connection
+  // Socket connection for real-time updates (slots, etc.)
   useEffect(() => {
-    const socket = io('http://localhost:5000');
-    socket.on('connect', () => console.log('Socket.IO connected (volunteer):', socket.id));
-    socket.on('disconnect', () => console.log('Socket.IO disconnected (volunteer)'));
-    return () => socket.disconnect();
-  }, []);
+    const socket = io('http://localhost:5000', {
+      auth: { token: localStorage.getItem('token') }
+    });
+    
+    socket.on('connect', () => {
+      // Join event-specific rooms for real-time updates
+      if (event?._id) {
+        socket.emit('joinEventSlotsRoom', event._id);
+      }
+    });
+    
+    return () => {
+      if (event?._id) {
+        socket.emit('leaveEventSlotsRoom', event._id);
+      }
+      socket.disconnect();
+    };
+  }, [event?._id]);
 
   // --- EVENT HANDLERS ---
 
@@ -412,7 +426,7 @@ export default function VolunteerEventDetailsPage() {
             style={{ transition: 'right 0.3s cubic-bezier(0.4,0,0.2,1)' }}
             onClick={() => setShowOrganizerTeamDrawer(prev => !prev)}
           >
-            {showOrganizerTeamDrawer ? 'Hide Team' : 'Show Team'}
+            {showOrganizerTeamDrawer ? 'Hide Organizer Team' : 'Show Organizer Team'}
           </button>
           <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizerTeamDrawer ? 'translate-x-0' : 'translate-x-full'}`}>
 
@@ -434,18 +448,35 @@ export default function VolunteerEventDetailsPage() {
                 .filter(obj => {
                   if (!obj.user?._id) return false;
                   const orgUser = obj.user;
-                  return orgUser.name.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+                  const displayName = orgUser.username || orgUser.name || '';
+                  return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
                 })
                 .map(obj => {
                   const orgUser = obj.user;
+                  const isCreator = orgUser._id === event.createdBy._id;
+                  const displayName = orgUser.username || orgUser.name || 'User';
+                  const displayText = orgUser.username ? `@${orgUser.username}` : displayName;
                   return (
-                    <div key={orgUser._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2" onClick={() => navigate(`/organizer/${orgUser._id}`)}>
-                      <img src={orgUser.profileImage ? `http://localhost:5000/uploads/Profiles/${orgUser.profileImage}` : '/images/default-profile.jpg'} alt={orgUser.name} className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4" />
-                      <span className="font-medium text-blue-800 text-lg">{orgUser.name}</span>
+                    <div key={orgUser._id} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${orgUser._id}`)}>
+                      <img src={orgUser.profileImage ? `http://localhost:5000/uploads/Profiles/${orgUser.profileImage}` : '/images/default-profile.jpg'} alt={displayName} className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4" />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-blue-800 text-lg">{displayText}</span>
+                        {orgUser.username && orgUser.name && (
+                          <span className="text-sm text-gray-600">{orgUser.name}</span>
+                        )}
+                      </div>
+                      {isCreator && (
+                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
+                      )}
                     </div>
                   );
                 })}
-              {organizerTeam.filter(obj => obj.user?._id && obj.user.name.toLowerCase().includes(organizerSearchTerm.toLowerCase())).length === 0 && organizerSearchTerm && (
+              {organizerTeam.filter(obj => {
+                if (!obj.user?._id) return false;
+                const orgUser = obj.user;
+                const displayName = orgUser.username || orgUser.name || '';
+                return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+              }).length === 0 && organizerSearchTerm && (
                 <div className="text-gray-500 text-center py-4">No organizers found matching "{organizerSearchTerm}"</div>
               )}
             </div>
@@ -484,15 +515,30 @@ export default function VolunteerEventDetailsPage() {
             <div className="text-gray-500">No volunteers registered.</div>
           ) : (
             volunteers
-              .filter(vol => vol.name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()))
-              .map(vol => (
-                <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
-                  <img src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'} alt={vol.name} className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4" />
-                  <span className="font-medium text-green-800 text-lg">{vol.name}</span>
-                </div>
-              ))
+              .filter(vol => {
+                const displayName = vol.username || vol.name || '';
+                return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
+              })
+              .map(vol => {
+                const displayName = vol.username || vol.name || 'User';
+                const displayText = vol.username ? `@${vol.username}` : displayName;
+                return (
+                  <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
+                    <img src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'} alt={displayName} className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4" />
+                    <div className="flex flex-col">
+                      <span className="font-medium text-green-800 text-lg">{displayText}</span>
+                      {vol.username && vol.name && (
+                        <span className="text-sm text-gray-600">{vol.name}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
           )}
-          {volunteers.filter(vol => vol.name.toLowerCase().includes(volunteerSearchTerm.toLowerCase())).length === 0 && volunteerSearchTerm && volunteers.length > 0 && (
+          {volunteers.filter(vol => {
+            const displayName = vol.username || vol.name || '';
+            return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
+          }).length === 0 && volunteerSearchTerm && volunteers.length > 0 && (
             <div className="text-gray-500 text-center py-4">No volunteers found matching "{volunteerSearchTerm}"</div>
           )}
         </div>

@@ -87,6 +87,7 @@ export default function OrganizerDashboard() {
           <div className="space-y-4">
             <div>
               <p><strong>Name:</strong> {user.name}</p>
+              <p><strong>Username:</strong> {user.username ? `@${user.username}` : 'Not set'}</p>
               <p><strong>Email:</strong> {user.email}</p>
               <p><strong>Role:</strong> {user.role}</p>
             </div>

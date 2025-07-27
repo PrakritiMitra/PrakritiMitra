@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [removeProfileImage, setRemoveProfileImage] = useState(false);
   const [removeGovtIdProof, setRemoveGovtIdProof] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [usernameError, setUsernameError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function ProfilePage() {
         setUser(userData);
         setFormData({
           name: userData.name || "",
+          username: userData.username || "",
           email: userData.email || "",
           phone: userData.phone || "",
           emergencyPhone: userData.emergencyPhone || "",
@@ -72,6 +74,21 @@ export default function ProfilePage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Validate username format
+    if (name === 'username') {
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+      if (value.length > 0 && !usernameRegex.test(value)) {
+        setUsernameError('Username can only contain letters, numbers, and underscores');
+      } else if (value.length > 0 && value.length < 3) {
+        setUsernameError('Username must be at least 3 characters long');
+      } else if (value.length > 30) {
+        setUsernameError('Username must be 30 characters or less');
+      } else {
+        setUsernameError('');
+      }
+    }
+    
     if (name.startsWith('socials.')) {
       const socialKey = name.split('.')[1];
       setFormData(prev => ({
@@ -118,6 +135,18 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate username before submission
+    if (usernameError) {
+      alert("Please fix the username errors before saving.");
+      return;
+    }
+
+    if (formData.username && formData.username.length < 3) {
+      alert("Username must be at least 3 characters long.");
+      return;
+    }
+    
     setSaving(true);
 
     try {
@@ -230,7 +259,7 @@ export default function ProfilePage() {
                     />
                   ) : (
                     <div className="text-2xl font-bold text-blue-600">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
                 </div>
@@ -258,6 +287,7 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
+                <p className="text-lg text-blue-600 font-medium">{user.username ? `@${user.username}` : ''}</p>
                 <p className="text-gray-600 capitalize">{user.role === "organizer" ? "Event Organizer" : "Volunteer"}</p>
                 {organization && (
                   <p className="text-sm text-blue-600 font-medium">{organization.name}</p>
@@ -316,7 +346,7 @@ export default function ProfilePage() {
                     />
                   ) : (
                     <div className="text-3xl font-bold text-blue-600">
-                      {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+                      {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
                 </div>
@@ -432,24 +462,34 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input
+                      type="text"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      disabled={!editing}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors ${
+                        usernameError ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="username"
+                    />
+                    {editing && (
+                      <p className={`text-xs mt-1 ${
+                        usernameError ? 'text-red-500' : 'text-gray-500'
+                      }`}>
+                        {usernameError || 'Username can only contain letters, numbers, and underscores'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                     <input
                       type="date"
                       name="dateOfBirth"
                       value={formData.dateOfBirth}
-                      onChange={handleChange}
-                      disabled={!editing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={formData.city}
                       onChange={handleChange}
                       disabled={!editing}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
@@ -470,6 +510,17 @@ export default function ProfilePage() {
                       <option value="other">Other</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleChange}
+                    disabled={!editing}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                  />
                 </div>
                 {/* About Me moved here */}
                 <div>

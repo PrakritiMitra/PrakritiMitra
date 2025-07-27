@@ -23,6 +23,7 @@ const initializeSocket = (io) => {
 
     // Join an event-specific room
     socket.on('joinEventRoom', (eventId) => {
+      console.log('🔌 User joining event room:', eventId, 'User ID:', socket.user.id);
       socket.join(`event:${eventId}`);
     });
 
@@ -53,11 +54,11 @@ const initializeSocket = (io) => {
         await newMessage.save();
 
         const populatedMessage = await Message.findById(newMessage._id)
-          .populate('userId', 'name profileImage role')
+          .populate('userId', 'name username profileImage role')
           .populate({
             path: 'replyTo',
             select: 'message userId',
-            populate: { path: 'userId', select: 'name profileImage role' }
+            populate: { path: 'userId', select: 'name username profileImage role' }
           });
 
         io.to(`event:${eventId}`).emit('receiveMessage', populatedMessage);
@@ -86,10 +87,16 @@ const initializeSocket = (io) => {
     // Handle message reactions
     socket.on('reactToMessage', async ({ eventId, messageId, emoji }) => {
       try {
+        console.log('🎯 Backend received reaction:', { eventId, messageId, emoji, userId: socket.user.id });
+        
         const message = await Message.findById(messageId);
-        if (!message) return;
+        if (!message) {
+          console.log('❌ Message not found:', messageId);
+          return;
+        }
 
         const userId = socket.user.id;
+        console.log('📝 Current message reactions:', message.reactions);
 
         // Find if the user has an existing reaction on this message
         const existingReactionIndex = message.reactions.findIndex(
@@ -101,6 +108,7 @@ const initializeSocket = (io) => {
         if (existingReactionIndex > -1) {
           // User has an existing reaction. Check if it's the same emoji.
           isTogglingOff = message.reactions[existingReactionIndex].emoji === emoji;
+          console.log('🔄 Existing reaction found, toggling off:', isTogglingOff);
           // Remove the old reaction regardless
           message.reactions.splice(existingReactionIndex, 1);
         }
@@ -109,10 +117,14 @@ const initializeSocket = (io) => {
         // This handles both adding a new reaction and changing an existing one.
         if (!isTogglingOff) {
           message.reactions.push({ emoji, userId });
+          console.log('➕ Added new reaction');
         }
 
         await message.save();
-        const populatedMessage = await Message.findById(messageId).populate('userId', 'name profileImage role');
+        console.log('💾 Saved message with reactions:', message.reactions);
+        
+        const populatedMessage = await Message.findById(messageId).populate('userId', 'name username profileImage role');
+        console.log('📤 Emitting reaction update with reactions:', populatedMessage.reactions);
 
         io.to(`event:${eventId}`).emit('messageReactionUpdate', populatedMessage);
       } catch (err) {
@@ -152,11 +164,11 @@ const initializeSocket = (io) => {
         await message.save();
 
         const populatedMessage = await Message.findById(messageId)
-          .populate('userId', 'name profileImage role')
+          .populate('userId', 'name username profileImage role')
           .populate({
             path: 'replyTo',
             select: 'message userId',
-            populate: { path: 'userId', select: 'name profileImage role' }
+            populate: { path: 'userId', select: 'name username profileImage role' }
           });
 
         io.to(`event:${eventId}`).emit('messageEdited', populatedMessage);

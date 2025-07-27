@@ -15,6 +15,7 @@ exports.signupVolunteer = async (req, res) => {
 
     const {
       name,
+      username,
       email,
       password,
       confirmPassword,
@@ -29,9 +30,16 @@ exports.signupVolunteer = async (req, res) => {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) {
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
       return res.status(400).json({ message: "Email already exists" });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -44,6 +52,7 @@ exports.signupVolunteer = async (req, res) => {
 
     const user = await User.create({
       name,
+      username: username.toLowerCase(),
       email,
       phone,
       password: hashedPassword,
@@ -69,6 +78,7 @@ exports.signupOrganizer = async (req, res) => {
 
     const {
       name,
+      username,
       email,
       password,
       confirmPassword,
@@ -83,10 +93,17 @@ exports.signupOrganizer = async (req, res) => {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) {
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
       console.warn("⚠️ Email already exists:", email);
       return res.status(400).json({ message: "Email already exists" });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    if (existingUsername) {
+      return res.status(400).json({ message: "Username already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -96,6 +113,7 @@ exports.signupOrganizer = async (req, res) => {
 
     const userData = {
       name,
+      username: username.toLowerCase(),
       email,
       phone,
       password: hashedPassword,

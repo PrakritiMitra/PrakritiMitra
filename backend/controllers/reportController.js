@@ -7,7 +7,7 @@ const checkReportEligibility = async (req, res) => {
   try {
     const { eventId } = req.params;
     
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email');
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email');
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
@@ -52,7 +52,7 @@ const generateEventReport = async (req, res) => {
     const userId = req.user._id;
 
     const event = await Event.findById(eventId)
-      .populate('organizerTeam.user', 'name email role')
+      .populate('organizerTeam.user', 'name username email role')
       .populate('organization', 'name')
       .populate('createdBy', 'name email');
 
@@ -108,7 +108,7 @@ const generateEventReport = async (req, res) => {
     const volunteerRegistrations = await Registration.find({
       eventId,
       'questionnaire.completed': true
-    }).populate('volunteerId', 'name email');
+    }).populate('volunteerId', 'name username email');
 
     let volunteerQuestionnaires = volunteerRegistrations.map(reg => ({
       volunteerName: reg.volunteerId.name,

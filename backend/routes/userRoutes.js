@@ -24,6 +24,33 @@ router.get('/profile', protect, (req, res) => {
   res.json({ user: req.user });
 });
 
+// Check username availability
+router.get('/check-username/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Validate username format
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      return res.status(400).json({ 
+        available: false, 
+        message: 'Username can only contain letters, numbers, and underscores' 
+      });
+    }
+
+    // Check if username exists
+    const existingUser = await User.findOne({ username: username.toLowerCase() });
+    
+    res.json({ 
+      available: !existingUser,
+      message: existingUser ? 'Username already taken' : 'Username available'
+    });
+  } catch (error) {
+    console.error('Username check error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.put('/profile', protect, profileMultiUpload, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -60,6 +87,25 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
       } else {
         updateData.socials = {};
       }
+    }
+
+    // Handle username change
+    if (updateData.username && updateData.username !== currentUser.username) {
+      // Check if new username is available
+      const existingUser = await User.findOne({ 
+        username: updateData.username.toLowerCase(),
+        _id: { $ne: userId } // Exclude current user
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username already exists'
+        });
+      }
+      
+      // Convert username to lowercase
+      updateData.username = updateData.username.toLowerCase();
     }
 
     // Remove uneditable fields

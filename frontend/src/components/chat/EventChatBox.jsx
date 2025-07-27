@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
 import { format } from 'date-fns';
 import { FaThumbtack, FaSmile } from 'react-icons/fa';
@@ -13,10 +14,15 @@ const socket = io('http://localhost:5000', {
   autoConnect: false,
   auth: {
     token: localStorage.getItem('token')
-  }
+  },
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
 });
 
 export default function EventChatbox({ eventId, currentUser }) {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
@@ -60,7 +66,10 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   // Handle mouse/touch events for dragging (bubble or header)
   const startDrag = (e) => {
-    e.preventDefault();
+    // Only prevent default for mouse events, not touch events
+    if (e.type === 'mousedown') {
+      e.preventDefault();
+    }
     setDragging(true);
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -71,6 +80,10 @@ export default function EventChatbox({ eventId, currentUser }) {
   };
   const onDrag = (e) => {
     if (!dragging) return;
+    // Prevent default for touch events to stop scrolling
+    if (e.type === 'touchmove') {
+      e.preventDefault();
+    }
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     let newX = clientX - dragOffset.x;
@@ -93,7 +106,8 @@ export default function EventChatbox({ eventId, currentUser }) {
     if (dragging) {
       window.addEventListener('mousemove', onDrag);
       window.addEventListener('mouseup', stopDrag);
-      window.addEventListener('touchmove', onDrag);
+      // Use non-passive listeners for touch events to allow preventDefault
+      window.addEventListener('touchmove', onDrag, { passive: false });
       window.addEventListener('touchend', stopDrag);
     } else {
       window.removeEventListener('mousemove', onDrag);
@@ -157,16 +171,24 @@ export default function EventChatbox({ eventId, currentUser }) {
     fetchMessages();
 
     // Connect and set up socket listeners
-    socket.connect();
-    socket.emit('joinEventRoom', eventId);
+    if (!socket.connected) {
+      socket.connect();
+    }
+    
+    socket.on('connect', () => {
+      // Small delay to ensure connection is stable
+      setTimeout(() => {
+        console.log('🔌 Joining event room:', eventId);
+        socket.emit('joinEventRoom', eventId);
+      }, 100);
+    });
 
     const receiveMessageHandler = (message) => {
       // 1. Robustly get the sender's ID, whether userId is a string or an object.
       const senderId = typeof message.userId === 'object' && message.userId !== null
         ? message.userId._id
         : message.userId;
-      console.log('Received message:', message);
-      console.log('SenderId:', senderId, 'CurrentUser:', currentUser._id);
+
 
       // 2. The 'isFromMe' check now works reliably.
       const isFromMe = String(senderId) === String(currentUser._id);
@@ -204,6 +226,8 @@ export default function EventChatbox({ eventId, currentUser }) {
     socket.on('messagePinned', messagePinnedHandler);
 
     const reactionUpdateHandler = (updatedMessage) => {
+      console.log('🔄 Received reaction update:', updatedMessage);
+      console.log('🔄 Updated message reactions:', updatedMessage.reactions);
       setMessages(prevMsgs =>
         prevMsgs.map(m => (m._id === updatedMessage._id ? updatedMessage : m))
       );
@@ -248,6 +272,8 @@ export default function EventChatbox({ eventId, currentUser }) {
     socket.on('messageUnsent', messageUnsentHandler);
 
     return () => {
+      // Only cleanup event listeners, don't disconnect the socket
+      // The socket will be managed by the singleton pattern
       socket.emit('leaveEventRoom', eventId);
       socket.off('receiveMessage', receiveMessageHandler);
       socket.off('messagePinned', messagePinnedHandler);
@@ -256,7 +282,6 @@ export default function EventChatbox({ eventId, currentUser }) {
       socket.off('userStoppedTyping', userStoppedTypingHandler);
       socket.off('messageEdited', messageEditedHandler);
       socket.off('messageUnsent', messageUnsentHandler);
-      socket.disconnect();
     };
   }, [eventId, currentUser._id]);
 
@@ -282,7 +307,7 @@ export default function EventChatbox({ eventId, currentUser }) {
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
 
-    socket.emit('typing', { eventId, userName: currentUser.name });
+    socket.emit('typing', { eventId, userName: currentUser.username || currentUser.name });
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -313,6 +338,7 @@ export default function EventChatbox({ eventId, currentUser }) {
       }
     } else if (newMessage.trim()) {
       // Handle text message
+
       socket.emit('sendMessage', { eventId, message: newMessage, replyTo: replyToMessage?._id });
       socket.emit('stopTyping', eventId);
       if (typingTimeoutRef.current) {
@@ -335,6 +361,7 @@ export default function EventChatbox({ eventId, currentUser }) {
   };
 
   const handleReaction = (messageId, emoji) => {
+    console.log('🎯 Sending reaction:', { eventId, messageId, emoji });
     socket.emit('reactToMessage', { eventId, messageId, emoji });
     setShowEmojiPickerFor(null);
   };
@@ -396,6 +423,15 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   const handleUnsendCancel = () => {
     setUnsendConfirm({ show: false, msg: null });
+  };
+
+  const handleUsernameClick = (user) => {
+    if (!user) return;
+    if (user.role === 'organizer') {
+      navigate(`/organizer/${user._id}`);
+    } else {
+      navigate(`/volunteer/${user._id}`);
+    }
   };
 
   const handleBubbleClick = () => {
@@ -520,9 +556,14 @@ export default function EventChatbox({ eventId, currentUser }) {
                   </button>
                 )}
               </div>
-              <div className="text-sm mt-1 text-gray-800">
-                <span className="font-semibold">{pinnedMessage.userId.name}:</span> {pinnedMessage.message}
-              </div>
+                              <div className="text-sm mt-1 text-gray-800">
+                  <span 
+                    className="font-semibold cursor-pointer hover:text-blue-600 hover:underline"
+                    onClick={() => handleUsernameClick(pinnedMessage.userId)}
+                  >
+                    {pinnedMessage.userId.username ? `@${pinnedMessage.userId.username}` : pinnedMessage.userId.name}:
+                  </span> {pinnedMessage.message}
+                </div>
               {pinnedMessage.fileUrl && (
                 pinnedMessage.fileType && pinnedMessage.fileType.startsWith('image/') ? (
                   <img
@@ -597,17 +638,20 @@ export default function EventChatbox({ eventId, currentUser }) {
                   >
                     <img
                       src={msg.userId?.profileImage ? `http://localhost:5000/uploads/Profiles/${msg.userId.profileImage}` : '/images/default-profile.jpg'}
-                      alt={msg.userId?.name}
+                      alt={msg.userId?.username || msg.userId?.name}
                       className="w-8 h-8 rounded-full object-cover"
                     />
                     <div className={`relative p-3 rounded-lg max-w-[70%] ${bubbleColor} ${isPinned ? 'border-2 border-yellow-400' : ''}`}>
                       {/* Reply preview in chat bubble */}
-                      {reply && (
-                        <div className="mb-2 p-2 rounded bg-gray-100 border-l-4 border-blue-400">
-                          <div className="text-xs text-gray-500">Replying to <span className="font-semibold">{reply.userId?.name}</span></div>
-                          <div className="truncate text-xs text-gray-700 max-w-xs">{reply.message}</div>
-                        </div>
-                      )}
+                                              {reply && (
+                          <div className="mb-2 p-2 rounded bg-gray-100 border-l-4 border-blue-400">
+                            <div className="text-xs text-gray-500">Replying to <span 
+                              className="font-semibold cursor-pointer hover:text-blue-600 hover:underline"
+                              onClick={() => handleUsernameClick(reply.userId)}
+                            >{reply.userId?.username ? `@${reply.userId.username}` : reply.userId?.name}</span></div>
+                            <div className="truncate text-xs text-gray-700 max-w-xs">{reply.message}</div>
+                          </div>
+                        )}
                       <div className="absolute top-0 right-0 -mt-2 flex items-center gap-1">
                         {currentUser.role === 'organizer' && (
                           isPinned ? (
@@ -679,7 +723,12 @@ export default function EventChatbox({ eventId, currentUser }) {
                       )}
 
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm">{msg.userId?.name}</span>
+                        <span 
+                          className="font-semibold text-sm cursor-pointer hover:text-blue-600 hover:underline"
+                          onClick={() => handleUsernameClick(msg.userId)}
+                        >
+                          {msg.userId?.username ? `@${msg.userId.username}` : msg.userId?.name}
+                        </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${roleColor}`}>{roleLabel}</span>
                         {isPinned && (
                           <FaThumbtack className="ml-1 text-yellow-500" title="Pinned" />
@@ -776,11 +825,14 @@ export default function EventChatbox({ eventId, currentUser }) {
               </div>
             )}
             {replyToMessage && (
-              <div className="p-2 bg-gray-100 rounded-lg mb-2 relative flex items-center gap-2">
-                <div className="flex-1">
-                  <div className="text-xs text-gray-500">Replying to <span className="font-semibold">{replyToMessage.userId?.name}</span></div>
-                  <div className="truncate text-sm text-gray-700 max-w-xs">{replyToMessage.message}</div>
-                </div>
+                              <div className="p-2 bg-gray-100 rounded-lg mb-2 relative flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="text-xs text-gray-500">Replying to <span 
+                      className="font-semibold cursor-pointer hover:text-blue-600 hover:underline"
+                      onClick={() => handleUsernameClick(replyToMessage.userId)}
+                    >{replyToMessage.userId?.username ? `@${replyToMessage.userId.username}` : replyToMessage.userId?.name}</span></div>
+                    <div className="truncate text-sm text-gray-700 max-w-xs">{replyToMessage.message}</div>
+                  </div>
                 <button type="button" onClick={() => setReplyToMessage(null)} className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full"><IoMdClose size={16} /></button>
               </div>
             )}

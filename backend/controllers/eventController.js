@@ -184,9 +184,9 @@ exports.getEventById = async (req, res) => {
         path: 'createdBy',
         select: 'name profileImage',
       })
-      .populate('organizerTeam.user', 'name email phone profileImage')
-      .populate('organizerJoinRequests.user', 'name email profileImage')
-      .populate('certificates.user', 'name email profileImage');
+      .populate('organizerTeam.user', 'name username email phone profileImage')
+      .populate('organizerJoinRequests.user', 'name username email profileImage')
+      .populate('certificates.user', 'name username email profileImage');
 
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
@@ -427,7 +427,7 @@ exports.joinAsOrganizer = async (req, res) => {
     await event.save();
     
     // Populate the user field before sending response
-    const populatedEvent = await Event.findById(eventId).populate('organizerTeam.user', 'name email phone profileImage');
+    const populatedEvent = await Event.findById(eventId).populate('organizerTeam.user', 'name username email phone profileImage');
     res.status(200).json({ message: 'Successfully joined as organizer', event: populatedEvent });
   } catch (err) {
     console.error('❌ Failed to join as organizer:', err);
@@ -582,7 +582,7 @@ exports.getOrganizerTeam = async (req, res) => {
   try {
     const eventId = req.params.eventId;
     // Populate the user field inside organizerTeam
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email phone profileImage');
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email phone profileImage');
     if (!event) return res.status(404).json({ message: 'Event not found' });
     
     // Initialize organizerTeam if it doesn't exist (for old events)
@@ -660,7 +660,7 @@ exports.completeQuestionnaire = async (req, res) => {
       try { awards = JSON.parse(awards); } catch { awards = {}; }
     }
     console.log('User:', req.user);
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email profileImage');
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email profileImage');
     if (!event) return res.status(404).json({ message: 'Event not found' });
 
     // Find the organizer in organizerTeam
@@ -755,7 +755,7 @@ exports.generateCertificate = async (req, res) => {
     const userId = req.user._id;
     
     // Find the event and populate necessary fields
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name email profileImage');
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email profileImage');
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
