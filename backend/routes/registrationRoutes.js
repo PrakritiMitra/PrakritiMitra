@@ -28,5 +28,7 @@ router.post('/exit/:exitQrToken', require('../controllers/registrationController
 router.get('/:registrationId/exit-qr', require('../controllers/registrationController').generateExitQr);
 // POST /api/registrations/event/:eventId/questionnaire - complete volunteer questionnaire
 router.post('/event/:eventId/questionnaire', protect, require('../controllers/registrationController').completeVolunteerQuestionnaire);
+// GET /api/registrations/event/:eventId/comments - get questionnaire comments for an event
+router.get('/event/:eventId/comments', protect, require('../controllers/registrationController').getEventQuestionnaireComments);
 
 module.exports = router;
