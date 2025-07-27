@@ -17,6 +17,31 @@ import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuesti
 import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap';
 
+// CommentAvatarAndName component
+const CommentAvatarAndName = ({ comment }) => {
+  const navigate = useNavigate();
+  
+  const handleClick = () => {
+    if (comment.volunteer?._id) {
+      navigate(`/volunteer/${comment.volunteer._id}`);
+    }
+  };
+
+  return (
+    <div 
+      className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+      onClick={handleClick}
+    >
+      <img 
+        src={comment.volunteer?.profileImage ? `http://localhost:5000/uploads/Profiles/${comment.volunteer.profileImage}` : '/images/default-profile.jpg'} 
+        alt={comment.volunteer?.name} 
+        className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
+      />
+      <span className="font-medium text-green-800">{comment.volunteer?.name}</span>
+    </div>
+  );
+};
+
 export default function VolunteerEventDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,6 +69,10 @@ export default function VolunteerEventDetailsPage() {
   const [showVolunteers, setShowVolunteers] = useState(false);
   const [volunteers, setVolunteers] = useState([]);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
+  
+  // Search state
+  const [organizerSearchTerm, setOrganizerSearchTerm] = useState("");
+  const [volunteerSearchTerm, setVolunteerSearchTerm] = useState("");
 
   // Questionnaire state
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
@@ -52,12 +81,17 @@ export default function VolunteerEventDetailsPage() {
 
   // Certificate state
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
-  const [forceRefresh, setForceRefresh] = useState(0); // Used to force re-evaluation of certificate status
+  const [forceRefresh, setForceRefresh] = useState(0);
   
   // Report state
   const [eventReport, setEventReport] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  
+  // Comments state
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   // Custom hook for live slot information
   const { availableSlots, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
@@ -320,6 +354,25 @@ export default function VolunteerEventDetailsPage() {
     }
   };
 
+  // Fetch comments for the event
+  const fetchComments = useCallback(async () => {
+    if (!event?._id) return;
+    
+    setCommentsLoading(true);
+    try {
+      const response = await axiosInstance.get(`/api/registrations/event/${event._id}/comments`);
+      if (response.data.success) {
+        setComments(response.data.comments);
+      } else {
+        console.error('Failed to fetch comments:', response.data.message);
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }, [event?._id]);
+
   // --- DERIVED STATE & RENDER LOGIC ---
 
   if (loading) {
@@ -362,21 +415,39 @@ export default function VolunteerEventDetailsPage() {
             {showOrganizerTeamDrawer ? 'Hide Team' : 'Show Team'}
           </button>
           <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizerTeamDrawer ? 'translate-x-0' : 'translate-x-full'}`}>
+
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-semibold text-blue-700">Organizer Team</h2>
               <button className="text-gray-500 hover:text-red-600 text-2xl font-bold" onClick={() => setShowOrganizerTeamDrawer(false)} aria-label="Close">×</button>
             </div>
-            <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
-              {organizerTeam.map(obj => {
-                if (!obj.user?._id) return null;
-                const orgUser = obj.user;
-                return (
-                  <div key={orgUser._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2" onClick={() => navigate(`/organizer/${orgUser._id}`)}>
-                    <img src={orgUser.profileImage ? `http://localhost:5000/uploads/Profiles/${orgUser.profileImage}` : '/images/default-profile.jpg'} alt={orgUser.name} className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4" />
-                    <span className="font-medium text-blue-800 text-lg">{orgUser.name}</span>
-                  </div>
-                );
-              })}
+            <div className="px-6 py-3 border-b">
+              <input
+                type="text"
+                placeholder="Search organizers..."
+                value={organizerSearchTerm}
+                onChange={(e) => setOrganizerSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
+              {organizerTeam
+                .filter(obj => {
+                  if (!obj.user?._id) return false;
+                  const orgUser = obj.user;
+                  return orgUser.name.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+                })
+                .map(obj => {
+                  const orgUser = obj.user;
+                  return (
+                    <div key={orgUser._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2" onClick={() => navigate(`/organizer/${orgUser._id}`)}>
+                      <img src={orgUser.profileImage ? `http://localhost:5000/uploads/Profiles/${orgUser.profileImage}` : '/images/default-profile.jpg'} alt={orgUser.name} className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4" />
+                      <span className="font-medium text-blue-800 text-lg">{orgUser.name}</span>
+                    </div>
+                  );
+                })}
+              {organizerTeam.filter(obj => obj.user?._id && obj.user.name.toLowerCase().includes(organizerSearchTerm.toLowerCase())).length === 0 && organizerSearchTerm && (
+                <div className="text-gray-500 text-center py-4">No organizers found matching "{organizerSearchTerm}"</div>
+              )}
             </div>
           </div>
         </>
@@ -397,18 +468,32 @@ export default function VolunteerEventDetailsPage() {
           <h2 className="text-lg font-semibold text-green-700">Volunteers</h2>
           <button className="text-gray-500 hover:text-red-600 text-2xl font-bold" onClick={() => setShowVolunteers(false)} aria-label="Close">×</button>
         </div>
-        <div className="overflow-y-auto h-[calc(100%-64px)] px-6 py-4 space-y-4">
+        <div className="px-6 py-3 border-b">
+          <input
+            type="text"
+            placeholder="Search volunteers..."
+            value={volunteerSearchTerm}
+            onChange={(e) => setVolunteerSearchTerm(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+        </div>
+        <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
           {volunteersLoading ? (
             <div>Loading...</div>
           ) : volunteers.length === 0 ? (
             <div className="text-gray-500">No volunteers registered.</div>
           ) : (
-            volunteers.map(vol => (
-              <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
-                <img src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'} alt={vol.name} className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4" />
-                <span className="font-medium text-green-800 text-lg">{vol.name}</span>
-              </div>
-            ))
+            volunteers
+              .filter(vol => vol.name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()))
+              .map(vol => (
+                <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
+                  <img src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'} alt={vol.name} className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4" />
+                  <span className="font-medium text-green-800 text-lg">{vol.name}</span>
+                </div>
+              ))
+          )}
+          {volunteers.filter(vol => vol.name.toLowerCase().includes(volunteerSearchTerm.toLowerCase())).length === 0 && volunteerSearchTerm && volunteers.length > 0 && (
+            <div className="text-gray-500 text-center py-4">No volunteers found matching "{volunteerSearchTerm}"</div>
           )}
         </div>
       </div>
@@ -566,6 +651,70 @@ export default function VolunteerEventDetailsPage() {
                   </div>
                 ) : (
                   <div className="text-gray-600">📋 No report available yet.</div>
+                )}
+              </div>
+            )}
+            
+            {/* Comments Section */}
+            {isPastEvent && (
+              <div className="mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-gray-800">Volunteer Feedback & Comments</h3>
+                  <button
+                    onClick={() => {
+                      setShowComments(!showComments);
+                      if (!showComments && comments.length === 0) {
+                        fetchComments();
+                      }
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                  >
+                    {showComments ? 'Hide Comments' : 'Show Comments'}
+                  </button>
+                </div>
+                
+                {showComments && (
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    {commentsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                        <span className="ml-3 text-gray-600">Loading comments...</span>
+                      </div>
+                    ) : comments.length > 0 ? (
+                      <div className="space-y-4">
+                        {comments.map((comment, index) => (
+                          <div key={comment._id || index} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                            <div className="flex items-start space-x-3">
+                              <CommentAvatarAndName comment={comment} />
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span
+                                    className="text-sm text-gray-500"
+                                  >
+                                    {new Date(comment.submittedAt).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                </div>
+                                <p className="text-gray-700 leading-relaxed">{comment.comment}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="text-gray-500 mb-2">💬</div>
+                        <p className="text-gray-600">No volunteer feedback available yet.</p>
+                        <p className="text-sm text-gray-500 mt-1">Comments will appear here once volunteers complete their questionnaires.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}

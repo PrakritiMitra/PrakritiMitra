@@ -487,3 +487,67 @@ exports.completeVolunteerQuestionnaire = async (req, res) => {
     });
   }
 };
+
+// Get questionnaire comments for an event
+exports.getEventQuestionnaireComments = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    
+    // Fetch all registrations with completed questionnaires for this event
+    const registrations = await Registration.find({
+      eventId,
+      'questionnaire.completed': true
+    }).populate('volunteerId', 'name profileImage').sort({ 'questionnaire.submittedAt': -1 });
+    
+    // Extract comments and relevant data
+    const comments = registrations.map(reg => {
+      const answers = reg.questionnaire.answers || {};
+      // Look for comment fields in the answers (common field names)
+      const commentFields = ['comments', 'feedback', 'suggestions', 'additionalComments', 'experience', 'improvements'];
+      let comment = '';
+      
+      // Find the first non-empty comment field
+      for (const field of commentFields) {
+        if (answers[field] && typeof answers[field] === 'string' && answers[field].trim()) {
+          comment = answers[field].trim();
+          break;
+        }
+      }
+      
+      // If no specific comment field found, look for any text field with substantial content
+      if (!comment) {
+        for (const [key, value] of Object.entries(answers)) {
+          if (typeof value === 'string' && value.trim().length > 20) {
+            comment = value.trim();
+            break;
+          }
+        }
+      }
+      
+      return {
+        _id: reg._id,
+        volunteer: {
+          _id: reg.volunteerId._id,
+          name: reg.volunteerId.name,
+          profileImage: reg.volunteerId.profileImage
+        },
+        comment: comment || 'No detailed feedback provided',
+        submittedAt: reg.questionnaire.submittedAt,
+        allAnswers: answers // Include all answers for potential future use
+      };
+    }).filter(comment => comment.comment !== 'No detailed feedback provided' || Object.keys(comment.allAnswers).length > 0);
+    
+    res.status(200).json({
+      success: true,
+      comments,
+      total: comments.length
+    });
+  } catch (err) {
+    console.error('Error fetching questionnaire comments:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to fetch questionnaire comments', 
+      error: err.message 
+    });
+  }
+};
