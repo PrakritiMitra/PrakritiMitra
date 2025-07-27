@@ -78,10 +78,11 @@ export default function UserProfilePage() {
               <div className="flex flex-col items-center mb-6">
                 <img
                   src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                  alt={user.name}
+                  alt={user.username}
                   className="w-24 h-24 rounded-full object-cover border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
                 />
                 <h1 className="text-3xl font-bold text-blue-800 mb-1 animate-fade-in-slow">{user.name}</h1>
+                <p className="text-lg text-blue-600 font-medium">{user.username ? `@${user.username}` : ''}</p>
                 <span className="text-blue-600 font-medium capitalize mb-1">{user.role === 'organizer' ? 'Event Organizer' : user.role}</span>
                 {user.position && <span className="text-gray-500 text-sm">{user.position}</span>}
               </div>
@@ -117,7 +118,7 @@ export default function UserProfilePage() {
                 <div>
                   {user.socials && (
                     <>
-                      {console.log('user.socials:', user.socials)}
+              
                       <div className="mb-2">
                         <span className="font-semibold text-gray-700">Socials:</span>
                         <div className="flex flex-wrap gap-3 mt-1">
@@ -181,7 +182,7 @@ export default function UserProfilePage() {
               {/* Events Created by this Organizer */}
               <div className="mt-10">
                 <div className="flex items-center mb-4 gap-4">
-                  <h2 className="text-2xl font-bold text-blue-700">Events Created by {user.name}</h2>
+                  <h2 className="text-2xl font-bold text-blue-700">Events Created by {user.username ? `@${user.username}` : user.name}</h2>
                   {organizations.length > 0 && (
                     <div>
                       <label htmlFor="orgDropdown" className="mr-2 font-medium text-gray-700">Organizations:</label>

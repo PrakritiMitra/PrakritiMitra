@@ -177,10 +177,15 @@ export default function OrganizationPage() {
               >
                 <img
                   src={org.userId.profileImage ? `http://localhost:5000/uploads/Profiles/${org.userId.profileImage}` : '/images/default-profile.jpg'}
-                  alt={org.userId.name}
+                  alt={org.userId.username || org.userId.name}
                   className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
                 />
-                <span className="font-medium text-blue-800 text-lg">{org.userId.name}</span>
+                <div className="flex flex-col">
+                  <span className="font-medium text-blue-800 text-lg">{org.userId.name}</span>
+                  {org.userId.username && (
+                    <span className="text-sm text-blue-600">@{org.userId.username}</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -279,7 +284,7 @@ export default function OrganizationPage() {
                         </div>
                       )}
                       <span>
-                        {req.userId.name} ({req.userId.email})
+                        {req.userId.name} {req.userId.username ? `(@${req.userId.username})` : ''} ({req.userId.email})
                       </span>
                     </span>
                     <div className="space-x-2">

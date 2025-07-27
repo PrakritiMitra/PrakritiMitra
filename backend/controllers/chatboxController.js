@@ -20,11 +20,11 @@ exports.getMessages = async (req, res) => {
     let messages = await Message.find(query)
       .sort({ createdAt: -1 }) // Newest first
       .limit(limit)
-      .populate('userId', 'name profileImage role')
+      .populate('userId', 'name username profileImage role')
       .populate({
         path: 'replyTo',
         select: 'message userId',
-        populate: { path: 'userId', select: 'name profileImage role' }
+        populate: { path: 'userId', select: 'name username profileImage role' }
       });
 
     // Reverse to oldest-to-newest for display
@@ -79,7 +79,7 @@ exports.pinMessage = async (req, res) => {
     messageToPin.isPinned = newPinStatus;
     await messageToPin.save();
 
-    const populatedMessage = await Message.findById(messageToPin._id).populate('userId', 'name profileImage role');
+    const populatedMessage = await Message.findById(messageToPin._id).populate('userId', 'name username profileImage role');
 
     res.json(populatedMessage);
 

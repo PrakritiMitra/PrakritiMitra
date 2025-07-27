@@ -31,12 +31,7 @@ export default function EventAttendancePage() {
         ]);
         setOrganizers(orgs);
         setVolunteers(vols);
-        // Debug: Log organizers and volunteers
-        console.log('Organizers:', orgs);
-        console.log('Volunteers:', vols);
-        vols.forEach(v => {
-          console.log('Volunteer:', v.name, 'role:', v.role, 'isOrganizerTeam:', v.isOrganizerTeam);
-        });
+
       } catch (err) {
         setError("Failed to load attendance data.");
       } finally {
@@ -154,7 +149,7 @@ export default function EventAttendancePage() {
   const isEventCreator = eventId && organizers.length > 0 && organizers[0].user && currentUser && organizers[0].user._id === currentUser._id;
 
   // Debug: Log volunteers before rendering
-  console.log('Rendering volunteers:', volunteers);
+  
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -212,11 +207,11 @@ export default function EventAttendancePage() {
                           <td className="p-2 border">
                             <img
                               src={obj.user && obj.user.profileImage ? `${imageBaseUrl}${obj.user.profileImage}` : '/images/default-profile.jpg'}
-                              alt={obj.user ? obj.user.name : 'Organizer'}
+                              alt={obj.user ? obj.user.username : 'Organizer'}
                               className="w-10 h-10 rounded-full object-cover mx-auto"
                             />
                           </td>
-                          <td className="p-2 border">{obj.user ? obj.user.name : '-'}</td>
+                          <td className="p-2 border">{obj.user ? (obj.user.username ? `@${obj.user.username}` : obj.user.name) : '-'}</td>
                           <td className="p-2 border">{obj.user ? obj.user.email : '-'}</td>
                           <td className="p-2 border">{obj.user && obj.user.phone ? obj.user.phone : '-'}</td>
                           <td className="p-2 border">
@@ -264,11 +259,11 @@ export default function EventAttendancePage() {
                         <td className="p-2 border">
                           <img
                             src={v.profileImage ? `${imageBaseUrl}${v.profileImage}` : '/images/default-profile.jpg'}
-                            alt={v.name}
+                            alt={v.username}
                             className="w-10 h-10 rounded-full object-cover mx-auto"
                           />
                         </td>
-                        <td className="p-2 border">{v.name}</td>
+                        <td className="p-2 border">{v.username ? `@${v.username}` : v.name}</td>
                         <td className="p-2 border">{v.email}</td>
                         <td className="p-2 border">{v.phone || '-'}</td>
                         <td className="p-2 border">

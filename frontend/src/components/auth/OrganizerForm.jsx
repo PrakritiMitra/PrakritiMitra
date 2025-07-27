@@ -15,6 +15,7 @@ import {
 export default function OrganizerForm() {
   const [formData, setFormData] = useState({
     name: "",
+    username: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -28,6 +29,14 @@ export default function OrganizerForm() {
     organization: "",
   });
 
+  const [usernameStatus, setUsernameStatus] = useState({
+    checking: false,
+    available: null,
+    message: ''
+  });
+
+  const [usernameError, setUsernameError] = useState('');
+
   const navigate = useNavigate();
   const cityOptions = ["Mumbai", "Pune", "Delhi", "Bangalore", "Hyderabad", "Chennai"];
 
@@ -37,6 +46,64 @@ export default function OrganizerForm() {
       setFormData((prev) => ({ ...prev, [name]: files[0] }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
+      
+      // Check username availability when username field changes
+      if (name === 'username') {
+        // Validate username format
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (value.length > 0 && !usernameRegex.test(value)) {
+          setUsernameError('Username can only contain letters, numbers, and underscores');
+          setUsernameStatus({
+            checking: false,
+            available: null,
+            message: ''
+          });
+        } else if (value.length > 0 && value.length < 3) {
+          setUsernameError('Username must be at least 3 characters long');
+          setUsernameStatus({
+            checking: false,
+            available: null,
+            message: ''
+          });
+        } else if (value.length > 30) {
+          setUsernameError('Username must be 30 characters or less');
+          setUsernameStatus({
+            checking: false,
+            available: null,
+            message: ''
+          });
+        } else {
+          setUsernameError('');
+          if (value.length >= 3) {
+            checkUsernameAvailability(value);
+          } else {
+            setUsernameStatus({
+              checking: false,
+              available: null,
+              message: ''
+            });
+          }
+        }
+      }
+    }
+  };
+
+  const checkUsernameAvailability = async (username) => {
+    setUsernameStatus({ checking: true, available: null, message: '' });
+    
+    try {
+      const response = await axios.get(`http://localhost:5000/api/user/check-username/${username}`);
+      setUsernameStatus({
+        checking: false,
+        available: response.data.available,
+        message: response.data.message
+      });
+    } catch (error) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        message: 'Error checking username availability'
+      });
     }
   };
 
@@ -45,6 +112,17 @@ export default function OrganizerForm() {
 
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match!");
+      return;
+    }
+
+    // Validate username before submission
+    if (usernameError) {
+      alert("Please fix the username errors before submitting.");
+      return;
+    }
+
+    if (!formData.username || formData.username.length < 3) {
+      alert("Username must be at least 3 characters long.");
       return;
     }
 
@@ -82,6 +160,29 @@ export default function OrganizerForm() {
       </Typography>
 
       <TextField fullWidth margin="normal" name="name" label="Full Name" value={formData.name} onChange={handleChange} required />
+      
+      <TextField 
+        fullWidth 
+        margin="normal" 
+        name="username" 
+        label="Username" 
+        value={formData.username} 
+        onChange={handleChange} 
+        required 
+        helperText={
+          usernameError 
+            ? usernameError
+            : usernameStatus.checking 
+            ? 'Checking availability...' 
+            : usernameStatus.available === true 
+            ? '✅ Username available' 
+            : usernameStatus.available === false 
+            ? '❌ Username not available' 
+            : 'Username must be 3-30 characters, letters, numbers, and underscores only'
+        }
+        error={usernameError || usernameStatus.available === false}
+      />
+      
       <TextField fullWidth margin="normal" name="email" label="Email" type="email" value={formData.email} onChange={handleChange} required />
       <TextField fullWidth margin="normal" name="password" label="Password" type="password" value={formData.password} onChange={handleChange} required />
       <TextField fullWidth margin="normal" name="confirmPassword" label="Confirm Password" type="password" value={formData.confirmPassword} onChange={handleChange} required />

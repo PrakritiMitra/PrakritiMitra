@@ -188,8 +188,8 @@ export default function Navbar() {
                     />
                   ) : (
                     <div className="text-sm font-bold text-blue-600">
-                      {user && user.name
-                        ? user.name.charAt(0).toUpperCase()
+                      {user && (user.username || user.name)
+                        ? (user.username || user.name).charAt(0).toUpperCase()
                         : "U"}
                     </div>
                   )}

@@ -244,7 +244,7 @@ exports.getVolunteersForEvent = async (req, res) => {
   try {
     const eventId = req.params.eventId;
     // Find all registrations for this event and populate volunteer details
-    const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name email phone profileImage role');
+    const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name username email phone profileImage role');
     // Get the event and its organizerTeam
     const Event = require('../models/event');
     const event = await Event.findById(eventId);
@@ -497,7 +497,7 @@ exports.getEventQuestionnaireComments = async (req, res) => {
     const registrations = await Registration.find({
       eventId,
       'questionnaire.completed': true
-    }).populate('volunteerId', 'name profileImage').sort({ 'questionnaire.submittedAt': -1 });
+    }).populate('volunteerId', 'name username profileImage').sort({ 'questionnaire.submittedAt': -1 });
     
     // Extract comments and relevant data
     const comments = registrations.map(reg => {
@@ -529,13 +529,14 @@ exports.getEventQuestionnaireComments = async (req, res) => {
         volunteer: {
           _id: reg.volunteerId._id,
           name: reg.volunteerId.name,
+          username: reg.volunteerId.username,
           profileImage: reg.volunteerId.profileImage
         },
         comment: comment || 'No detailed feedback provided',
         submittedAt: reg.questionnaire.submittedAt,
         allAnswers: answers // Include all answers for potential future use
       };
-    }).filter(comment => comment.comment !== 'No detailed feedback provided' || Object.keys(comment.allAnswers).length > 0);
+    }).filter(comment => comment.comment !== 'No detailed feedback provided' && comment.comment.trim().length > 0);
     
     res.status(200).json({
       success: true,

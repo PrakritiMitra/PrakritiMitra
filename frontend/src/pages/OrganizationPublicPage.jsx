@@ -200,6 +200,7 @@ export default function OrganizationPublicPage() {
                 )}
                 <div>
                   <div className="font-semibold">{member.userId?.name || 'Unknown'}</div>
+                  <div className="text-blue-600 text-sm">{member.userId?.username ? `@${member.userId.username}` : ''}</div>
                   <div className="text-gray-600 text-sm">{member.userId?.email}</div>
                 </div>
               </div>
