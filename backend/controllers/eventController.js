@@ -898,3 +898,179 @@ exports.generateCertificate = async (req, res) => {
     res.status(500).json({ message: 'Failed to generate certificate', error: err.message });
   }
 };
+
+// Remove volunteer from event (can re-register)
+exports.removeVolunteer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { volunteerId } = req.body;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event hasn't started yet
+    const now = new Date();
+    if (new Date(event.startDateTime) <= now) {
+      return res.status(400).json({ message: 'Cannot remove volunteers after event has started' });
+    }
+
+    // Check if user is organizer (creator or team member)
+    const isCreator = event.createdBy.toString() === userId.toString();
+    const isTeamMember = event.organizerTeam.some(obj => 
+      obj.user && obj.user.toString() === userId.toString()
+    );
+
+    if (!isCreator && !isTeamMember) {
+      return res.status(403).json({ message: 'Only organizers can remove volunteers' });
+    }
+
+    // Check if volunteer is actually registered
+    const Registration = require('../models/registration');
+    const registration = await Registration.findOne({
+      eventId: eventId,
+      volunteerId: volunteerId
+    });
+
+    if (!registration) {
+      return res.status(404).json({ message: 'Volunteer is not registered for this event' });
+    }
+
+    // Delete the registration document
+    await Registration.findByIdAndDelete(registration._id);
+
+    // Remove volunteer from event's volunteers array
+    event.volunteers = event.volunteers.filter(id => id.toString() !== volunteerId.toString());
+
+    // Add volunteer to removedVolunteers array (if not already there)
+    if (!event.removedVolunteers.includes(volunteerId)) {
+      event.removedVolunteers.push(volunteerId);
+    }
+
+    // Remove from bannedVolunteers if they were banned before
+    event.bannedVolunteers = event.bannedVolunteers.filter(id => id.toString() !== volunteerId.toString());
+
+    await event.save();
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`event_${eventId}`).emit('volunteerRemoved', { volunteerId, eventId });
+      
+      // Emit slots update
+      if (event.unlimitedVolunteers) {
+        io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+          eventId,
+          availableSlots: null,
+          maxVolunteers: null,
+          unlimitedVolunteers: true
+        });
+      } else {
+        const availableSlots = event.maxVolunteers - event.volunteers.length;
+        io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+          eventId,
+          availableSlots,
+          maxVolunteers: event.maxVolunteers,
+          unlimitedVolunteers: false
+        });
+      }
+    }
+
+    res.status(200).json({ 
+      message: 'Volunteer removed successfully',
+      volunteerId: volunteerId
+    });
+
+  } catch (err) {
+    console.error('Error in removeVolunteer:', err);
+    res.status(500).json({ message: 'Failed to remove volunteer', error: err.message });
+  }
+};
+
+// Ban volunteer from event (cannot re-register)
+exports.banVolunteer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { volunteerId } = req.body;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event hasn't started yet
+    const now = new Date();
+    if (new Date(event.startDateTime) <= now) {
+      return res.status(400).json({ message: 'Cannot ban volunteers after event has started' });
+    }
+
+    // Only creator can ban volunteers
+    const isCreator = event.createdBy.toString() === userId.toString();
+    if (!isCreator) {
+      return res.status(403).json({ message: 'Only the event creator can ban volunteers' });
+    }
+
+    // Check if volunteer is actually registered
+    const Registration = require('../models/registration');
+    const registration = await Registration.findOne({
+      eventId: eventId,
+      volunteerId: volunteerId
+    });
+
+    if (!registration) {
+      return res.status(404).json({ message: 'Volunteer is not registered for this event' });
+    }
+
+    // Delete the registration document
+    await Registration.findByIdAndDelete(registration._id);
+
+    // Remove volunteer from event's volunteers array
+    event.volunteers = event.volunteers.filter(id => id.toString() !== volunteerId.toString());
+
+    // Add volunteer to bannedVolunteers array (if not already there)
+    if (!event.bannedVolunteers.includes(volunteerId)) {
+      event.bannedVolunteers.push(volunteerId);
+    }
+
+    // Remove from removedVolunteers if they were removed before
+    event.removedVolunteers = event.removedVolunteers.filter(id => id.toString() !== volunteerId.toString());
+
+    await event.save();
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`event_${eventId}`).emit('volunteerBanned', { volunteerId, eventId });
+      
+      // Emit slots update
+      if (event.unlimitedVolunteers) {
+        io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+          eventId,
+          availableSlots: null,
+          maxVolunteers: null,
+          unlimitedVolunteers: true
+        });
+      } else {
+        const availableSlots = event.maxVolunteers - event.volunteers.length;
+        io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
+          eventId,
+          availableSlots,
+          maxVolunteers: event.maxVolunteers,
+          unlimitedVolunteers: false
+        });
+      }
+    }
+
+    res.status(200).json({ 
+      message: 'Volunteer banned successfully',
+      volunteerId: volunteerId
+    });
+
+  } catch (err) {
+    console.error('Error in banVolunteer:', err);
+    res.status(500).json({ message: 'Failed to ban volunteer', error: err.message });
+  }
+};

@@ -137,4 +137,10 @@ router.get('/:id/slots', eventController.getEventSlots);
 // Generate certificate for a user
 router.post('/:eventId/generate-certificate', protect, eventController.generateCertificate);
 
+// Remove volunteer from event (can re-register)
+router.post('/:eventId/remove-volunteer', protect, eventController.removeVolunteer);
+
+// Ban volunteer from event (cannot re-register)
+router.post('/:eventId/ban-volunteer', protect, eventController.banVolunteer);
+
 module.exports = router;
