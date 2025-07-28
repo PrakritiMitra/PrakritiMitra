@@ -97,6 +97,10 @@ export default function VolunteerEventDetailsPage() {
   // Custom hook for live slot information
   const { availableSlots, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
 
+  // Check if user is removed or banned from this event
+  const isRemoved = event?.removedVolunteers?.includes(user?._id);
+  const isBanned = event?.bannedVolunteers?.includes(user?._id);
+
   // User-friendly slot message with color
   let slotMessage = '';
   let slotColor = '';
@@ -178,16 +182,30 @@ export default function VolunteerEventDetailsPage() {
     if (event?._id && user?._id) {
       axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`)
         .then(res => {
-          setIsRegistered(true);
-          setRegistrationDetails(res.data.registration);
-          if (new Date() > new Date(event.endDateTime) && res.data.questionnaireCompleted) {
-            setQuestionnaireCompleted(true);
+          if (res.data.registered) {
+            setIsRegistered(true);
+            setRegistrationDetails(res.data.registration);
+            if (new Date() > new Date(event.endDateTime) && res.data.questionnaireCompleted) {
+              setQuestionnaireCompleted(true);
+            }
+          } else {
+            setIsRegistered(false);
+            setRegistrationDetails(null);
+            setQuestionnaireCompleted(false);
           }
         })
-        .catch(() => {
-          setIsRegistered(false);
-          setRegistrationDetails(null);
-          setQuestionnaireCompleted(false);
+        .catch((err) => {
+          // Handle 404 and other errors gracefully
+          if (err.response?.status === 404) {
+            setIsRegistered(false);
+            setRegistrationDetails(null);
+            setQuestionnaireCompleted(false);
+          } else {
+            console.error('Error checking registration status:', err);
+            setIsRegistered(false);
+            setRegistrationDetails(null);
+            setQuestionnaireCompleted(false);
+          }
         });
     }
   }, [event?._id, user?._id, event?.endDateTime]);
@@ -260,12 +278,15 @@ export default function VolunteerEventDetailsPage() {
       
       // Re-fetch registration details to update UI
       const regDetailsRes = await axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`);
-      setIsRegistered(true);
-      setRegistrationDetails(regDetailsRes.data.registration);
+      if (regDetailsRes.data.registered) {
+        setIsRegistered(true);
+        setRegistrationDetails(regDetailsRes.data.registration);
+      }
       alert("Registered successfully!");
     } catch (err) {
       console.error("Registration failed:", err);
-      alert(err.response?.data?.message || "Failed to register. Please try again.");
+      const errorMessage = err.response?.data?.message || "Failed to register. Please try again.";
+      alert(errorMessage);
     }
   };
 
@@ -594,6 +615,20 @@ export default function VolunteerEventDetailsPage() {
             
             {/* --- ACTION/STATUS SECTION --- */}
             <div className="my-6 p-4 bg-gray-50 rounded-lg border text-center">
+              {/* Banned Status */}
+              {isBanned && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  🚫 You are banned from this event by the event creator. You cannot register.
+                </div>
+              )}
+
+              {/* Removed Status */}
+              {isRemoved && !isBanned && (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+                  ⚠️ You were removed from this event by an organizer. You can register again.
+                </div>
+              )}
+
               {/* Entry QR Code */}
               {!hasCompletedEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
                 <div className="flex flex-col items-center">
@@ -616,8 +651,8 @@ export default function VolunteerEventDetailsPage() {
                 )
               )}
 
-              {/* Registration Button */}
-              {!isPastEvent && !isLiveEvent && !isRegistered && (availableSlots > 0 || unlimitedVolunteers) && (
+              {/* Registration Button - Only show if not banned */}
+              {!isPastEvent && !isLiveEvent && !isRegistered && !isBanned && (availableSlots > 0 || unlimitedVolunteers) && (
                 <button onClick={() => setShowRegisterModal(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Register</button>
               )}
               

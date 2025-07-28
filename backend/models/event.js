@@ -176,6 +176,10 @@ const eventSchema = new mongoose.Schema({
     }
   ],
 
+  // Volunteer management arrays
+  removedVolunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Can re-register
+  bannedVolunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],   // Cannot re-register
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);

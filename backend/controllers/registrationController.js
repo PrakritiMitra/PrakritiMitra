@@ -47,6 +47,26 @@ exports.registerForEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found." });
     }
 
+    // Check if user is banned from this event
+    if (event.bannedVolunteers && event.bannedVolunteers.includes(volunteerId)) {
+      return res.status(403).json({ message: "You are banned from this event and cannot register." });
+    }
+
+    // Check if user was removed from this event (they can re-register)
+    const wasRemoved = event.removedVolunteers && event.removedVolunteers.includes(volunteerId);
+    if (wasRemoved) {
+      // Remove them from removedVolunteers array since they're re-registering
+      event.removedVolunteers = event.removedVolunteers.filter(id => id.toString() !== volunteerId.toString());
+      await event.save();
+    }
+
+    // Double-check that volunteer is not in the volunteers array (in case of race condition)
+    if (event.volunteers && event.volunteers.includes(volunteerId)) {
+      // Remove them from volunteers array
+      event.volunteers = event.volunteers.filter(id => id.toString() !== volunteerId.toString());
+      await event.save();
+    }
+
     // Unlimited volunteers: allow registration
     if (event.unlimitedVolunteers) {
       const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
@@ -74,6 +94,11 @@ exports.registerForEvent = async (req, res) => {
       { new: true }
     );
     if (!updatedEvent) {
+      // Check if volunteer is already in the volunteers array
+      const currentEvent = await Event.findById(eventId);
+      if (currentEvent.volunteers && currentEvent.volunteers.includes(volunteerId)) {
+        return res.status(400).json({ message: "You are already registered for this event." });
+      }
       return res.status(400).json({ message: "No slots available." });
     }
 
@@ -249,9 +274,19 @@ exports.getVolunteersForEvent = async (req, res) => {
     const Event = require('../models/event');
     const event = await Event.findById(eventId);
     const organizerTeamIds = event ? event.organizerTeam.map(obj => obj.user.toString()) : [];
-    // Return user details and attendance
+    
+    // Get removed and banned volunteer IDs
+    const removedVolunteerIds = event?.removedVolunteers?.map(id => id.toString()) || [];
+    const bannedVolunteerIds = event?.bannedVolunteers?.map(id => id.toString()) || [];
+    
+    // Return user details and attendance, excluding removed and banned volunteers
     const volunteers = registrations
-      .filter(r => !organizerTeamIds.includes(r.volunteerId.toString()))
+      .filter(r => {
+        const volunteerId = r.volunteerId.toString();
+        return !organizerTeamIds.includes(volunteerId) && 
+               !removedVolunteerIds.includes(volunteerId) && 
+               !bannedVolunteerIds.includes(volunteerId);
+      })
       .map(r => ({
         ...r.volunteerId.toObject(),
         hasAttended: r.hasAttended,
@@ -307,11 +342,17 @@ exports.getRegistrationForVolunteerEvent = async (req, res) => {
     const registration = await Registration.findOne({ eventId, volunteerId });
 
     if (!registration) {
-      return res.status(404).json({ message: "Registration not found." });
+      return res.status(404).json({ 
+        message: "Registration not found.",
+        registered: false,
+        registration: null,
+        questionnaireCompleted: false
+      });
     }
 
     // Return registration with proper structure for frontend
     res.json({ 
+      registered: true,
       registration: registration,
       questionnaireCompleted: registration.questionnaire?.completed || false
     });
