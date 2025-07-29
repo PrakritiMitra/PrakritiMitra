@@ -480,6 +480,19 @@ exports.joinAsOrganizer = async (req, res) => {
       return res.status(400).json({ message: 'You are already the main organizer of this event.' });
     }
 
+    // Check if user is banned from this event
+    if (event.bannedVolunteers && event.bannedVolunteers.includes(userId)) {
+      return res.status(403).json({ message: "You are banned from this event and cannot join as organizer." });
+    }
+
+    // Check if user was removed from this event (they can re-join)
+    const wasRemoved = event.removedVolunteers && event.removedVolunteers.includes(userId);
+    if (wasRemoved) {
+      // Remove them from removedVolunteers array since they're re-joining
+      event.removedVolunteers = event.removedVolunteers.filter(id => id.toString() !== userId.toString());
+      await event.save();
+    }
+
     // Initialize organizerTeam if it doesn't exist (for old events)
     if (!event.organizerTeam) {
       event.organizerTeam = [];
@@ -535,14 +548,22 @@ exports.requestJoinAsOrganizer = async (req, res) => {
     const userId = req.user._id.toString();
     const event = await require('../models/event').findById(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found' });
+    
     // Prevent creator from requesting
     if (event.createdBy.toString() === userId) {
       return res.status(400).json({ message: 'Creator cannot request to join as organizer.' });
     }
+    
+    // Check if user is banned from this event
+    if (event.bannedVolunteers && event.bannedVolunteers.includes(userId)) {
+      return res.status(403).json({ message: "You are banned from this event and cannot request to join as organizer." });
+    }
+    
     // Prevent duplicate join (already in team)
     if (event.organizerTeam.some(obj => obj.user.toString() === userId)) {
       return res.status(400).json({ message: 'Already an organizer for this event.' });
     }
+    
     // Check for existing join request
     const existingRequestIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId);
     if (existingRequestIndex !== -1) {
@@ -558,6 +579,7 @@ exports.requestJoinAsOrganizer = async (req, res) => {
         return res.json({ message: 'Join request re-sent.' });
       }
     }
+    
     // Add new join request (only if none exists)
     event.organizerJoinRequests.push({ user: userId, status: 'pending' });
     await event.save();
@@ -1141,7 +1163,6 @@ exports.banVolunteer = async (req, res) => {
     res.status(500).json({ message: 'Failed to ban volunteer', error: err.message });
   }
 };
-
 // Handle event completion and create next recurring instance if needed
 exports.handleEventCompletion = async (req, res) => {
   try {
@@ -1245,5 +1266,261 @@ exports.handleEventCompletion = async (req, res) => {
       message: 'Failed to handle event completion',
       error: error.message 
     });
+  }
+};
+
+// Remove organizer from event (can re-join)
+exports.removeOrganizer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { organizerId } = req.body;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event hasn't started yet
+    const now = new Date();
+    if (new Date(event.startDateTime) <= now) {
+      return res.status(400).json({ message: 'Cannot remove organizers after event has started' });
+    }
+
+    // Only creator can remove organizers
+    const isCreator = event.createdBy.toString() === userId.toString();
+    if (!isCreator) {
+      return res.status(403).json({ message: 'Only the event creator can remove organizers' });
+    }
+
+    // Prevent creator from removing themselves
+    if (organizerId.toString() === event.createdBy.toString()) {
+      return res.status(400).json({ message: 'Creator cannot remove themselves' });
+    }
+
+    // Check if organizer is actually in the team
+    const organizerInTeam = event.organizerTeam.find(obj => 
+      obj.user && obj.user.toString() === organizerId.toString()
+    );
+
+    if (!organizerInTeam) {
+      return res.status(404).json({ message: 'Organizer is not in the team' });
+    }
+
+    // Remove organizer from organizerTeam array
+    event.organizerTeam = event.organizerTeam.filter(obj => 
+      obj.user && obj.user.toString() !== organizerId.toString()
+    );
+
+    // Add organizer to removedVolunteers array (if not already there)
+    if (!event.removedVolunteers.includes(organizerId)) {
+      event.removedVolunteers.push(organizerId);
+    }
+
+    // Remove from bannedVolunteers if they were banned before
+    event.bannedVolunteers = event.bannedVolunteers.filter(id => id.toString() !== organizerId.toString());
+
+    await event.save();
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`event_${eventId}`).emit('organizerRemoved', { organizerId, eventId });
+    }
+
+    res.status(200).json({ 
+      message: 'Organizer removed successfully',
+      organizerId: organizerId
+    });
+
+  } catch (err) {
+    console.error('Error in removeOrganizer:', err);
+    res.status(500).json({ message: 'Failed to remove organizer', error: err.message });
+  }
+};
+
+// Ban organizer from event (cannot re-join)
+exports.banOrganizer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { organizerId } = req.body;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event hasn't started yet
+    const now = new Date();
+    if (new Date(event.startDateTime) <= now) {
+      return res.status(400).json({ message: 'Cannot ban organizers after event has started' });
+    }
+
+    // Only creator can ban organizers
+    const isCreator = event.createdBy.toString() === userId.toString();
+    if (!isCreator) {
+      return res.status(403).json({ message: 'Only the event creator can ban organizers' });
+    }
+
+    // Prevent creator from banning themselves
+    if (organizerId.toString() === event.createdBy.toString()) {
+      return res.status(400).json({ message: 'Creator cannot ban themselves' });
+    }
+
+    // Check if organizer is actually in the team
+    const organizerInTeam = event.organizerTeam.find(obj => 
+      obj.user && obj.user.toString() === organizerId.toString()
+    );
+
+    if (!organizerInTeam) {
+      return res.status(404).json({ message: 'Organizer is not in the team' });
+    }
+
+    // Remove organizer from organizerTeam array
+    event.organizerTeam = event.organizerTeam.filter(obj => 
+      obj.user && obj.user.toString() !== organizerId.toString()
+    );
+
+    // Add organizer to bannedVolunteers array (if not already there)
+    if (!event.bannedVolunteers.includes(organizerId)) {
+      event.bannedVolunteers.push(organizerId);
+    }
+
+    // Remove from removedVolunteers if they were removed before
+    event.removedVolunteers = event.removedVolunteers.filter(id => id.toString() !== organizerId.toString());
+
+    await event.save();
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`event_${eventId}`).emit('organizerBanned', { organizerId, eventId });
+    }
+
+    res.status(200).json({ 
+      message: 'Organizer banned successfully',
+      organizerId: organizerId
+    });
+
+  } catch (err) {
+    console.error('Error in banOrganizer:', err);
+    res.status(500).json({ message: 'Failed to ban organizer', error: err.message });
+  }
+};
+
+// Unban volunteer from event (can re-register)
+exports.unbanVolunteer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { volunteerId } = req.body;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event hasn't started yet
+    const now = new Date();
+    if (new Date(event.startDateTime) <= now) {
+      return res.status(400).json({ message: 'Cannot unban volunteers after event has started' });
+    }
+
+    // Check if user is organizer (creator or team member)
+    const isCreator = event.createdBy.toString() === userId.toString();
+    const isTeamMember = event.organizerTeam.some(obj => 
+      obj.user && obj.user.toString() === userId.toString()
+    );
+
+    if (!isCreator && !isTeamMember) {
+      return res.status(403).json({ message: 'Only organizers can unban volunteers' });
+    }
+
+    // Check if volunteer is actually banned
+    if (!event.bannedVolunteers.includes(volunteerId)) {
+      return res.status(404).json({ message: 'Volunteer is not banned from this event' });
+    }
+
+    // Remove volunteer from bannedVolunteers array
+    event.bannedVolunteers = event.bannedVolunteers.filter(id => id.toString() !== volunteerId.toString());
+
+    // Add volunteer to removedVolunteers array (so they can re-register)
+    if (!event.removedVolunteers.includes(volunteerId)) {
+      event.removedVolunteers.push(volunteerId);
+    }
+
+    await event.save();
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`event_${eventId}`).emit('volunteerUnbanned', { volunteerId, eventId });
+    }
+
+    res.status(200).json({ 
+      message: 'Volunteer unbanned successfully',
+      volunteerId: volunteerId
+    });
+
+  } catch (err) {
+    console.error('Error in unbanVolunteer:', err);
+    res.status(500).json({ message: 'Failed to unban volunteer', error: err.message });
+  }
+};
+
+// Unban organizer from event (can re-join)
+exports.unbanOrganizer = async (req, res) => {
+  try {
+    const eventId = req.params.eventId;
+    const { organizerId } = req.body;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if event hasn't started yet
+    const now = new Date();
+    if (new Date(event.startDateTime) <= now) {
+      return res.status(400).json({ message: 'Cannot unban organizers after event has started' });
+    }
+
+    // Only creator can unban organizers
+    const isCreator = event.createdBy.toString() === userId.toString();
+    if (!isCreator) {
+      return res.status(403).json({ message: 'Only the event creator can unban organizers' });
+    }
+
+    // Check if organizer is actually banned
+    if (!event.bannedVolunteers.includes(organizerId)) {
+      return res.status(404).json({ message: 'Organizer is not banned from this event' });
+    }
+
+    // Remove organizer from bannedVolunteers array
+    event.bannedVolunteers = event.bannedVolunteers.filter(id => id.toString() !== organizerId.toString());
+
+    // Add organizer to removedVolunteers array (so they can re-join)
+    if (!event.removedVolunteers.includes(organizerId)) {
+      event.removedVolunteers.push(organizerId);
+    }
+
+    await event.save();
+
+    // Emit socket event for real-time updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`event_${eventId}`).emit('organizerUnbanned', { organizerId, eventId });
+    }
+
+    res.status(200).json({ 
+      message: 'Organizer unbanned successfully',
+      organizerId: organizerId
+    });
+
+  } catch (err) {
+    console.error('Error in unbanOrganizer:', err);
+    res.status(500).json({ message: 'Failed to unban organizer', error: err.message });
   }
 };
