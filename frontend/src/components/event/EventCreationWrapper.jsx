@@ -1,6 +1,7 @@
 // src/components/event/EventCreationWrapper.jsx
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import EventStepOne from "./EventStepOne";
 import EventStepTwo from "./EventStepTwo";
 import EventPreview from "./EventPreview";
@@ -15,6 +16,7 @@ export default function EventCreationWrapper({
   initialFormData = null,
   initialQuestionnaireData = null,
 }) {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(
     initialFormData || {
@@ -128,8 +130,9 @@ export default function EventCreationWrapper({
     try {
       const token = localStorage.getItem("token");
 
+      let response;
       if (isEdit && eventId) {
-        await axios.put(`/api/events/${eventId}`, data, {
+        response = await axios.put(`/api/events/${eventId}`, data, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
@@ -138,7 +141,7 @@ export default function EventCreationWrapper({
         });
         alert("Event updated successfully!");
       } else {
-        await axios.post("/api/events/create", data, {
+        response = await axios.post("/api/events/create", data, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "multipart/form-data",
@@ -149,7 +152,17 @@ export default function EventCreationWrapper({
       }
 
       if (onClose) onClose();
-      window.location.reload();
+      
+      // Navigate to appropriate dashboard based on user role
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user?.role === 'organizer') {
+        // If event was created successfully, navigate to organizer dashboard
+        navigate('/organizer/dashboard');
+      } else if (user?.role === 'volunteer') {
+        navigate('/volunteer/dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to submit event.");

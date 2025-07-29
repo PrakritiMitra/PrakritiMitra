@@ -13,6 +13,9 @@ import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
 import EventQuestionnaireModal from "../components/event/EventQuestionnaireModal";
 import { checkReportEligibility, generateEventReport } from "../utils/reportUtils";
+import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../utils/calendarUtils";
+import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
+import calendarEventEmitter from "../utils/calendarEventEmitter";
 
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
@@ -64,6 +67,12 @@ export default function EventDetailsPage() {
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [showComments, setShowComments] = useState(false);
+
+  // Calendar state
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState({
+    isRegistered: false, isInCalendar: false, canAddToCalendar: false, canRemoveFromCalendar: false
+  });
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
   const isCreator = (() => {
@@ -163,12 +172,48 @@ export default function EventDetailsPage() {
     fetchAndSetEvent();
   }, [id]);
 
+  // Close calendar options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside the calendar button and dropdown
+      const calendarButton = event.target.closest('[data-calendar-button]');
+      const calendarDropdown = event.target.closest('[data-calendar-dropdown]');
+      
+      if (showCalendarOptions && !calendarButton && !calendarDropdown) {
+        setShowCalendarOptions(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showCalendarOptions]);
+
   // Check report eligibility when event loads
   useEffect(() => {
     if (event && isCreator) {
       checkEligibility();
     }
   }, [event, isCreator]);
+
+  // Check calendar status
+  useEffect(() => {
+    const checkCalendarStatus = async () => {
+      if (!currentUser?._id || !event?._id) return;
+      
+      try {
+        const result = await checkWebsiteCalendarStatus(event._id);
+        if (result.success) {
+          setCalendarStatus(result.data);
+        }
+      } catch (error) {
+        console.error('Error checking calendar status:', error);
+      }
+    };
+    
+    checkCalendarStatus();
+  }, [event?._id, currentUser?._id]);
 
   // Poll for summary if missing
   useEffect(() => {
@@ -440,6 +485,47 @@ export default function EventDetailsPage() {
     }
     
     setGeneratingReport(false);
+  };
+
+  // Calendar functions
+  const handleAddToCalendar = () => {
+    const result = addEventToCalendar(event);
+    if (result.success) {
+      console.log(result.message);
+    } else {
+      console.error(result.message);
+    }
+  };
+
+  const handleDownloadCalendar = () => {
+    const result = downloadCalendarFile(event);
+    if (result.success) {
+      console.log(result.message);
+    } else {
+      console.error(result.message);
+    }
+  };
+
+  const handleAddToWebsiteCalendar = async () => {
+    try {
+      const result = await addToWebsiteCalendar(event._id);
+      if (result.success) {
+        const statusResult = await checkWebsiteCalendarStatus(event._id);
+        if (statusResult.success) setCalendarStatus(statusResult.data);
+        console.log(result.message);
+      } else { console.error(result.message); }
+    } catch (error) { console.error('Error adding to website calendar:', error); }
+  };
+
+  const handleRemoveFromWebsiteCalendar = async () => {
+    try {
+      const result = await removeFromWebsiteCalendar(event._id);
+      if (result.success) {
+        const statusResult = await checkWebsiteCalendarStatus(event._id);
+        if (statusResult.success) setCalendarStatus(statusResult.data);
+        console.log(result.message);
+      } else { console.error(result.message); }
+    } catch (error) { console.error('Error removing from website calendar:', error); }
   };
 
   // Fetch comments for the event
@@ -761,7 +847,85 @@ export default function EventDetailsPage() {
         )}
         {joinError && <p className="text-red-600 mb-2">{joinError}</p>}
         {/* Remove joinSuccess message; rely on status UI only */}
-        <h1 className="text-3xl font-bold text-blue-800 mb-3">{event.title}</h1>
+        <div className="flex justify-between items-start mb-3">
+          <h1 className="text-3xl font-bold text-blue-800">{event.title}</h1>
+          
+          {/* Add to Calendar Button */}
+          <div className="relative">
+            <button
+              data-calendar-button
+              onClick={() => setShowCalendarOptions(!showCalendarOptions)}
+              className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+              title="Add to Calendar"
+            >
+              <FaCalendarPlus className="w-5 h-5" />
+            </button>
+            
+            {/* Calendar Options Dropdown */}
+            {showCalendarOptions && (
+              <div data-calendar-dropdown className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[220px] z-50">
+                {/* Website Calendar Options */}
+                {calendarStatus.canAddToCalendar && (
+                  <button
+                    onClick={() => {
+                      handleAddToWebsiteCalendar();
+                      setShowCalendarOptions(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                  >
+                    <FaCalendarPlus className="w-4 h-4" />
+                    Add to Website Calendar
+                  </button>
+                )}
+                {calendarStatus.canRemoveFromCalendar && (
+                  <button
+                    onClick={() => {
+                      handleRemoveFromWebsiteCalendar();
+                      setShowCalendarOptions(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                  >
+                    <FaCalendarMinus className="w-4 h-4" />
+                    Remove from Website Calendar
+                  </button>
+                )}
+                {calendarStatus.isRegistered && (
+                  <div className="px-3 py-2 text-sm text-gray-500 italic">
+                    Registered events are automatically in calendar
+                  </div>
+                )}
+                {calendarStatus.isOrganizerEvent && (
+                  <div className="px-3 py-2 text-sm text-gray-500 italic">
+                    Organizer events are automatically in calendar
+                  </div>
+                )}
+                
+                {/* External Calendar Options */}
+                <div className="border-t border-gray-200 my-1"></div>
+                <button
+                  onClick={() => {
+                    handleAddToCalendar();
+                    setShowCalendarOptions(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                >
+                  <FaCalendarPlus className="w-4 h-4" />
+                  Add to Google Calendar
+                </button>
+                <button
+                  onClick={() => {
+                    handleDownloadCalendar();
+                    setShowCalendarOptions(false);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                >
+                  <FaCalendarPlus className="w-4 h-4" />
+                  Download .ics File
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
         <p className="text-gray-700 mb-4">{event.description}</p>
 
         {/* --- MAP & LOCATION SECTION --- */}

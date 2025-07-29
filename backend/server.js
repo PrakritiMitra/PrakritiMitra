@@ -18,6 +18,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const aiSummaryRoutes = require('./routes/aiSummaryRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const calendarRoutes = require('./routes/calendarRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -69,6 +70,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/ai-summary', aiSummaryRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/calendar', calendarRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);

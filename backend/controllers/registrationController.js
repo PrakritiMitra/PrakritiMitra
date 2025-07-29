@@ -50,6 +50,15 @@ exports.registerForEvent = async (req, res) => {
     // Unlimited volunteers: allow registration
     if (event.unlimitedVolunteers) {
       const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
+      
+      // Add volunteer to event's volunteers array for calendar tracking
+      const Event = require('../models/event');
+      await Event.findByIdAndUpdate(
+        eventId,
+        { $addToSet: { volunteers: volunteerId } },
+        { new: true }
+      );
+      
       io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
         eventId,
         availableSlots: null, // unlimited
@@ -78,6 +87,7 @@ exports.registerForEvent = async (req, res) => {
     }
 
     const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
+    
     const availableSlots = updatedEvent.maxVolunteers - updatedEvent.volunteers.length;
     io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {
       eventId,

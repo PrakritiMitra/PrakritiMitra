@@ -2,6 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* FullCalendar Custom Styles */
+.fc {
+  font-family: inherit;
+}
+
+.fc-toolbar-title {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+}
+
+.fc-button {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.fc-button:hover {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.fc-button:focus {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important;
+}
+
+.fc-event {
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.fc-event:hover {
+  opacity: 0.9;
+}
+
+.fc-daygrid-event {
+  white-space: nowrap;
+  border-radius: 3px;
+}
+
+.fc-daygrid-day:hover {
+  background-color: #f3f4f6;
+}
+
+.fc-daygrid-day.fc-day-today {
+  background-color: #eff6ff;
+}
+
+.fc-daygrid-day-number {
+  font-weight: 500;
+}
+
+.fc-col-header-cell {
+  background-color: #f9fafb;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
 /* Custom animations for professional homepage */
 @keyframes blob {
   0% {

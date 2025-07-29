@@ -14,13 +14,24 @@ export default function useEventSlots(eventId) {
   });
   const joinedRoomRef = useRef(false);
 
+  // Handle recurring event instances - use original event ID for API calls
+  const getEffectiveEventId = (id) => {
+    // If it's a recurring instance ID (contains '_recurring_'), extract the original event ID
+    if (id && id.includes('_recurring_')) {
+      return id.split('_recurring_')[0];
+    }
+    return id;
+  };
+
+  const effectiveEventId = getEffectiveEventId(eventId);
+
   useEffect(() => {
-    if (!eventId) return;
+    if (!effectiveEventId) return;
     let isMounted = true;
     setSlotInfo((prev) => ({ ...prev, loading: true }));
 
-    // Fetch initial slot info
-    axiosInstance.get(`/api/events/${eventId}/slots`)
+    // Fetch initial slot info using the effective event ID
+    axiosInstance.get(`/api/events/${effectiveEventId}/slots`)
       .then(res => {
         if (isMounted) {
           setSlotInfo({ ...res.data, loading: false });
@@ -40,15 +51,15 @@ export default function useEventSlots(eventId) {
       });
     }
 
-    // Join the slot update room
+    // Join the slot update room using the effective event ID
     if (socket && !joinedRoomRef.current) {
-      socket.emit('joinEventSlotsRoom', eventId);
+      socket.emit('joinEventSlotsRoom', effectiveEventId);
       joinedRoomRef.current = true;
     }
 
     // Listen for slotsUpdated events
     const handleSlotsUpdated = (data) => {
-      if (data.eventId === eventId && isMounted) {
+      if (data.eventId === effectiveEventId && isMounted) {
         setSlotInfo({
           availableSlots: data.availableSlots,
           maxVolunteers: data.maxVolunteers,
@@ -63,13 +74,13 @@ export default function useEventSlots(eventId) {
     return () => {
       isMounted = false;
       if (socket && joinedRoomRef.current) {
-        socket.emit('leaveEventSlotsRoom', eventId);
+        socket.emit('leaveEventSlotsRoom', effectiveEventId);
         joinedRoomRef.current = false;
       }
       socket.off('slotsUpdated', handleSlotsUpdated);
     };
     // eslint-disable-next-line
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   return slotInfo;
 } 

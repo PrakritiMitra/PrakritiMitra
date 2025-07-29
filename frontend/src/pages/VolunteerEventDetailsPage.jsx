@@ -10,6 +10,9 @@ import axiosInstance from "../api/axiosInstance";
 import { getFullOrganizerTeam } from "../api/event";
 import { getEventReport, downloadReportAsPDF } from '../utils/reportUtils';
 import defaultImages from "../utils/eventTypeImages";
+import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../utils/calendarUtils";
+import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
+import calendarEventEmitter from "../utils/calendarEventEmitter";
 
 import useEventSlots from '../hooks/useEventSlots';
 import Navbar from "../components/layout/Navbar";
@@ -94,6 +97,12 @@ export default function VolunteerEventDetailsPage() {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
+  // Calendar state
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState({
+    isRegistered: false, isInCalendar: false, canAddToCalendar: false, canRemoveFromCalendar: false
+  });
+
   // Custom hook for live slot information
   const { availableSlots, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
 
@@ -141,6 +150,42 @@ export default function VolunteerEventDetailsPage() {
     };
     fetchEvent();
   }, [id, forceRefresh]); // Added forceRefresh to re-fetch event data when needed
+
+  // Close calendar options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside the calendar button and dropdown
+      const calendarButton = event.target.closest('[data-calendar-button]');
+      const calendarDropdown = event.target.closest('[data-calendar-dropdown]');
+      
+      if (showCalendarOptions && !calendarButton && !calendarDropdown) {
+        setShowCalendarOptions(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showCalendarOptions]);
+
+  // Check calendar status
+  useEffect(() => {
+    const checkCalendarStatus = async () => {
+      if (!user?._id || !event?._id) return;
+      
+      try {
+        const result = await checkWebsiteCalendarStatus(event._id);
+        if (result.success) {
+          setCalendarStatus(result.data);
+        }
+      } catch (error) {
+        console.error('Error checking calendar status:', error);
+      }
+    };
+    
+    checkCalendarStatus();
+  }, [event?._id, user?._id]);
 
   // Poll for AI summary if it's missing
   useEffect(() => {
@@ -270,12 +315,12 @@ export default function VolunteerEventDetailsPage() {
   };
 
   const handleWithdrawRegistration = async () => {
-    if (!registrationDetails?._id) return;
+    if (!event?._id) return;
     if (!window.confirm('Are you sure you want to withdraw your registration for this event?')) return;
     
     try {
-      // FIX: Use the specific registration ID for deletion for clarity and safety.
-      await axiosInstance.delete(`/api/registrations/${registrationDetails._id}`);
+      // Use event ID for withdrawal as per backend route
+      await axiosInstance.delete(`/api/registrations/${event._id}`);
       setIsRegistered(false);
       setRegistrationDetails(null);
       alert('Registration withdrawn successfully.');
@@ -400,6 +445,47 @@ export default function VolunteerEventDetailsPage() {
   const hasImages = images.length > 0;
   const handlePrev = () => setCarouselIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
   const handleNext = () => setCarouselIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+
+  // Calendar functions
+  const handleAddToCalendar = () => {
+    const result = addEventToCalendar(event);
+    if (result.success) {
+      console.log(result.message);
+    } else {
+      console.error(result.message);
+    }
+  };
+
+  const handleDownloadCalendar = () => {
+    const result = downloadCalendarFile(event);
+    if (result.success) {
+      console.log(result.message);
+    } else {
+      console.error(result.message);
+    }
+  };
+
+  const handleAddToWebsiteCalendar = async () => {
+    try {
+      const result = await addToWebsiteCalendar(event._id);
+      if (result.success) {
+        const statusResult = await checkWebsiteCalendarStatus(event._id);
+        if (statusResult.success) setCalendarStatus(statusResult.data);
+        console.log(result.message);
+      } else { console.error(result.message); }
+    } catch (error) { console.error('Error adding to website calendar:', error); }
+  };
+
+  const handleRemoveFromWebsiteCalendar = async () => {
+    try {
+      const result = await removeFromWebsiteCalendar(event._id);
+      if (result.success) {
+        const statusResult = await checkWebsiteCalendarStatus(event._id);
+        if (statusResult.success) setCalendarStatus(statusResult.data);
+        console.log(result.message);
+      } else { console.error(result.message); }
+    } catch (error) { console.error('Error removing from website calendar:', error); }
+  };
 
   const now = new Date();
   const isLiveEvent = new Date(event.startDateTime) <= now && now < new Date(event.endDateTime);
@@ -590,7 +676,80 @@ export default function VolunteerEventDetailsPage() {
           </div>
 
           <div className="p-6">
-            <h1 className="text-3xl font-bold text-blue-800 mb-4">{event.title}</h1>
+            <div className="flex justify-between items-start mb-4">
+              <h1 className="text-3xl font-bold text-blue-800">{event.title}</h1>
+              
+              {/* Add to Calendar Button */}
+              <div className="relative">
+                <button
+                  data-calendar-button
+                  onClick={() => setShowCalendarOptions(!showCalendarOptions)}
+                  className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+                  title="Add to Calendar"
+                >
+                  <FaCalendarPlus className="w-5 h-5" />
+                </button>
+                
+                {/* Calendar Options Dropdown */}
+                {showCalendarOptions && (
+                  <div data-calendar-dropdown className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[220px] z-50">
+                    {/* Website Calendar Options */}
+                    {calendarStatus.canAddToCalendar && (
+                      <button
+                        onClick={() => {
+                          handleAddToWebsiteCalendar();
+                          setShowCalendarOptions(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                      >
+                        <FaCalendarPlus className="w-4 h-4" />
+                        Add to Website Calendar
+                      </button>
+                    )}
+                    {calendarStatus.canRemoveFromCalendar && (
+                      <button
+                        onClick={() => {
+                          handleRemoveFromWebsiteCalendar();
+                          setShowCalendarOptions(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                      >
+                        <FaCalendarMinus className="w-4 h-4" />
+                        Remove from Website Calendar
+                      </button>
+                    )}
+                    {calendarStatus.isRegistered && (
+                      <div className="px-3 py-2 text-sm text-gray-500 italic">
+                        Registered events are automatically in calendar
+                      </div>
+                    )}
+                    
+                    {/* External Calendar Options */}
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button
+                      onClick={() => {
+                        handleAddToCalendar();
+                        setShowCalendarOptions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                    >
+                      <FaCalendarPlus className="w-4 h-4" />
+                      Add to Google Calendar
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleDownloadCalendar();
+                        setShowCalendarOptions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                    >
+                      <FaCalendarPlus className="w-4 h-4" />
+                      Download .ics File
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             
             {/* --- ACTION/STATUS SECTION --- */}
             <div className="my-6 p-4 bg-gray-50 rounded-lg border text-center">
