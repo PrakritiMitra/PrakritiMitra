@@ -143,4 +143,16 @@ router.post('/:eventId/remove-volunteer', protect, eventController.removeVolunte
 // Ban volunteer from event (cannot re-register)
 router.post('/:eventId/ban-volunteer', protect, eventController.banVolunteer);
 
+// Remove organizer from event (can re-join)
+router.post('/:eventId/remove-organizer', protect, eventController.removeOrganizer);
+
+// Ban organizer from event (cannot re-join)
+router.post('/:eventId/ban-organizer', protect, eventController.banOrganizer);
+
+// Unban volunteer from event (can re-register)
+router.post('/:eventId/unban-volunteer', protect, eventController.unbanVolunteer);
+
+// Unban organizer from event (can re-join)
+router.post('/:eventId/unban-organizer', protect, eventController.unbanOrganizer);
+
 module.exports = router;

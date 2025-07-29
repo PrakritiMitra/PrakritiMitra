@@ -83,6 +83,19 @@ export default function EventDetailsPage() {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
 
+  // Organizer management states
+  const [removingOrganizer, setRemovingOrganizer] = useState(false);
+  const [banningOrganizer, setBanningOrganizer] = useState(false);
+  const [unbanningOrganizer, setUnbanningOrganizer] = useState(false);
+  const [selectedOrganizer, setSelectedOrganizer] = useState(null);
+  const [showRemoveOrganizerConfirm, setShowRemoveOrganizerConfirm] = useState(false);
+  const [showBanOrganizerConfirm, setShowBanOrganizerConfirm] = useState(false);
+  const [showUnbanOrganizerConfirm, setShowUnbanOrganizerConfirm] = useState(false);
+
+  // Volunteer unban states
+  const [unbanningVolunteer, setUnbanningVolunteer] = useState(false);
+  const [showUnbanVolunteerConfirm, setShowUnbanVolunteerConfirm] = useState(false);
+
   const isCreator = (() => {
     if (!event || !currentUser) return false;
 
@@ -115,6 +128,10 @@ export default function EventDetailsPage() {
   const [showVolunteers, setShowVolunteers] = useState(false);
   const [volunteers, setVolunteers] = useState([]);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
+  const [bannedVolunteers, setBannedVolunteers] = useState([]);
+  const [bannedVolunteersLoading, setBannedVolunteersLoading] = useState(false);
+  const [bannedOrganizers, setBannedOrganizers] = useState([]);
+  const [bannedOrganizersLoading, setBannedOrganizersLoading] = useState(false);
   // Track join request status for current user
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // 'pending', 'rejected', null
   
@@ -133,6 +150,49 @@ export default function EventDetailsPage() {
       })
       .catch(() => setVolunteersLoading(false));
   }, [event?._id]);
+
+  // Fetch banned users for this event
+  const fetchBannedUsers = useCallback(async () => {
+    if (!event?._id) return;
+    
+    setBannedVolunteersLoading(true);
+    setBannedOrganizersLoading(true);
+    try {
+      const bannedUserIds = event.bannedVolunteers || [];
+      
+      if (bannedUserIds.length > 0) {
+        // Fetch each banned user individually
+        const bannedUsersPromises = bannedUserIds.map(async (userId) => {
+          try {
+            const response = await axiosInstance.get(`/api/users/${userId}`);
+            return response.data;
+          } catch (error) {
+            console.error(`Error fetching user ${userId}:`, error);
+            return null;
+          }
+        });
+        
+        const bannedUsers = (await Promise.all(bannedUsersPromises)).filter(user => user !== null);
+        
+        // Separate banned volunteers and organizers based on their role
+        const bannedVols = bannedUsers.filter(user => user.role === 'volunteer');
+        const bannedOrgs = bannedUsers.filter(user => user.role === 'organizer');
+        
+        setBannedVolunteers(bannedVols);
+        setBannedOrganizers(bannedOrgs);
+      } else {
+        setBannedVolunteers([]);
+        setBannedOrganizers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching banned users:', error);
+      setBannedVolunteers([]);
+      setBannedOrganizers([]);
+    } finally {
+      setBannedVolunteersLoading(false);
+      setBannedOrganizersLoading(false);
+    }
+  }, [event?._id, event?.bannedVolunteers]);
 
   // Socket connection for real-time updates (slots, etc.)
   useEffect(() => {
@@ -158,6 +218,36 @@ export default function EventDetailsPage() {
     socket.on('volunteerBanned', ({ volunteerId, eventId }) => {
       if (eventId === event?._id) {
         setVolunteers(prev => prev.filter(v => v._id !== volunteerId));
+      }
+    });
+
+    // Listen for organizer removal/ban events
+    socket.on('organizerRemoved', ({ organizerId, eventId }) => {
+      if (eventId === event?._id) {
+        setOrganizerTeam(prev => prev.filter(obj => obj.user._id !== organizerId));
+      }
+    });
+
+    socket.on('organizerBanned', ({ organizerId, eventId }) => {
+      if (eventId === event?._id) {
+        setOrganizerTeam(prev => prev.filter(obj => obj.user._id !== organizerId));
+      }
+    });
+
+    // Listen for unban events
+    socket.on('volunteerUnbanned', ({ volunteerId, eventId }) => {
+      if (eventId === event?._id) {
+        // Remove from banned volunteers and refresh banned users
+        setBannedVolunteers(prev => prev.filter(v => v._id !== volunteerId));
+        fetchBannedUsers();
+      }
+    });
+
+    socket.on('organizerUnbanned', ({ organizerId, eventId }) => {
+      if (eventId === event?._id) {
+        // Remove from banned organizers and refresh banned users
+        setBannedOrganizers(prev => prev.filter(o => o._id !== organizerId));
+        fetchBannedUsers();
       }
     });
     
@@ -618,6 +708,102 @@ export default function EventDetailsPage() {
     }
   };
 
+  // Handle organizer removal
+  const handleRemoveOrganizer = async (organizerId) => {
+    if (!event?._id) return;
+    
+    setRemovingOrganizer(true);
+    try {
+      await axiosInstance.post(`/api/events/${event._id}/remove-organizer`, {
+        organizerId: organizerId
+      });
+      
+      // Remove from local state
+      setOrganizerTeam(prev => prev.filter(obj => obj.user._id !== organizerId));
+      setShowRemoveOrganizerConfirm(false);
+      setSelectedOrganizer(null);
+      
+      alert('Organizer removed successfully!');
+    } catch (err) {
+      console.error('Failed to remove organizer:', err);
+      alert(err.response?.data?.message || 'Failed to remove organizer');
+    } finally {
+      setRemovingOrganizer(false);
+    }
+  };
+
+  // Handle organizer ban
+  const handleBanOrganizer = async (organizerId) => {
+    if (!event?._id) return;
+    
+    setBanningOrganizer(true);
+    try {
+      await axiosInstance.post(`/api/events/${event._id}/ban-organizer`, {
+        organizerId: organizerId
+      });
+      
+      // Remove from local state
+      setOrganizerTeam(prev => prev.filter(obj => obj.user._id !== organizerId));
+      setShowBanOrganizerConfirm(false);
+      setSelectedOrganizer(null);
+      
+      alert('Organizer banned successfully!');
+    } catch (err) {
+      console.error('Failed to ban organizer:', err);
+      alert(err.response?.data?.message || 'Failed to ban organizer');
+    } finally {
+      setBanningOrganizer(false);
+    }
+  };
+
+  // Handle volunteer unban
+  const handleUnbanVolunteer = async (volunteerId) => {
+    if (!event?._id) return;
+    
+    setUnbanningVolunteer(true);
+    try {
+      await axiosInstance.post(`/api/events/${event._id}/unban-volunteer`, {
+        volunteerId: volunteerId
+      });
+      
+      // Remove from local state
+      setBannedVolunteers(prev => prev.filter(v => v._id !== volunteerId));
+      setShowUnbanVolunteerConfirm(false);
+      setSelectedVolunteer(null);
+      
+      alert('Volunteer unbanned successfully!');
+    } catch (err) {
+      console.error('Failed to unban volunteer:', err);
+      alert(err.response?.data?.message || 'Failed to unban volunteer');
+    } finally {
+      setUnbanningVolunteer(false);
+    }
+  };
+
+  // Handle organizer unban
+  const handleUnbanOrganizer = async (organizerId) => {
+    if (!event?._id) return;
+    
+    setUnbanningOrganizer(true);
+    try {
+      await axiosInstance.post(`/api/events/${event._id}/unban-organizer`, {
+        organizerId: organizerId
+      });
+      
+      // Remove from local state
+      setBannedOrganizers(prev => prev.filter(o => o._id !== organizerId));
+      setShowUnbanOrganizerConfirm(false);
+      setSelectedOrganizer(null);
+      
+      alert('Organizer unbanned successfully!');
+    } catch (err) {
+      console.error('Failed to unban organizer:', err);
+      alert(err.response?.data?.message || 'Failed to unban organizer');
+    } finally {
+      setUnbanningOrganizer(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -641,7 +827,12 @@ export default function EventDetailsPage() {
         <button
           className={`fixed z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition top-[calc(2cm+1.5rem)] ${showOrganizerTeamDrawer ? 'right-[340px]' : 'right-8'}`}
           style={{ transition: 'right 0.3s cubic-bezier(0.4,0,0.2,1)' }}
-          onClick={() => setShowOrganizerTeamDrawer((prev) => !prev)}
+          onClick={() => {
+            setShowOrganizerTeamDrawer((prev) => {
+              if (!prev) fetchBannedUsers();
+              return !prev;
+            });
+          }}
         >
           {showOrganizerTeamDrawer ? 'Hide Organizer Team' : 'Show Organizer Team'}
         </button>
@@ -671,50 +862,155 @@ export default function EventDetailsPage() {
             />
           </div>
           <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
-            {organizerTeam
-              .filter((obj) => {
-                if (!obj.user || !obj.user._id) return false;
+            {/* Active Organizers Section */}
+            <div>
+              <h3 className="text-md font-semibold text-blue-700 mb-3">Active Organizers</h3>
+              {organizerTeam
+                .filter((obj) => {
+                  if (!obj.user || !obj.user._id) return false;
+                  const user = obj.user;
+                  const displayName = user.username || user.name || '';
+                  return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+                })
+                .map((obj) => {
+                  const user = obj.user;
+                  const isThisUserCreator = user._id === event.createdBy._id;
+                  const displayName = user.username || user.name || 'User';
+                  const displayText = user.username ? `@${user.username}` : displayName;
+                  return (
+                    <div
+                      key={user._id}
+                      className={`group relative bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isThisUserCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
+                      onClick={() => navigate(`/organizer/${user._id}`)}
+                    >
+                      <img
+                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
+                        alt={displayName}
+                        className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-blue-800 text-lg">{displayText}</span>
+                        {user.username && user.name && (
+                          <span className="text-sm text-gray-600">{user.name}</span>
+                        )}
+                      </div>
+                      {isThisUserCreator && (
+                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
+                      )}
+                      
+                      {/* Action buttons - shown on hover (only for non-creator organizers, and only visible to event creator) */}
+                      {!isThisUserCreator && isCreator && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
+                          <div className="flex gap-2 justify-center">
+                            {/* Remove button - only available to creator */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrganizer(user);
+                                setShowRemoveOrganizerConfirm(true);
+                              }}
+                              className="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600 transition-colors"
+                              disabled={removingOrganizer}
+                            >
+                              Remove
+                            </button>
+                            
+                            {/* Ban button - only available to creator */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedOrganizer(user);
+                                setShowBanOrganizerConfirm(true);
+                              }}
+                              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors"
+                              disabled={banningOrganizer}
+                            >
+                              Ban
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              }
+              {organizerTeam.filter(obj => {
+                if (!obj.user?._id) return false;
                 const user = obj.user;
                 const displayName = user.username || user.name || '';
                 return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
-              })
-              .map((obj) => {
-                const user = obj.user;
-                const isCreator = user._id === event.createdBy._id;
-                const displayName = user.username || user.name || 'User';
-                const displayText = user.username ? `@${user.username}` : displayName;
-                return (
-                  <div
-                    key={user._id}
-                    className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
-                    onClick={() => navigate(`/organizer/${user._id}`)}
-                  >
-                    <img
-                      src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                      alt={displayName}
-                      className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                    />
-                    <div className="flex flex-col">
-                      <span className="font-medium text-blue-800 text-lg">{displayText}</span>
-                      {user.username && user.name && (
-                        <span className="text-sm text-gray-600">{user.name}</span>
-                      )}
-                    </div>
-                    {isCreator && (
-                      <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
-                    )}
-                  </div>
-                );
-              })
-            }
-            {organizerTeam.filter(obj => {
-              if (!obj.user?._id) return false;
-              const user = obj.user;
-              const displayName = user.username || user.name || '';
-              return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
-            }).length === 0 && organizerSearchTerm && (
-              <div className="text-gray-500 text-center py-4">No organizers found matching "{organizerSearchTerm}"</div>
-            )}
+              }).length === 0 && organizerSearchTerm && (
+                <div className="text-gray-500 text-center py-4">No organizers found matching "{organizerSearchTerm}"</div>
+              )}
+            </div>
+
+            {/* Banned Organizers Section */}
+            <div className="mt-6">
+              <h3 className="text-md font-semibold text-red-700 mb-3">Banned Organizers</h3>
+              {bannedOrganizersLoading ? (
+                <div>Loading banned organizers...</div>
+              ) : bannedOrganizers.length === 0 ? (
+                <div className="text-gray-500">No banned organizers.</div>
+              ) : (
+                bannedOrganizers
+                  .filter(org => {
+                    const displayName = org.username || org.name || '';
+                    return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+                  })
+                  .map((org) => {
+                    const displayName = org.username || org.name || 'User';
+                    const displayText = org.username ? `@${org.username}` : displayName;
+                    return (
+                      <div
+                        key={org._id}
+                        className="bg-red-50 rounded-lg shadow p-3 border border-red-200"
+                      >
+                        <div 
+                          className="flex items-center justify-between cursor-pointer"
+                          onClick={() => navigate(`/organizer/${org._id}`)}
+                        >
+                          <div className="flex items-center flex-1">
+                            <img
+                              src={org.profileImage ? `http://localhost:5000/uploads/Profiles/${org.profileImage}` : '/images/default-profile.jpg'}
+                              alt={displayName}
+                              className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium text-red-800 text-lg">{displayText}</span>
+                              {org.username && org.name && (
+                                <span className="text-sm text-gray-600">{org.name}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            <span className="px-2 py-1 bg-red-500 text-white text-xs rounded font-bold">Banned</span>
+                            {/* Unban button - only available to creator */}
+                            {isCreator && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOrganizer(org);
+                                  setShowUnbanOrganizerConfirm(true);
+                                }}
+                                className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition-colors"
+                                disabled={unbanningOrganizer}
+                              >
+                                Unban
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+              {bannedOrganizers.filter(org => {
+                const displayName = org.username || org.name || '';
+                return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+              }).length === 0 && organizerSearchTerm && bannedOrganizers.length > 0 && (
+                <div className="text-gray-500 text-center py-4">No banned organizers found matching "{organizerSearchTerm}"</div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -724,7 +1020,10 @@ export default function EventDetailsPage() {
         style={{ transition: 'left 0.3s cubic-bezier(0.4,0,0.2,1)' }}
         onClick={() => {
           setShowVolunteers((prev) => {
-            if (!prev) fetchVolunteers();
+            if (!prev) {
+              fetchVolunteers();
+              fetchBannedUsers();
+            }
             return !prev;
           });
         }}
@@ -756,83 +1055,157 @@ export default function EventDetailsPage() {
             />
           </div>
           <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
-            {volunteersLoading ? (
-              <div>Loading volunteers...</div>
-            ) : volunteers.length === 0 ? (
-              <div className="text-gray-500">No volunteers registered.</div>
-            ) : (
-              volunteers
-                .filter(vol => {
-                  const displayName = vol.username || vol.name || '';
-                  return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
-                })
-                .map((vol) => {
-                  const displayName = vol.username || vol.name || 'User';
-                  const displayText = vol.username ? `@${vol.username}` : displayName;
-                  return (
-                    <div
-                      key={vol._id}
-                      className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition hover:bg-green-50"
-                    >
-                      <div 
-                        className="flex items-center flex-1 cursor-pointer"
-                        onClick={() => navigate(`/volunteer/${vol._id}`)}
+            {/* Active Volunteers Section */}
+            <div>
+              <h3 className="text-md font-semibold text-green-700 mb-3">Active Volunteers</h3>
+              {volunteersLoading ? (
+                <div>Loading volunteers...</div>
+              ) : volunteers.length === 0 ? (
+                <div className="text-gray-500">No volunteers registered.</div>
+              ) : (
+                volunteers
+                  .filter(vol => {
+                    const displayName = vol.username || vol.name || '';
+                    return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
+                  })
+                  .map((vol) => {
+                    const displayName = vol.username || vol.name || 'User';
+                    const displayText = vol.username ? `@${vol.username}` : displayName;
+                    return (
+                      <div
+                        key={vol._id}
+                        className="group relative bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition hover:bg-green-50"
                       >
-                        <img
-                          src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
-                          alt={displayName}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-medium text-green-800 text-lg">{displayText}</span>
-                          {vol.username && vol.name && (
-                            <span className="text-sm text-gray-600">{vol.name}</span>
-                          )}
+                        <div 
+                          className="flex items-center flex-1 cursor-pointer"
+                          onClick={() => navigate(`/volunteer/${vol._id}`)}
+                        >
+                          <img
+                            src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
+                            alt={displayName}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-medium text-green-800 text-lg">{displayText}</span>
+                            {vol.username && vol.name && (
+                              <span className="text-sm text-gray-600">{vol.name}</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Action buttons - shown on hover */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
+                          <div className="flex gap-2 justify-center">
+                            {/* Remove button - available to all organizers */}
+                            {(isCreator || isTeamMember) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVolunteer(vol);
+                                  setShowRemoveConfirm(true);
+                                }}
+                                className="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600 transition-colors"
+                                disabled={removingVolunteer}
+                              >
+                                Remove
+                              </button>
+                            )}
+                            
+                            {/* Ban button - only available to creator */}
+                            {isCreator && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVolunteer(vol);
+                                  setShowBanConfirm(true);
+                                }}
+                                className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors"
+                                disabled={banningVolunteer}
+                              >
+                                Ban
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      
-                      {/* Action buttons */}
-                      <div className="flex gap-2 ml-2">
-                        {/* Remove button - available to all organizers */}
-                        {(isCreator || isTeamMember) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedVolunteer(vol);
-                              setShowRemoveConfirm(true);
-                            }}
-                            className="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 transition-colors"
-                            disabled={removingVolunteer}
-                          >
-                            Remove
-                          </button>
-                        )}
-                        
-                        {/* Ban button - only available to creator */}
-                        {isCreator && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedVolunteer(vol);
-                              setShowBanConfirm(true);
-                            }}
-                            className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors"
-                            disabled={banningVolunteer}
-                          >
-                            Ban
-                          </button>
-                        )}
+                    );
+                  })
+              )}
+              {volunteers.filter(vol => {
+                const displayName = vol.username || vol.name || '';
+                return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
+              }).length === 0 && volunteerSearchTerm && volunteers.length > 0 && (
+                <div className="text-gray-500 text-center py-4">No volunteers found matching "{volunteerSearchTerm}"</div>
+              )}
+            </div>
+
+            {/* Banned Volunteers Section */}
+            <div className="mt-6">
+              <h3 className="text-md font-semibold text-red-700 mb-3">Banned Volunteers</h3>
+              {bannedVolunteersLoading ? (
+                <div>Loading banned volunteers...</div>
+              ) : bannedVolunteers.length === 0 ? (
+                <div className="text-gray-500">No banned volunteers.</div>
+              ) : (
+                bannedVolunteers
+                  .filter(vol => {
+                    const displayName = vol.username || vol.name || '';
+                    return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
+                  })
+                  .map((vol) => {
+                    const displayName = vol.username || vol.name || 'User';
+                    const displayText = vol.username ? `@${vol.username}` : displayName;
+                    return (
+                      <div
+                        key={vol._id}
+                        className="bg-red-50 rounded-lg shadow p-3 border border-red-200"
+                      >
+                        <div 
+                          className="flex items-center justify-between cursor-pointer"
+                          onClick={() => navigate(`/volunteer/${vol._id}`)}
+                        >
+                          <div className="flex items-center flex-1">
+                            <img
+                              src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
+                              alt={displayName}
+                              className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium text-red-800 text-lg">{displayText}</span>
+                              {vol.username && vol.name && (
+                                <span className="text-sm text-gray-600">{vol.name}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            <span className="px-2 py-1 bg-red-500 text-white text-xs rounded font-bold">Banned</span>
+                            {/* Unban button - available to all organizers */}
+                            {(isCreator || isTeamMember) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedVolunteer(vol);
+                                  setShowUnbanVolunteerConfirm(true);
+                                }}
+                                className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition-colors"
+                                disabled={unbanningVolunteer}
+                              >
+                                Unban
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-            )}
-            {volunteers.filter(vol => {
-              const displayName = vol.username || vol.name || '';
-              return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
-            }).length === 0 && volunteerSearchTerm && volunteers.length > 0 && (
-              <div className="text-gray-500 text-center py-4">No volunteers found matching "{volunteerSearchTerm}"</div>
-            )}
+                    );
+                  })
+              )}
+              {bannedVolunteers.filter(vol => {
+                const displayName = vol.username || vol.name || '';
+                return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
+              }).length === 0 && volunteerSearchTerm && bannedVolunteers.length > 0 && (
+                <div className="text-gray-500 text-center py-4">No banned volunteers found matching "{volunteerSearchTerm}"</div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1607,6 +1980,138 @@ export default function EventDetailsPage() {
                 disabled={banningVolunteer}
               >
                 {banningVolunteer ? 'Banning...' : 'Ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Organizer Confirmation Modal */}
+      {showRemoveOrganizerConfirm && selectedOrganizer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Remove Organizer
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to remove <strong>{selectedOrganizer.username || selectedOrganizer.name}</strong> from this event? They will be able to join again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRemoveOrganizerConfirm(false);
+                  setSelectedOrganizer(null);
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                disabled={removingOrganizer}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemoveOrganizer(selectedOrganizer._id)}
+                className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
+                disabled={removingOrganizer}
+              >
+                {removingOrganizer ? 'Removing...' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ban Organizer Confirmation Modal */}
+      {showBanOrganizerConfirm && selectedOrganizer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Ban Organizer
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to ban <strong>{selectedOrganizer.username || selectedOrganizer.name}</strong> from this event? They will not be able to join again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBanOrganizerConfirm(false);
+                  setSelectedOrganizer(null);
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                disabled={banningOrganizer}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBanOrganizer(selectedOrganizer._id)}
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+                disabled={banningOrganizer}
+              >
+                {banningOrganizer ? 'Banning...' : 'Ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unban Volunteer Confirmation Modal */}
+      {showUnbanVolunteerConfirm && selectedVolunteer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Unban Volunteer
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to unban <strong>{selectedVolunteer.username || selectedVolunteer.name}</strong> from this event? They will be able to register again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowUnbanVolunteerConfirm(false);
+                  setSelectedVolunteer(null);
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                disabled={unbanningVolunteer}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleUnbanVolunteer(selectedVolunteer._id)}
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                disabled={unbanningVolunteer}
+              >
+                {unbanningVolunteer ? 'Unbanning...' : 'Unban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unban Organizer Confirmation Modal */}
+      {showUnbanOrganizerConfirm && selectedOrganizer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Unban Organizer
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to unban <strong>{selectedOrganizer.username || selectedOrganizer.name}</strong> from this event? They will be able to join again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowUnbanOrganizerConfirm(false);
+                  setSelectedOrganizer(null);
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                disabled={unbanningOrganizer}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleUnbanOrganizer(selectedOrganizer._id)}
+                className="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                disabled={unbanningOrganizer}
+              >
+                {unbanningOrganizer ? 'Unbanning...' : 'Unban'}
               </button>
             </div>
           </div>
