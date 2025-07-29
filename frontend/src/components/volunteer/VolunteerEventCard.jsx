@@ -35,6 +35,10 @@ const VolunteerEventCard = ({ event }) => {
 
   const effectiveEventId = getEffectiveEventId(event._id);
 
+  // Check if user is removed or banned from this event
+  const isRemoved = event?.removedVolunteers?.includes(user?._id);
+  const isBanned = event?.bannedVolunteers?.includes(user?._id);
+
   useEffect(() => {
     const checkRegistrationAndQuestionnaire = async () => {
       if (!effectiveEventId || !user) return;
@@ -322,6 +326,10 @@ const VolunteerEventCard = ({ event }) => {
         {/* Registration button logic: hide/disable if no slots left */}
         {isPastEvent ? (
           <p className="text-red-600 font-semibold mt-4">This event has ended</p>
+        ) : isBanned ? (
+          <p className="text-red-600 font-semibold mt-4">🚫 Banned from this event</p>
+        ) : isRemoved ? (
+          <p className="text-yellow-600 font-semibold mt-4">⚠️ Removed from this event</p>
         ) : isRegistered ? (
           <p className="text-green-700 font-semibold">✅ Registered Successfully</p>
         ) : (availableSlots > 0 || hookUnlimitedVolunteers) && (

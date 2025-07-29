@@ -75,6 +75,14 @@ export default function EventDetailsPage() {
   });
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
+  
+  // Volunteer management states
+  const [removingVolunteer, setRemovingVolunteer] = useState(false);
+  const [banningVolunteer, setBanningVolunteer] = useState(false);
+  const [selectedVolunteer, setSelectedVolunteer] = useState(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showBanConfirm, setShowBanConfirm] = useState(false);
+
   const isCreator = (() => {
     if (!event || !currentUser) return false;
 
@@ -136,12 +144,27 @@ export default function EventDetailsPage() {
       // Join event-specific rooms for real-time updates
       if (event?._id) {
         socket.emit('joinEventSlotsRoom', event._id);
+        socket.emit('join', `event_${event._id}`);
+      }
+    });
+
+    // Listen for volunteer removal/ban events
+    socket.on('volunteerRemoved', ({ volunteerId, eventId }) => {
+      if (eventId === event?._id) {
+        setVolunteers(prev => prev.filter(v => v._id !== volunteerId));
+      }
+    });
+
+    socket.on('volunteerBanned', ({ volunteerId, eventId }) => {
+      if (eventId === event?._id) {
+        setVolunteers(prev => prev.filter(v => v._id !== volunteerId));
       }
     });
     
     return () => {
       if (event?._id) {
         socket.emit('leaveEventSlotsRoom', event._id);
+        socket.emit('leave', `event_${event._id}`);
       }
       socket.disconnect();
     };
@@ -547,6 +570,54 @@ export default function EventDetailsPage() {
     }
   }, [event?._id]);
 
+  // Handle volunteer removal
+  const handleRemoveVolunteer = async (volunteerId) => {
+    if (!event?._id) return;
+    
+    setRemovingVolunteer(true);
+    try {
+      await axiosInstance.post(`/api/events/${event._id}/remove-volunteer`, {
+        volunteerId: volunteerId
+      });
+      
+      // Remove from local state
+      setVolunteers(prev => prev.filter(v => v._id !== volunteerId));
+      setShowRemoveConfirm(false);
+      setSelectedVolunteer(null);
+      
+      alert('Volunteer removed successfully!');
+    } catch (err) {
+      console.error('Failed to remove volunteer:', err);
+      alert(err.response?.data?.message || 'Failed to remove volunteer');
+    } finally {
+      setRemovingVolunteer(false);
+    }
+  };
+
+  // Handle volunteer ban
+  const handleBanVolunteer = async (volunteerId) => {
+    if (!event?._id) return;
+    
+    setBanningVolunteer(true);
+    try {
+      await axiosInstance.post(`/api/events/${event._id}/ban-volunteer`, {
+        volunteerId: volunteerId
+      });
+      
+      // Remove from local state
+      setVolunteers(prev => prev.filter(v => v._id !== volunteerId));
+      setShowBanConfirm(false);
+      setSelectedVolunteer(null);
+      
+      alert('Volunteer banned successfully!');
+    } catch (err) {
+      console.error('Failed to ban volunteer:', err);
+      alert(err.response?.data?.message || 'Failed to ban volunteer');
+    } finally {
+      setBanningVolunteer(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -701,18 +772,55 @@ export default function EventDetailsPage() {
                   return (
                     <div
                       key={vol._id}
-                      className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50"
-                      onClick={() => navigate(`/volunteer/${vol._id}`)}
+                      className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition hover:bg-green-50"
                     >
-                      <img
-                        src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
-                        alt={displayName}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-medium text-green-800 text-lg">{displayText}</span>
-                        {vol.username && vol.name && (
-                          <span className="text-sm text-gray-600">{vol.name}</span>
+                      <div 
+                        className="flex items-center flex-1 cursor-pointer"
+                        onClick={() => navigate(`/volunteer/${vol._id}`)}
+                      >
+                        <img
+                          src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
+                          alt={displayName}
+                          className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-medium text-green-800 text-lg">{displayText}</span>
+                          {vol.username && vol.name && (
+                            <span className="text-sm text-gray-600">{vol.name}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-2 ml-2">
+                        {/* Remove button - available to all organizers */}
+                        {(isCreator || isTeamMember) && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedVolunteer(vol);
+                              setShowRemoveConfirm(true);
+                            }}
+                            className="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 transition-colors"
+                            disabled={removingVolunteer}
+                          >
+                            Remove
+                          </button>
+                        )}
+                        
+                        {/* Ban button - only available to creator */}
+                        {isCreator && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedVolunteer(vol);
+                              setShowBanConfirm(true);
+                            }}
+                            className="bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors"
+                            disabled={banningVolunteer}
+                          >
+                            Ban
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1438,6 +1546,72 @@ export default function EventDetailsPage() {
         volunteerParticipants={volunteerParticipants}
         organizerParticipants={organizerParticipants}
       />
+
+      {/* Remove Volunteer Confirmation Modal */}
+      {showRemoveConfirm && selectedVolunteer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Remove Volunteer
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to remove <strong>{selectedVolunteer.username || selectedVolunteer.name}</strong> from this event? They will be able to register again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRemoveConfirm(false);
+                  setSelectedVolunteer(null);
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                disabled={removingVolunteer}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemoveVolunteer(selectedVolunteer._id)}
+                className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
+                disabled={removingVolunteer}
+              >
+                {removingVolunteer ? 'Removing...' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ban Volunteer Confirmation Modal */}
+      {showBanConfirm && selectedVolunteer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Ban Volunteer
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to ban <strong>{selectedVolunteer.username || selectedVolunteer.name}</strong> from this event? They will not be able to register again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBanConfirm(false);
+                  setSelectedVolunteer(null);
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 transition-colors"
+                disabled={banningVolunteer}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBanVolunteer(selectedVolunteer._id)}
+                className="flex-1 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors"
+                disabled={banningVolunteer}
+              >
+                {banningVolunteer ? 'Banning...' : 'Ban'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
