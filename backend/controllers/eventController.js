@@ -1,6 +1,7 @@
 //backend/controllers/eventController.js
 
 const Event = require('../models/event');
+const RecurringEventSeries = require('../models/recurringEventSeries');
 const mongoose = require('mongoose');
 const fs = require("fs");
 const path = require("path");
@@ -8,6 +9,13 @@ const Organization = require("../models/organization");
 const axios = require('axios');
 const User = require('../models/user');
 const { generateCertificate } = require('../utils/certificateGenerator');
+const { 
+  calculateNextRecurringDate, 
+  createRecurringEventInstance,
+  shouldCreateNextInstance,
+  updateSeriesStatistics,
+  getSeriesByEventId
+} = require('../utils/recurringEventUtils');
 
 // Create new event
 exports.createEvent = async (req, res) => {
@@ -95,6 +103,65 @@ exports.createEvent = async (req, res) => {
 
     const event = new Event(eventData);
     await event.save();
+
+    // If this is a recurring event, create the series
+    if (recurringEvent === 'true') {
+      try {
+        // Calculate next recurring date
+        const nextRecurringDate = calculateNextRecurringDate(
+          new Date(startDateTime), 
+          recurringType, 
+          recurringValue
+        );
+
+        // Create recurring event series
+        const seriesData = {
+          title,
+          description,
+          location,
+          mapLocation: {
+            address: mapLocation.address,
+            lat: parseFloat(mapLocation.lat) || null,
+            lng: parseFloat(mapLocation.lng) || null,
+          },
+          recurringType,
+          recurringValue,
+          createdBy: req.user._id,
+          organization,
+          startDate: new Date(startDateTime),
+          eventType,
+          maxVolunteers: unlimitedVolunteers === 'true' ? -1 : parseInt(maxVolunteers),
+          unlimitedVolunteers: unlimitedVolunteers === 'true',
+          instructions,
+          groupRegistration: groupRegistration === 'true',
+          equipmentNeeded: equipmentArray,
+          eventImages: images,
+          govtApprovalLetter: approvalLetter,
+          organizerTeam: [{ user: req.user._id, role: 'creator' }],
+          waterProvided: waterProvided === 'true',
+          medicalSupport: medicalSupport === 'true',
+          ageGroup: ageGroup || null,
+          precautions: precautions || "",
+          publicTransport: publicTransport || "",
+          contactPerson: contactPerson || "",
+        };
+
+        const series = new RecurringEventSeries(seriesData);
+        await series.save();
+
+        // Update the event with series reference
+        event.recurringSeriesId = series._id;
+        event.recurringInstanceNumber = 1;
+        event.isRecurringInstance = true;
+        event.nextRecurringDate = nextRecurringDate;
+        await event.save();
+
+        console.log(`✅ Recurring event series created: ${series._id}`);
+      } catch (seriesError) {
+        console.error('❌ Failed to create recurring series:', seriesError);
+        // Don't fail the event creation if series creation fails
+      }
+    }
 
     // Respond immediately
     res.status(201).json(event);
@@ -1072,5 +1139,111 @@ exports.banVolunteer = async (req, res) => {
   } catch (err) {
     console.error('Error in banVolunteer:', err);
     res.status(500).json({ message: 'Failed to ban volunteer', error: err.message });
+  }
+};
+
+// Handle event completion and create next recurring instance if needed
+exports.handleEventCompletion = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const userId = req.user._id;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    // Check if user is authorized (creator or organizer team member)
+    const isCreator = event.createdBy.toString() === userId.toString();
+    const isOrganizerTeamMember = event.organizerTeam && event.organizerTeam.some(team => 
+      team.user && team.user.toString() === userId.toString()
+    );
+    
+    if (!isCreator && !isOrganizerTeamMember) {
+      return res.status(403).json({ success: false, message: 'Not authorized to complete this event' });
+    }
+
+    // Check if event has ended
+    const now = new Date();
+    if (new Date(event.endDateTime) > now) {
+      return res.status(400).json({ success: false, message: 'Event has not ended yet' });
+    }
+
+    // If this is a recurring event, handle next instance creation
+    if (event.recurringEvent && event.recurringSeriesId) {
+      try {
+        const series = await RecurringEventSeries.findById(event.recurringSeriesId);
+        if (!series) {
+          return res.status(404).json({ success: false, message: 'Recurring series not found' });
+        }
+
+        // Check if we should create the next instance
+        if (shouldCreateNextInstance(series, event)) {
+          // Calculate next date
+          const nextStartDate = calculateNextRecurringDate(
+            event.startDateTime,
+            series.recurringType,
+            series.recurringValue
+          );
+
+          const duration = new Date(event.endDateTime) - new Date(event.startDateTime);
+          const nextEndDate = new Date(nextStartDate.getTime() + duration);
+
+          // Create new instance
+          const newInstanceNumber = event.recurringInstanceNumber + 1;
+          const newEvent = await createRecurringEventInstance(
+            series, 
+            newInstanceNumber, 
+            nextStartDate, 
+            nextEndDate, 
+            Event
+          );
+
+          // Update series
+          series.totalInstancesCreated = newInstanceNumber;
+          series.currentInstanceNumber = newInstanceNumber;
+          await series.save();
+
+          // Update statistics
+          await updateSeriesStatistics(series, RecurringEventSeries);
+
+          console.log(`✅ Next recurring instance created: ${newEvent._id}`);
+
+          res.status(200).json({
+            success: true,
+            message: `Event completed and next instance created successfully`,
+            nextInstance: newEvent
+          });
+        } else {
+          // Series is completed or paused
+          res.status(200).json({
+            success: true,
+            message: 'Event completed. No next instance created (series completed or paused)',
+            seriesStatus: series.status
+          });
+        }
+      } catch (seriesError) {
+        console.error('❌ Error handling recurring event completion:', seriesError);
+        res.status(500).json({ 
+          success: false, 
+          message: 'Event completed but failed to handle recurring logic',
+          error: seriesError.message 
+        });
+      }
+    } else {
+      // Non-recurring event
+      res.status(200).json({
+        success: true,
+        message: 'Event completed successfully'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error in handleEventCompletion:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to handle event completion',
+      error: error.message 
+    });
   }
 };

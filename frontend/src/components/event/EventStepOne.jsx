@@ -217,6 +217,10 @@ export default function EventStepOne({
 
       {formData.recurringEvent && (
         <Box mt={2}>
+          <Typography variant="subtitle2" color="primary" gutterBottom>
+            Recurring Event Settings
+          </Typography>
+          
           <FormControl fullWidth margin="normal">
             <InputLabel>Recurring Type</InputLabel>
             <Select name="recurringType" value={formData.recurringType} onChange={handleChange} label="Recurring Type">
@@ -247,8 +251,41 @@ export default function EventStepOne({
               label="Day of the Month (e.g. 1 for 1st)"
               value={formData.recurringValue}
               onChange={handleChange}
+              inputProps={{ min: 1, max: 31 }}
             />
           )}
+
+          <TextField
+            fullWidth
+            margin="normal"
+            type="date"
+            name="recurringEndDate"
+            label="Series End Date (Optional)"
+            value={formData.recurringEndDate}
+            onChange={handleChange}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: new Date().toISOString().split('T')[0] }}
+          />
+
+          <TextField
+            fullWidth
+            margin="normal"
+            type="number"
+            name="recurringMaxInstances"
+            label="Maximum Instances (Optional)"
+            value={formData.recurringMaxInstances}
+            onChange={handleChange}
+            inputProps={{ min: 1, max: 100 }}
+            helperText="Leave empty for unlimited instances"
+          />
+
+          <Box mt={2} p={2} bgcolor="grey.50" borderRadius={1}>
+            <Typography variant="body2" color="textSecondary">
+              <strong>How it works:</strong> When this event completes, a new instance will be automatically created 
+              with the same details but on the next scheduled date. Each instance will have independent volunteer 
+              registrations, but the organizer team will remain the same.
+            </Typography>
+          </Box>
         </Box>
       )}
 

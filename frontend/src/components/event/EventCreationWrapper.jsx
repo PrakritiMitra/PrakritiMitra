@@ -40,6 +40,8 @@ export default function EventCreationWrapper({
       recurringEvent: false,
       recurringType: "",
       recurringValue: "",
+      recurringEndDate: "",
+      recurringMaxInstances: "",
       organization: selectedOrgId || "",
       eventImages: [],
       govtApprovalLetter: null,

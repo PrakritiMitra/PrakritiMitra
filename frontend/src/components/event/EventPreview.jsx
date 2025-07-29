@@ -80,6 +80,12 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
         {displayListItem("Event Type", formData.eventType)}
         {displayListItem("Group Registration", formData.groupRegistration ? "Enabled" : "Disabled")}
         {displayListItem("Recurring Event", formData.recurringEvent ? `Yes (${formData.recurringType} - ${formData.recurringValue})` : "No")}
+        {formData.recurringEvent && (
+          <>
+            {displayListItem("Series End Date", formData.recurringEndDate || "No end date")}
+            {displayListItem("Max Instances", formData.recurringMaxInstances || "Unlimited")}
+          </>
+        )}
         {displayListItem("Other Equipment", formData.otherEquipment)}
         {displayListItem("Instructions", formData.instructions)}
         <ListItem>

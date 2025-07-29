@@ -16,6 +16,7 @@ import { checkReportEligibility, generateEventReport } from "../utils/reportUtil
 import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../utils/calendarUtils";
 import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
 import calendarEventEmitter from "../utils/calendarEventEmitter";
+import { completeEvent } from "../api/recurringEvents";
 
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
@@ -82,6 +83,11 @@ export default function EventDetailsPage() {
   const [selectedVolunteer, setSelectedVolunteer] = useState(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
+  
+  // Recurring event states
+  const [completingEvent, setCompletingEvent] = useState(false);
+  const [completionError, setCompletionError] = useState("");
+  const [completionSuccess, setCompletionSuccess] = useState("");
 
   const isCreator = (() => {
     if (!event || !currentUser) return false;
@@ -618,6 +624,43 @@ export default function EventDetailsPage() {
     }
   };
 
+  // Handle event completion for recurring events
+  const handleCompleteEvent = async () => {
+    if (!event?._id) return;
+    
+    if (!window.confirm("Are you sure you want to complete this event? This will create the next instance if it's a recurring event.")) {
+      return;
+    }
+
+    try {
+      setCompletingEvent(true);
+      setCompletionError("");
+      setCompletionSuccess("");
+
+      const response = await completeEvent(event._id);
+      
+      if (response.success) {
+        setCompletionSuccess(response.message);
+        // Refresh event data
+        await fetchAndSetEvent();
+        
+        // If next instance was created, show info
+        if (response.nextInstance) {
+          setTimeout(() => {
+            alert(`Event completed successfully! Next instance created: ${response.nextInstance.title}`);
+          }, 1000);
+        }
+      } else {
+        setCompletionError(response.message || "Failed to complete event");
+      }
+    } catch (error) {
+      console.error("Error completing event:", error);
+      setCompletionError("Failed to complete event");
+    } finally {
+      setCompletingEvent(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -954,9 +997,48 @@ export default function EventDetailsPage() {
           </button>
         )}
         {joinError && <p className="text-red-600 mb-2">{joinError}</p>}
+        
+        {/* Recurring Event Completion */}
+        {event.recurringEvent && isPastEvent && (isCreator || isTeamMember) && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">Complete Event</h3>
+            <p className="text-blue-700 mb-3">
+              This event has ended. Complete it to create the next instance in the series.
+            </p>
+            <button
+              onClick={handleCompleteEvent}
+              disabled={completingEvent}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {completingEvent ? "Completing..." : "Complete Event & Create Next Instance"}
+            </button>
+            {completionError && <p className="text-red-600 mt-2">{completionError}</p>}
+            {completionSuccess && <p className="text-green-600 mt-2">{completionSuccess}</p>}
+          </div>
+        )}
+        
         {/* Remove joinSuccess message; rely on status UI only */}
         <div className="flex justify-between items-start mb-3">
-          <h1 className="text-3xl font-bold text-blue-800">{event.title}</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-blue-800">
+              {event.title}
+              {event.isRecurringInstance && (
+                <span className="ml-3 text-lg bg-blue-100 text-blue-700 px-3 py-1 rounded">
+                  Instance #{event.recurringInstanceNumber}
+                </span>
+              )}
+            </h1>
+            {event.recurringEvent && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded">
+                  Recurring Event
+                </span>
+                <span className="text-sm text-gray-600">
+                  {event.recurringType} - {event.recurringValue}
+                </span>
+              </div>
+            )}
+          </div>
           
           {/* Add to Calendar Button */}
           <div className="relative">

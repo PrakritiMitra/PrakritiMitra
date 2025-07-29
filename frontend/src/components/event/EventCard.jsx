@@ -67,6 +67,11 @@ export default function EventCard({ event }) {
   )}`;
 
   const eventImage = defaultImages[eventType?.toLowerCase()] || defaultImages["default"];
+  
+  // Recurring event indicators
+  const isRecurringInstance = event.isRecurringInstance;
+  const recurringInstanceNumber = event.recurringInstanceNumber;
+  const recurringPattern = event.recurringEvent ? `${event.recurringType} - ${event.recurringValue}` : null;
   let cityState = location?.split(",").slice(-2).join(", ").trim();
 
   const [organizerTeam, setOrganizerTeam] = useState([]);
@@ -275,8 +280,20 @@ export default function EventCard({ event }) {
             className="w-full h-32 object-cover"
           />
           <div className="p-3">
-            <h3 className="text-base font-semibold text-gray-800 mb-1 line-clamp-1">{title}</h3>
+            <h3 className="text-base font-semibold text-gray-800 mb-1 line-clamp-1">
+              {title}
+              {isRecurringInstance && (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                  #{recurringInstanceNumber}
+                </span>
+              )}
+            </h3>
             <p className="text-xs text-gray-600 mb-1 capitalize">{eventType}</p>
+            {recurringPattern && (
+              <p className="text-xs text-blue-600 mb-1">
+                <span className="font-medium">Recurring:</span> {recurringPattern}
+              </p>
+            )}
             <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Org:</span> {organization?.name || "Unknown"}</p>
             <p className="text-xs text-gray-600 line-clamp-2 mb-2">{description}</p>
             <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Date:</span> {formattedDate}</p>
