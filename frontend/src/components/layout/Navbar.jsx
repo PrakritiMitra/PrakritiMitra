@@ -351,6 +351,20 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {/* Recurring Series link for organizers */}
+              {user?.role === "organizer" && (
+                <Link
+                  to="/recurring-series"
+                  className={`font-medium text-sm ${
+                    isActive("/recurring-series")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Recurring Series
+                </Link>
+              )}
+
               {user?.role === "volunteer" && (
                 <Link
                   to="/volunteer/my-events"

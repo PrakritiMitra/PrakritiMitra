@@ -25,6 +25,8 @@ import OrganizationPublicPage from "./pages/OrganizationPublicPage";
 import VolunteerMyEvents from "./pages/VolunteerMyEvents";
 import ResourceCenter from "./pages/ResourceCenter";
 import CreateEventPage from "./pages/CreateEventPage";
+import RecurringSeriesPage from "./pages/RecurringSeriesPage";
+import SeriesDetailsPage from "./pages/SeriesDetailsPage";
 import React, { useState } from "react";
 import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
@@ -277,6 +279,22 @@ function App() {
             element={
               <PrivateRoute>
                 <CreateEventPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/recurring-series"
+            element={
+              <PrivateRoute>
+                <RecurringSeriesPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/recurring-series/:seriesId"
+            element={
+              <PrivateRoute>
+                <SeriesDetailsPage />
               </PrivateRoute>
             }
           />

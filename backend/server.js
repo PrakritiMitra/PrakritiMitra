@@ -19,6 +19,7 @@ const aiSummaryRoutes = require('./routes/aiSummaryRoutes');
 const faqRoutes = require('./routes/faqRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
+const recurringEventRoutes = require('./routes/recurringEventRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -71,6 +72,7 @@ app.use('/api/ai-summary', aiSummaryRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/calendar', calendarRoutes);
+app.use('/api/recurring-events', recurringEventRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);

@@ -698,7 +698,26 @@ export default function VolunteerEventDetailsPage() {
 
           <div className="p-6">
             <div className="flex justify-between items-start mb-4">
-              <h1 className="text-3xl font-bold text-blue-800">{event.title}</h1>
+              <div>
+                <h1 className="text-3xl font-bold text-blue-800">
+                  {event.title}
+                  {event.isRecurringInstance && (
+                    <span className="ml-3 text-lg bg-blue-100 text-blue-700 px-3 py-1 rounded">
+                      Instance #{event.recurringInstanceNumber}
+                    </span>
+                  )}
+                </h1>
+                {event.recurringEvent && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded">
+                      Recurring Event
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      {event.recurringType} - {event.recurringValue}
+                    </span>
+                  </div>
+                )}
+              </div>
               
               {/* Add to Calendar Button */}
               <div className="relative">

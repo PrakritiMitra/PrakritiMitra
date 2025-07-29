@@ -306,8 +306,20 @@ const VolunteerEventCard = ({ event }) => {
       )}
       <img src={eventImage} alt={eventType} className="w-full h-40 object-cover" />
       <div className="p-4">
-        <h3 className="text-lg font-bold text-blue-800 mb-1">{title}</h3>
+        <h3 className="text-lg font-bold text-blue-800 mb-1">
+          {title}
+          {event.isRecurringInstance && (
+            <span className="ml-2 text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded">
+              #{event.recurringInstanceNumber}
+            </span>
+          )}
+        </h3>
         <p className="text-sm text-gray-800 mb-1">{eventType}</p>
+        {event.recurringEvent && (
+          <p className="text-sm text-blue-600 mb-1">
+            <span className="font-medium">Recurring:</span> {event.recurringType} - {event.recurringValue}
+          </p>
+        )}
         <p className="text-sm text-gray-800 mb-1">
           <strong>Organization:</strong> {typeof organization === 'object' && organization?.name ? organization.name : typeof organization === 'string' ? organization : 'Unknown Org'}
         </p>

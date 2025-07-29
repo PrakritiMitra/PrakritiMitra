@@ -91,6 +91,44 @@ const eventSchema = new mongoose.Schema({
     type: String, // e.g. "Monday" or "1"
   },
 
+  // NEW FIELDS FOR IMPROVED RECURRING EVENTS
+  recurringSeriesId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RecurringEventSeries',
+    default: null,
+  },
+
+  recurringInstanceNumber: {
+    type: Number,
+    default: null, // 1, 2, 3, etc.
+  },
+
+  isRecurringInstance: {
+    type: Boolean,
+    default: false,
+  },
+
+  nextRecurringDate: {
+    type: Date,
+    default: null, // When the next instance should be created
+  },
+
+  recurringEndDate: {
+    type: Date,
+    default: null, // When the series should end
+  },
+
+  recurringMaxInstances: {
+    type: Number,
+    default: null, // Maximum number of instances to create
+  },
+
+  recurringStatus: {
+    type: String,
+    enum: ['active', 'paused', 'completed', 'cancelled'],
+    default: 'active',
+  },
+
   equipmentNeeded: {
     type: [String],
     default: [],

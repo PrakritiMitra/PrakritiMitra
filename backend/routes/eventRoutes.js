@@ -76,6 +76,9 @@ router.delete('/:id', protect, eventController.deleteEvent);
 // Complete questionnaire for an event
 router.post('/:id/complete-questionnaire', protect, requireOrganizer, completedEventUpload.array('media', 10), eventController.completeQuestionnaire);
 
+// Handle event completion and create next recurring instance if needed
+router.post('/:eventId/complete', protect, eventController.handleEventCompletion);
+
 // @route   GET /api/events/organization/:orgId
 router.get('/organization/:orgId', eventController.getEventsByOrganization);
 
