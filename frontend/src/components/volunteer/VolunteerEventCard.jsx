@@ -7,12 +7,33 @@ import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/axiosInstance";
 import useEventSlots from '../../hooks/useEventSlots';
 import { isEventPast, getRegistrationWithQuestionnaireStatus } from '../../utils/questionnaireUtils';
+import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../../utils/calendarUtils";
+import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
+import calendarEventEmitter from "../../utils/calendarEventEmitter";
 
 const VolunteerEventCard = ({ event }) => {
   const navigate = useNavigate();
   const [isRegistered, setIsRegistered] = useState(false);
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+  const [calendarStatus, setCalendarStatus] = useState({
+    isRegistered: false,
+    isInCalendar: false,
+    canAddToCalendar: false,
+    canRemoveFromCalendar: false
+  });
   const user = JSON.parse(localStorage.getItem("user"));
+
+  // Handle recurring event instances - use original event ID for API calls
+  const getEffectiveEventId = (id) => {
+    // If it's a recurring instance ID (contains '_recurring_'), extract the original event ID
+    if (id && id.includes('_recurring_')) {
+      return id.split('_recurring_')[0];
+    }
+    return id;
+  };
+
+  const effectiveEventId = getEffectiveEventId(event._id);
 
   // Check if user is removed or banned from this event
   const isRemoved = event?.removedVolunteers?.includes(user?._id);
@@ -20,18 +41,18 @@ const VolunteerEventCard = ({ event }) => {
 
   useEffect(() => {
     const checkRegistrationAndQuestionnaire = async () => {
-      if (!event?._id || !user) return;
+      if (!effectiveEventId || !user) return;
       
       try {
         // Check if user is registered
-        const registrationCheck = await axiosInstance.get(`/api/registrations/${event._id}/check`);
+        const registrationCheck = await axiosInstance.get(`/api/registrations/${effectiveEventId}/check`);
         
         if (registrationCheck.data.registered) {
           setIsRegistered(true);
           
           // If registered and event is past, check questionnaire status
           if (isEventPast(event.endDateTime)) {
-            const { questionnaireCompleted } = await getRegistrationWithQuestionnaireStatus(event._id);
+            const { questionnaireCompleted } = await getRegistrationWithQuestionnaireStatus(effectiveEventId);
             setQuestionnaireCompleted(questionnaireCompleted);
           } else {
             setQuestionnaireCompleted(false);
@@ -42,7 +63,7 @@ const VolunteerEventCard = ({ event }) => {
           
           // Remove from localStorage if not registered
           const registeredEvents = JSON.parse(localStorage.getItem("registeredEvents") || "[]");
-          const idx = registeredEvents.indexOf(event._id);
+          const idx = registeredEvents.indexOf(effectiveEventId);
           if (idx !== -1) {
             registeredEvents.splice(idx, 1);
             localStorage.setItem("registeredEvents", JSON.stringify(registeredEvents));
@@ -56,7 +77,42 @@ const VolunteerEventCard = ({ event }) => {
     };
     
     checkRegistrationAndQuestionnaire();
-  }, [event._id, user, event.endDateTime]);
+  }, [effectiveEventId, user, event.endDateTime]);
+
+  // Check calendar status
+  useEffect(() => {
+    const checkCalendarStatus = async () => {
+      if (!user?._id || !effectiveEventId) return;
+      
+      try {
+        const result = await checkWebsiteCalendarStatus(effectiveEventId);
+        if (result.success) {
+          setCalendarStatus(result.data);
+        }
+      } catch (error) {
+        console.error('Error checking calendar status:', error);
+      }
+    };
+    checkCalendarStatus();
+  }, [effectiveEventId, user?._id]);
+
+  // Close calendar options when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Check if click is outside the calendar button and dropdown
+      const calendarButton = event.target.closest('[data-calendar-button]');
+      const calendarDropdown = event.target.closest('[data-calendar-dropdown]');
+      
+      if (showCalendarOptions && !calendarButton && !calendarDropdown) {
+        setShowCalendarOptions(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showCalendarOptions]);
 
   const {
     _id,
@@ -73,7 +129,7 @@ const VolunteerEventCard = ({ event }) => {
   } = event;
 
   // Use the new hook for live slot info
-  const { availableSlots, maxVolunteers: hookMaxVolunteers, unlimitedVolunteers: hookUnlimitedVolunteers, loading: slotsLoading } = useEventSlots(_id);
+  const { availableSlots, maxVolunteers: hookMaxVolunteers, unlimitedVolunteers: hookUnlimitedVolunteers, loading: slotsLoading } = useEventSlots(effectiveEventId);
 
   // User-friendly slot message with color
   let slotMessage = '';
@@ -116,14 +172,120 @@ const VolunteerEventCard = ({ event }) => {
 
   const handleRegister = (e) => {
     e.stopPropagation(); // prevent card navigation
-    navigate(`/volunteer/events/${_id}`);
+            navigate(`/volunteer/events/${effectiveEventId}`);
+  };
+
+  // Calendar functions
+  const handleAddToCalendar = (e) => {
+    e.stopPropagation(); // prevent card navigation
+    const result = addEventToCalendar(event);
+    if (result.success) {
+      console.log(result.message);
+    } else {
+      console.error(result.message);
+    }
+  };
+
+  const handleDownloadCalendar = (e) => {
+    e.stopPropagation(); // prevent card navigation
+    const result = downloadCalendarFile(event);
+    if (result.success) {
+      console.log(result.message);
+    } else {
+      console.error(result.message);
+    }
+  };
+
+  const handleAddToWebsiteCalendar = async (e) => {
+    e.stopPropagation(); // prevent card navigation
+    try {
+      const result = await addToWebsiteCalendar(event._id);
+      if (result.success) {
+        const statusResult = await checkWebsiteCalendarStatus(event._id);
+        if (statusResult.success) setCalendarStatus(statusResult.data);
+        console.log(result.message);
+      } else { console.error(result.message); }
+    } catch (error) { console.error('Error adding to website calendar:', error); }
+  };
+
+  const handleRemoveFromWebsiteCalendar = async (e) => {
+    e.stopPropagation(); // prevent card navigation
+    try {
+      const result = await removeFromWebsiteCalendar(event._id);
+      if (result.success) {
+        const statusResult = await checkWebsiteCalendarStatus(event._id);
+        if (statusResult.success) setCalendarStatus(statusResult.data);
+        console.log(result.message);
+      } else { console.error(result.message); }
+    } catch (error) { console.error('Error removing from website calendar:', error); }
   };
 
   return (
     <div
       className="bg-white border rounded-lg shadow hover:shadow-md transition overflow-hidden cursor-pointer relative"
-      onClick={() => navigate(`/volunteer/events/${_id}`)}
+                      onClick={() => navigate(`/volunteer/events/${effectiveEventId}`)}
     >
+      {/* Add to Calendar Button */}
+      <div className="absolute bottom-2 right-2 z-10">
+        <button
+          data-calendar-button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowCalendarOptions(!showCalendarOptions);
+          }}
+          className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+          title="Add to Calendar"
+        >
+          <FaCalendarPlus className="w-4 h-4" />
+        </button>
+        
+        {/* Calendar Options Dropdown */}
+        {showCalendarOptions && (
+          <div data-calendar-dropdown className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[220px] z-50">
+            {/* Website Calendar Options */}
+            {calendarStatus.canAddToCalendar && (
+              <button
+                onClick={handleAddToWebsiteCalendar}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+              >
+                <FaCalendarPlus className="w-4 h-4" />
+                Add to Website Calendar
+              </button>
+            )}
+            {calendarStatus.canRemoveFromCalendar && (
+              <button
+                onClick={handleRemoveFromWebsiteCalendar}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+              >
+                <FaCalendarMinus className="w-4 h-4" />
+                Remove from Website Calendar
+              </button>
+            )}
+            {calendarStatus.isRegistered && (
+              <div className="px-3 py-2 text-sm text-gray-500 italic">
+                Registered events are automatically in calendar
+              </div>
+            )}
+            
+            {/* External Calendar Options */}
+            <div className="border-t border-gray-200 my-1"></div>
+            <button
+              onClick={handleAddToCalendar}
+              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+            >
+              <FaCalendarPlus className="w-4 h-4" />
+              Add to Google Calendar
+            </button>
+            <button
+              onClick={handleDownloadCalendar}
+              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+            >
+              <FaCalendarPlus className="w-4 h-4" />
+              Download .ics File
+            </button>
+          </div>
+        )}
+      </div>
       {/* LIVE badge */}
       {isLiveEvent && (
         <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-10 animate-pulse">

@@ -5,6 +5,7 @@ import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import EventForm from "../components/event/EventStepOne";
 import EventCard from "../components/event/EventCard";
+import SimpleEventCalendar from "../components/calendar/SimpleEventCalendar";
 import Footer from "../components/layout/Footer";
 
 export default function OrganizerDashboard() {
@@ -80,89 +81,82 @@ export default function OrganizerDashboard() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <div className="pt-24 px-6 max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Organizer Dashboard</h1>
-
-        {user ? (
-          <div className="space-y-4">
-            <div>
-              <p><strong>Name:</strong> {user.name}</p>
-              <p><strong>Username:</strong> {user.username ? `@${user.username}` : 'Not set'}</p>
-              <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>Role:</strong> {user.role}</p>
+      {/* Main Content with Calendar Sidebar */}
+      <div className="pt-16 px-1 w-full">
+        <div className="flex flex-col lg:flex-row gap-3">
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Events Section */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-3 text-gray-800">Upcoming Events</h2>
+              {loadingEvents ? (
+                <p>Loading events...</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {upcoming.slice(0, upcomingVisible).map(event => (
+                      <EventCard key={event._id} event={event} />
+                    ))}
+                  </div>
+                  {upcoming.length > upcomingVisible && (
+                    <div className="flex justify-center mt-4">
+                      <button
+                        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        onClick={() => setUpcomingVisible(v => v + 4)}
+                      >
+                        See More
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
-            <Link
-              to="/join-organization"
-              className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Explore & Join Organizations
-            </Link>
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-3 text-gray-800">Past Events</h2>
+              {loadingEvents ? (
+                <p>Loading events...</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+                    {past.slice(0, pastVisible).map(event => (
+                      <EventCard key={event._id} event={event} />
+                    ))}
+                  </div>
+                  {past.length > pastVisible && (
+                    <div className="flex justify-center mt-4">
+                      <button
+                        className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                        onClick={() => setPastVisible(v => v + 4)}
+                      >
+                        See More
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
 
-            {organizations.length === 0 && !loadingOrgs && (
-              <p className="text-sm text-red-500">
-                You must be an approved member of an organization to create events.
-              </p>
+          {/* Calendar Sidebar */}
+          <div className="lg:w-96 lg:flex-shrink-0">
+            {user && (
+              <div className="sticky top-20">
+                <SimpleEventCalendar 
+                  role="organizer" 
+                  userId={user._id} 
+                />
+              </div>
             )}
           </div>
-        ) : (
-          <p>Loading user data...</p>
-        )}
+        </div>
       </div>
 
-      {/* Events Section */}
-      <div className="pt-24 px-6 max-w-7xl mx-auto">
-        <h2 className="text-xl font-semibold mb-2">Upcoming Events</h2>
-        {loadingEvents ? (
-          <p>Loading events...</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              {upcoming.slice(0, upcomingVisible).map(event => (
-                <EventCard key={event._id} event={event} />
-              ))}
-            </div>
-            {upcoming.length > upcomingVisible && (
-              <div className="flex justify-center mt-4">
-                <button
-                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                  onClick={() => setUpcomingVisible(v => v + 4)}
-                >
-                  See More
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-      <div className="pt-24 px-6 max-w-7xl mx-auto">
-        <h2 className="text-xl font-semibold mb-2">Past Events</h2>
-        {loadingEvents ? (
-          <p>Loading events...</p>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-              {past.slice(0, pastVisible).map(event => (
-                <EventCard key={event._id} event={event} />
-              ))}
-            </div>
-            {past.length > pastVisible && (
-              <div className="flex justify-center mt-4">
-                <button
-                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-                  onClick={() => setPastVisible(v => v + 4)}
-                >
-                  See More
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+
 
       {/* Event Form Modal */}
       {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-60">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-xl relative">
             <button
               className="absolute top-2 right-3 text-xl text-gray-500 hover:text-red-600"

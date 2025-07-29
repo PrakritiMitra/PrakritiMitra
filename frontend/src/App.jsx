@@ -24,6 +24,7 @@ import EventAttendancePage from './pages/EventAttendancePage';
 import OrganizationPublicPage from "./pages/OrganizationPublicPage";
 import VolunteerMyEvents from "./pages/VolunteerMyEvents";
 import ResourceCenter from "./pages/ResourceCenter";
+import CreateEventPage from "./pages/CreateEventPage";
 import React, { useState } from "react";
 import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
@@ -239,9 +240,22 @@ function App() {
               </PrivateRoute>
             }
           />
-          <Route path="/organizer/:id" element={<OrganizerPublicPage />} />
-          <Route path="/volunteer/:id" element={<VolunteerPublicPage />} />
-          <Route path="/events/:eventId/attendance" element={<EventAttendancePage />} />
+          <Route
+            path="/volunteer/:id"
+            element={
+              <PrivateRoute>
+                <VolunteerPublicPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/events/:eventId/attendance"
+            element={
+              <PrivateRoute>
+                <EventAttendancePage />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/organizations/:id"
             element={
@@ -255,6 +269,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ResourceCenter />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/create-event"
+            element={
+              <PrivateRoute>
+                <CreateEventPage />
               </PrivateRoute>
             }
           />
