@@ -30,6 +30,7 @@ export default function EditEventPage() {
           title: e.title,
           description: e.description,
           location: e.location,
+          mapLocation: e.mapLocation || { address: '', lat: null, lng: null },
           startDateTime: new Date(e.startDateTime).toISOString().slice(0, 16),
           endDateTime: new Date(e.endDateTime).toISOString().slice(0, 16),
           maxVolunteers: e.maxVolunteers === -1 ? "" : e.maxVolunteers,
@@ -95,6 +96,9 @@ export default function EditEventPage() {
   const handleSubmit = async () => {
     const data = new FormData();
 
+    console.log("🔧 EditEventPage - FormData before sending:", formData);
+    console.log("🔧 EditEventPage - mapLocation:", formData.mapLocation);
+
     for (const key in formData) {
       if (key === "equipmentNeeded") {
         formData.equipmentNeeded.forEach((item) =>
@@ -107,6 +111,18 @@ export default function EditEventPage() {
       } else if (key === "govtApprovalLetter") {
         if (formData.govtApprovalLetter) {
           data.append("govtApprovalLetter", formData.govtApprovalLetter);
+        }
+      } else if (key === "mapLocation") {
+        // Handle mapLocation object properly
+        if (formData.mapLocation) {
+          data.append("mapLocation[address]", formData.mapLocation.address || "");
+          data.append("mapLocation[lat]", formData.mapLocation.lat || "");
+          data.append("mapLocation[lng]", formData.mapLocation.lng || "");
+          console.log("🔧 EditEventPage - Sending mapLocation:", {
+            address: formData.mapLocation.address,
+            lat: formData.mapLocation.lat,
+            lng: formData.mapLocation.lng
+          });
         }
       } else {
         data.append(key, formData[key]);
@@ -125,9 +141,10 @@ export default function EditEventPage() {
     }
 
     try {
-      await axiosInstance.put(`/api/events/${id}`, data, {
+      const response = await axiosInstance.put(`/api/events/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      console.log("✅ EditEventPage - Event updated successfully:", response.data);
       alert("Event updated successfully");
       navigate(`/events/${id}`, { replace: true });
     } catch (err) {

@@ -38,8 +38,21 @@ export const getOrganizationOrganizers = async (id) => {
 };
 
 // Fetch user by ID (for organizer profile)
-export const getUserById = (id) =>
+export const getUserById = (id) => {
   axios.get(`/api/users/${id}`);
+}
 
-export const updateOrganization = (id, data) =>
+export const updateOrganization = (id, data) => {
   axios.put(`/api/organizations/${id}`, data);
+} 
+
+// Get organization count for statistics
+export const getOrganizationCount = async () => {
+  try {
+    const response = await axios.get('/api/organizations/count');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching organization count:', error);
+    return { organizationCount: 0 };
+  }
+};

@@ -865,9 +865,13 @@ export default function VolunteerEventDetailsPage() {
 
             {/* Map Location */}
             {event.mapLocation?.lat && event.mapLocation?.lng && (
-              <div className="my-4">
+              <div className="mb-4">
                 <h3 className="font-semibold text-gray-700 mb-2">Event Location Map</h3>
-                <StaticMap lat={event.mapLocation.lat} lng={event.mapLocation.lng} />
+                <StaticMap 
+                  key={`${event.mapLocation.lat}-${event.mapLocation.lng}-${event.mapLocation.address}`}
+                  lat={event.mapLocation.lat} 
+                  lng={event.mapLocation.lng} 
+                />
                 {event.mapLocation.address && <p className="text-gray-600 mt-2 text-sm">{event.mapLocation.address}</p>}
               </div>
             )}

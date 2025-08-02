@@ -1,5 +1,6 @@
 // src/api/auth.js
 import axios from 'axios';
+import axiosInstance from './axiosInstance';
 
 const API_BASE = 'http://localhost:5000/api/auth';
 const USER_API = 'http://localhost:5000/api/users';
@@ -16,4 +17,19 @@ export const updateProfile = (data) => {
       'Content-Type': 'multipart/form-data',
     },
   });
+};
+
+// Get user counts for statistics
+export const getUserCounts = async () => {
+  try {
+    console.log('🔹 Frontend: Calling getUserCounts...');
+    const response = await axiosInstance.get('/api/users/counts');
+    console.log('🔹 Frontend: Response received:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Frontend: Error fetching user counts:', error);
+    console.error('❌ Frontend: Error response:', error.response?.data);
+    console.error('❌ Frontend: Error status:', error.response?.status);
+    return { volunteerCount: 0, organizerCount: 0 };
+  }
 };

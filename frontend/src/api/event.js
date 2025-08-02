@@ -27,4 +27,15 @@ export const updateOrganizerAttendance = async (eventId, organizerId, hasAttende
 export const getEventsByOrganization = async (orgId) => {
   const res = await axiosInstance.get(`/api/events/organization/${orgId}`);
   return res.data;
+};
+
+// Get event count for statistics
+export const getEventCount = async () => {
+  try {
+    const response = await axiosInstance.get('/api/events/count');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching event count:', error);
+    return { eventCount: 0 };
+  }
 }; 

@@ -57,13 +57,14 @@ export default function EventStepOne({
   };
   
   const handleLocationChange = (newLocation) => {
-    // newLocation is { lat, lng } from the map click or search
+    // newLocation is { lat, lng, address } from the map click or search
     setFormData((prev) => ({
       ...prev,
       mapLocation: {
-        ...prev.mapLocation, // Keep existing address if any
+        ...prev.mapLocation, // Keep existing data if any
         lat: newLocation.lat,
         lng: newLocation.lng,
+        address: newLocation.address, // Update address from LocationPicker
       },
     }));
   };
@@ -124,19 +125,12 @@ export default function EventStepOne({
         <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
           Event Location
         </Typography>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          Search for a location or click on the map to set the exact coordinates. The address will be automatically filled.
+        </Typography>
         <LocationPicker
           value={formData.mapLocation} // Pass the mapLocation object
           onChange={handleLocationChange}
-        />
-        <TextField 
-          fullWidth 
-          margin="normal" 
-          label="Location Address"
-          // Manually handle the change for the nested mapLocation.address field
-          value={formData.mapLocation?.address || ''} 
-          onChange={(e) => setFormData(prev => ({...prev, mapLocation: {...prev.mapLocation, address: e.target.value}}))}
-          required 
-          helperText="You can also manually type the address here."
         />
          <TextField 
           fullWidth 

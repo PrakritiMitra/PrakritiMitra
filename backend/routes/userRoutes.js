@@ -20,6 +20,41 @@ const deleteFile = (filePath, fileName) => {
   return false;
 };
 
+// Get user counts for statistics - MUST BE BEFORE /:id route
+router.get('/counts', async (req, res) => {
+  try {
+    console.log('🔹 Fetching user counts...');
+    console.log('🔹 User model:', typeof User);
+    console.log('🔹 User.countDocuments:', typeof User.countDocuments);
+    
+    // Test if we can query the database
+    const totalUsers = await User.countDocuments({});
+    console.log('🔹 Total users in database:', totalUsers);
+    
+    const [volunteerCount, organizerCount] = await Promise.all([
+      User.countDocuments({ role: 'volunteer' }),
+      User.countDocuments({ role: 'organizer' })
+    ]);
+    
+    console.log(`✅ User counts - Volunteers: ${volunteerCount}, Organizers: ${organizerCount}`);
+    
+    res.json({
+      volunteerCount,
+      organizerCount,
+      totalUsers // Include this for debugging
+    });
+  } catch (error) {
+    console.error('❌ Error getting user counts:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({ message: 'Failed to get user counts', error: error.message });
+  }
+});
+
+// Test route to verify API is working
+router.get('/test', (req, res) => {
+  res.json({ message: 'User routes are working!' });
+});
+
 router.get('/profile', protect, (req, res) => {
   res.json({ user: req.user });
 });

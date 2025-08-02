@@ -270,6 +270,8 @@ export default function EventDetailsPage() {
   const fetchAndSetEvent = async () => {
     try {
       const res = await axiosInstance.get(`/api/events/${id}`);
+      console.log("🔧 EventDetailsPage - Fetched event data:", res.data);
+      console.log("🔧 EventDetailsPage - mapLocation:", res.data.mapLocation);
       setEvent(res.data);
       setOrganizerTeam(res.data.organizerTeam || []);
       // Check join request status for current user
@@ -984,48 +986,48 @@ export default function EventDetailsPage() {
               )}
             </div>
 
-            {/* Banned Organizers Section */}
-            <div className="mt-6">
-              <h3 className="text-md font-semibold text-red-700 mb-3">Banned Organizers</h3>
-              {bannedOrganizersLoading ? (
-                <div>Loading banned organizers...</div>
-              ) : bannedOrganizers.length === 0 ? (
-                <div className="text-gray-500">No banned organizers.</div>
-              ) : (
-                bannedOrganizers
-                  .filter(org => {
-                    const displayName = org.username || org.name || '';
-                    return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
-                  })
-                  .map((org) => {
-                    const displayName = org.username || org.name || 'User';
-                    const displayText = org.username ? `@${org.username}` : displayName;
-                    return (
-                      <div
-                        key={org._id}
-                        className="bg-red-50 rounded-lg shadow p-3 border border-red-200"
-                      >
-                        <div 
-                          className="flex items-center justify-between cursor-pointer"
-                          onClick={() => navigate(`/organizer/${org._id}`)}
+            {/* Banned Organizers Section - Only visible to creator */}
+            {isCreator && (
+              <div className="mt-6">
+                <h3 className="text-md font-semibold text-red-700 mb-3">Banned Organizers</h3>
+                {bannedOrganizersLoading ? (
+                  <div>Loading banned organizers...</div>
+                ) : bannedOrganizers.length === 0 ? (
+                  <div className="text-gray-500">No banned organizers.</div>
+                ) : (
+                  bannedOrganizers
+                    .filter(org => {
+                      const displayName = org.username || org.name || '';
+                      return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+                    })
+                    .map((org) => {
+                      const displayName = org.username || org.name || 'User';
+                      const displayText = org.username ? `@${org.username}` : displayName;
+                      return (
+                        <div
+                          key={org._id}
+                          className="bg-red-50 rounded-lg shadow p-3 border border-red-200"
                         >
-                          <div className="flex items-center flex-1">
-                            <img
-                              src={org.profileImage ? `http://localhost:5000/uploads/Profiles/${org.profileImage}` : '/images/default-profile.jpg'}
-                              alt={displayName}
-                              className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-medium text-red-800 text-lg">{displayText}</span>
-                              {org.username && org.name && (
-                                <span className="text-sm text-gray-600">{org.name}</span>
-                              )}
+                          <div 
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => navigate(`/organizer/${org._id}`)}
+                          >
+                            <div className="flex items-center flex-1">
+                              <img
+                                src={org.profileImage ? `http://localhost:5000/uploads/Profiles/${org.profileImage}` : '/images/default-profile.jpg'}
+                                alt={displayName}
+                                className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-red-800 text-lg">{displayText}</span>
+                                {org.username && org.name && (
+                                  <span className="text-sm text-gray-600">{org.name}</span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 ml-2">
-                            <span className="px-2 py-1 bg-red-500 text-white text-xs rounded font-bold">Banned</span>
-                            {/* Unban button - only available to creator */}
-                            {isCreator && (
+                            <div className="flex items-center gap-2 ml-2">
+                              <span className="px-2 py-1 bg-red-500 text-white text-xs rounded font-bold">Banned</span>
+                              {/* Unban button - only available to creator */}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1037,20 +1039,20 @@ export default function EventDetailsPage() {
                               >
                                 Unban
                               </button>
-                            )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-              )}
-              {bannedOrganizers.filter(org => {
-                const displayName = org.username || org.name || '';
-                return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
-              }).length === 0 && organizerSearchTerm && bannedOrganizers.length > 0 && (
-                <div className="text-gray-500 text-center py-4">No banned organizers found matching "{organizerSearchTerm}"</div>
-              )}
-            </div>
+                      );
+                    })
+                )}
+                {bannedOrganizers.filter(org => {
+                  const displayName = org.username || org.name || '';
+                  return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
+                }).length === 0 && organizerSearchTerm && bannedOrganizers.length > 0 && (
+                  <div className="text-gray-500 text-center py-4">No banned organizers found matching "{organizerSearchTerm}"</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1492,7 +1494,11 @@ export default function EventDetailsPage() {
         {event.mapLocation && event.mapLocation.lat && event.mapLocation.lng && (
           <div className="my-6">
             <h2 className="text-xl font-semibold text-blue-700 mb-2">Event Location</h2>
-            <StaticMap lat={event.mapLocation.lat} lng={event.mapLocation.lng} />
+            <StaticMap 
+              key={`${event.mapLocation.lat}-${event.mapLocation.lng}-${event.mapLocation.address}`}
+              lat={event.mapLocation.lat} 
+              lng={event.mapLocation.lng} 
+            />
             {event.mapLocation.address && (
               <p className="text-gray-600 mt-2">{event.mapLocation.address}</p>
             )}

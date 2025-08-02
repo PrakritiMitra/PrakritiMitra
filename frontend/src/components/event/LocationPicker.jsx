@@ -1,59 +1,247 @@
-import React, { useRef, useCallback } from "react";
-import { GoogleMap, Marker, useLoadScript, Autocomplete } from "@react-google-maps/api";
+import React, { useRef, useCallback, useState, useEffect } from "react";
+import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
 
 const libraries = ["places"];
 const mapContainerStyle = { width: "100%", height: "300px" };
 const defaultCenter = { lat: 19.076, lng: 72.8777 }; // Mumbai
 
 export default function LocationPicker({ value, onChange }) {
-  const { isLoaded } = useLoadScript({
+  const [error, setError] = useState(null);
+  const [apiKeyStatus, setApiKeyStatus] = useState("checking");
+  const [inputValue, setInputValue] = useState(value?.address || "");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  
+  const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries,
   });
-  const autocompleteRef = useRef(null);
 
-  const handlePlaceChanged = useCallback(() => {
-    const place = autocompleteRef.current.getPlace();
-    if (place && place.geometry) {
+  // Update input value when external value changes
+  useEffect(() => {
+    setInputValue(value?.address || "");
+  }, [value?.address]);
+
+  // Debug API key
+  useEffect(() => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    console.log("🔑 API Key status:", {
+      exists: !!apiKey,
+      length: apiKey?.length,
+      startsWith: apiKey?.substring(0, 10) + "...",
+      isLoaded,
+      loadError: loadError?.message
+    });
+    
+    if (apiKey) {
+      setApiKeyStatus("found");
+    } else {
+      setApiKeyStatus("missing");
+    }
+  }, [isLoaded, loadError]);
+
+  const handleMapClick = useCallback((e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    
+    // Reverse geocoding to get address
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const address = results[0].formatted_address;
+        setInputValue(address);
+        setSuggestions([]);
+        setShowSuggestions(false);
+        onChange({
+          lat,
+          lng,
+          address,
+        });
+      } else {
+        // Fallback if geocoding fails
+        const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        setInputValue(address);
+        setSuggestions([]);
+        setShowSuggestions(false);
+        onChange({
+          lat,
+          lng,
+          address,
+        });
+      }
+    });
+  }, [onChange]);
+
+  const handleAddressChange = useCallback((e) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    setSelectedIndex(-1);
+    
+    if (!newValue.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      onChange(null);
+      return;
+    }
+
+    // Use Places AutocompleteService for suggestions
+    if (window.google && window.google.maps && window.google.maps.places) {
+      const service = new window.google.maps.places.AutocompleteService();
+      service.getPlacePredictions(
+        {
+          input: newValue,
+          componentRestrictions: { country: 'IN' }, // Restrict to India
+          types: ['establishment', 'geocode']
+        },
+        (predictions, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+            setSuggestions(predictions);
+            setShowSuggestions(true);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        }
+      );
+    }
+  }, [onChange]);
+
+  const handleSuggestionClick = useCallback((suggestion) => {
+    setInputValue(suggestion.description);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    
+    // Get place details using PlacesService
+    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+    service.getDetails(
+      {
+        placeId: suggestion.place_id,
+        fields: ['geometry', 'formatted_address']
+      },
+      (place, status) => {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && place && place.geometry) {
       const lat = place.geometry.location.lat();
       const lng = place.geometry.location.lng();
       onChange({
         lat,
         lng,
-        address: place.formatted_address,
+            address: place.formatted_address || suggestion.description,
       });
     }
+      }
+    );
   }, [onChange]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(prev + 1, suggestions.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(prev - 1, -1));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSuggestionClick(suggestions[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedIndex(-1);
+        break;
+    }
+  }, [showSuggestions, suggestions, selectedIndex, handleSuggestionClick]);
+
+  if (loadError) {
+    console.error("Google Maps load error:", loadError);
+    return (
+      <div style={{ padding: 20, textAlign: 'center', color: 'red' }}>
+        <h3>Google Maps Error</h3>
+        <p>Failed to load Google Maps. Please check your API key configuration.</p>
+        <p>Error: {loadError.message}</p>
+        <p>API Key Status: {apiKeyStatus}</p>
+        <div style={{ marginTop: 10, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+          <h4>Debug Info:</h4>
+          <p>API Key exists: {apiKeyStatus === "found" ? "✅ Yes" : "❌ No"}</p>
+          <p>Environment variable: VITE_GOOGLE_MAPS_API_KEY</p>
+          <p>Current domain: {window.location.hostname}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoaded) return <div>Loading map...</div>;
 
   return (
     <div>
-      <Autocomplete
-        onLoad={ref => (autocompleteRef.current = ref)}
-        onPlaceChanged={handlePlaceChanged}
-      >
+      <div style={{ marginBottom: 8, position: 'relative' }}>
         <input
           type="text"
-          placeholder="Search location"
-          defaultValue={value?.address || ""}
-          style={{ width: "100%", padding: 8, marginBottom: 8 }}
+          placeholder="Enter location or click on map"
+          value={inputValue}
+          onChange={handleAddressChange}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            // Delay hiding suggestions to allow clicking
+            setTimeout(() => setShowSuggestions(false), 200);
+          }}
+          style={{ width: "100%", padding: 8 }}
         />
-      </Autocomplete>
+        {showSuggestions && suggestions.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: '4px',
+            maxHeight: '200px',
+            overflowY: 'auto',
+            zIndex: 1000,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            {suggestions.map((suggestion, index) => (
+              <div
+                key={suggestion.place_id}
+                onClick={() => handleSuggestionClick(suggestion)}
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: index === selectedIndex ? '#f0f0f0' : 'transparent',
+                  borderBottom: index < suggestions.length - 1 ? '1px solid #eee' : 'none'
+                }}
+                onMouseEnter={() => setSelectedIndex(index)}
+              >
+                {suggestion.description}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={value?.lat && value?.lng ? { lat: value.lat, lng: value.lng } : defaultCenter}
         zoom={value?.lat && value?.lng ? 15 : 10}
-        onClick={e => {
-          onChange({
-            ...value,
-            lat: e.latLng.lat(),
-            lng: e.latLng.lng(),
-          });
+        onClick={handleMapClick}
+        onError={(error) => {
+          console.error("Google Map error:", error);
+          setError(error);
         }}
       >
         {value?.lat && value?.lng && <Marker position={{ lat: value.lat, lng: value.lng }} />}
       </GoogleMap>
+      {error && (
+        <div style={{ marginTop: 8, padding: 8, backgroundColor: '#ffebee', color: '#c62828', borderRadius: 4 }}>
+          <strong>Map Error:</strong> {error.message}
+        </div>
+      )}
     </div>
   );
 }
