@@ -178,7 +178,6 @@ export default function EventChatbox({ eventId, currentUser }) {
     socket.on('connect', () => {
       // Small delay to ensure connection is stable
       setTimeout(() => {
-        console.log('🔌 Joining event room:', eventId);
         socket.emit('joinEventRoom', eventId);
       }, 100);
     });
@@ -226,8 +225,6 @@ export default function EventChatbox({ eventId, currentUser }) {
     socket.on('messagePinned', messagePinnedHandler);
 
     const reactionUpdateHandler = (updatedMessage) => {
-      console.log('🔄 Received reaction update:', updatedMessage);
-      console.log('🔄 Updated message reactions:', updatedMessage.reactions);
       setMessages(prevMsgs =>
         prevMsgs.map(m => (m._id === updatedMessage._id ? updatedMessage : m))
       );
@@ -361,7 +358,6 @@ export default function EventChatbox({ eventId, currentUser }) {
   };
 
   const handleReaction = (messageId, emoji) => {
-    console.log('🎯 Sending reaction:', { eventId, messageId, emoji });
     socket.emit('reactToMessage', { eventId, messageId, emoji });
     setShowEmojiPickerFor(null);
   };

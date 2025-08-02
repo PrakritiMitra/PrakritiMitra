@@ -7,6 +7,7 @@ import Navbar from "../components/layout/Navbar";
 import { approveTeamMember, rejectTeamMember, getOrganizationOrganizers } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
+import { OrganizationSponsorshipSection } from "../components/sponsor";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -219,6 +220,13 @@ export default function OrganizationPage() {
               Verified Status: {organization.verifiedStatus}
             </p>
 
+            {/* Sponsorship Section */}
+            <OrganizationSponsorshipSection 
+              organizationId={id}
+              organization={organization}
+              isAdmin={isAdmin}
+            />
+
             {/* Join status UI */}
             {user?.role === "organizer" && (
               <div className="mb-6">
@@ -256,11 +264,28 @@ export default function OrganizationPage() {
 
             {(isAdmin || isMember) && (
               <button
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4 mr-4"
                 onClick={() => setShowEventForm(true)}
               >
                 + Create New Event
               </button>
+            )}
+
+            {isAdmin && (
+              <>
+                <button
+                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4 mr-4"
+                  onClick={() => navigate(`/organization/${id}/settings`)}
+                >
+                  ⚙️ Settings
+                </button>
+                <button
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4"
+                  onClick={() => navigate(`/organization/${id}/applications`)}
+                >
+                  📋 View Applications
+                </button>
+              </>
             )}
 
             {isAdmin && pendingRequests.length > 0 && (

@@ -27,6 +27,13 @@ import ResourceCenter from "./pages/ResourceCenter";
 import CreateEventPage from "./pages/CreateEventPage";
 import RecurringSeriesPage from "./pages/RecurringSeriesPage";
 import SeriesDetailsPage from "./pages/SeriesDetailsPage";
+import SponsorshipDirectoryPage from "./pages/SponsorshipDirectoryPage";
+import SponsorshipApplicationPage from "./pages/SponsorshipApplicationPage";
+import SponsorshipApplicationsReviewPage from "./pages/SponsorshipApplicationsReviewPage";
+import OrganizationSettingsPage from "./pages/OrganizationSettingsPage";
+import MyApplicationsPage from "./pages/MyApplicationsPage";
+import EditApplicationPage from "./pages/EditApplicationPage";
+import SponsorProfilePage from "./pages/SponsorProfilePage";
 import React, { useState } from "react";
 import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
@@ -202,6 +209,14 @@ function App() {
             }
           />
           <Route
+            path="/sponsor-profile"
+            element={
+              <PrivateRoute>
+                <SponsorProfilePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
             path="/events/:id"
             element={
               <PrivateRoute>
@@ -295,6 +310,74 @@ function App() {
             element={
               <PrivateRoute>
                 <SeriesDetailsPage />
+              </PrivateRoute>
+            }
+          />
+          
+          {/* Sponsorship Routes */}
+          <Route
+            path="/sponsors"
+            element={
+              <PrivateRoute>
+                <SponsorshipDirectoryPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/sponsor/:userId"
+            element={
+              <PrivateRoute>
+                <SponsorshipDirectoryPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/organization/:organizationId/sponsor"
+            element={
+              <PrivateRoute>
+                <SponsorshipApplicationPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/organization/:organizationId/event/:eventId/sponsor"
+            element={
+              <PrivateRoute>
+                <SponsorshipApplicationPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/organization/:organizationId/settings"
+            element={
+              <PrivateRoute>
+                <OrganizationSettingsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/organization/:organizationId/applications"
+            element={
+              <PrivateRoute>
+                <SponsorshipApplicationsReviewPage />
+              </PrivateRoute>
+            }
+          />
+          
+          {/* Application Management Routes */}
+          <Route
+            path="/my-applications"
+            element={
+              <PrivateRoute>
+                <MyApplicationsPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/applications/:applicationId/edit"
+            element={
+              <PrivateRoute>
+                <EditApplicationPage />
               </PrivateRoute>
             }
           />

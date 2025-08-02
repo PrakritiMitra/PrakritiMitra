@@ -218,6 +218,7 @@ const eventSchema = new mongoose.Schema({
   removedVolunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Can re-register
   bannedVolunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],   // Cannot re-register
 
+
   // Time slot functionality
   timeSlotsEnabled: {
     type: Boolean,
@@ -236,6 +237,48 @@ const eventSchema = new mongoose.Schema({
       currentVolunteers: { type: Number, default: 0 }
     }]
   }],
+
+  // Event-specific sponsorship
+  sponsorship: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    description: String, // "Sponsor this event to help us plant 1000 trees"
+    minimumContribution: {
+      type: Number,
+      default: 5000
+    },
+    packages: [{
+      name: String, // "Tree Planting Sponsor"
+      description: String,
+      status: {
+        type: String,
+        enum: ['draft', 'active', 'closed'],
+        default: 'draft'
+      },
+      tiers: [{
+        name: String, // "Platinum", "Gold", "Silver", "Community"
+        minContribution: Number,
+        maxSponsors: Number,
+        benefits: [String], // ["Logo on banners", "Social media mentions"]
+        description: String
+      }]
+    }],
+    sponsorships: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Sponsorship'
+    }],
+    totalSponsorshipValue: {
+      type: Number,
+      default: 0
+    },
+    sponsorCount: {
+      type: Number,
+      default: 0
+    }
+  }
+
 
 }, { timestamps: true });
 

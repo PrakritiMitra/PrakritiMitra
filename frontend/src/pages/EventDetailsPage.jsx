@@ -633,7 +633,6 @@ export default function EventDetailsPage() {
       if (result.success) {
         const statusResult = await checkWebsiteCalendarStatus(event._id);
         if (statusResult.success) setCalendarStatus(statusResult.data);
-        console.log(result.message);
       } else { console.error(result.message); }
     } catch (error) { console.error('Error adding to website calendar:', error); }
   };
@@ -644,7 +643,6 @@ export default function EventDetailsPage() {
       if (result.success) {
         const statusResult = await checkWebsiteCalendarStatus(event._id);
         if (statusResult.success) setCalendarStatus(statusResult.data);
-        console.log(result.message);
       } else { console.error(result.message); }
     } catch (error) { console.error('Error removing from website calendar:', error); }
   };

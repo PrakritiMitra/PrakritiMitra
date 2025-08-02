@@ -69,7 +69,7 @@ export default function RecurringSeriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="mt-10 min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <Navbar />
       
       <div className="container mx-auto px-4 py-8">

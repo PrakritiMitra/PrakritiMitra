@@ -19,14 +19,7 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
   const [newMember, setNewMember] = useState({ name: "", phone: "", email: "" });
   const [volunteer, setVolunteer] = useState(null);
   
-  // Debug logging
-  console.log('EventModal received event:', event);
-  console.log('Event registration status:', event.isRegistered);
-  console.log('Event status:', event.status);
-  console.log('Is creator:', event.isCreator);
-  console.log('Role:', role);
-  console.log('Is recurring:', event.recurringEvent || event.isRecurringInstance);
-
+  
   // Determine event status
   const now = new Date();
   const eventStart = new Date(event.startDateTime);
