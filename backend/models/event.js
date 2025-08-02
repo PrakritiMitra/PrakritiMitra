@@ -218,6 +218,25 @@ const eventSchema = new mongoose.Schema({
   removedVolunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Can re-register
   bannedVolunteers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],   // Cannot re-register
 
+  // Time slot functionality
+  timeSlotsEnabled: {
+    type: Boolean,
+    default: false,
+  },
+
+  timeSlots: [{
+    id: { type: String, required: true }, // Unique identifier
+    name: { type: String, required: true }, // e.g., "Morning", "Afternoon"
+    startTime: { type: String, required: true }, // "09:00"
+    endTime: { type: String, required: true }, // "12:00"
+    categories: [{
+      id: { type: String, required: true },
+      name: { type: String, required: true }, // e.g., "Cleanup", "Garbage Collection"
+      maxVolunteers: { type: Number, default: null }, // null = unlimited
+      currentVolunteers: { type: Number, default: 0 }
+    }]
+  }],
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Event', eventSchema);

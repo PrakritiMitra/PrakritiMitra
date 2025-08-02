@@ -45,6 +45,8 @@ export default function EventCreationWrapper({
       organization: selectedOrgId || "",
       eventImages: [],
       govtApprovalLetter: null,
+      timeSlotsEnabled: false,
+      timeSlots: [],
     }
   );
 
@@ -91,6 +93,25 @@ export default function EventCreationWrapper({
   };
 
   const handleSubmit = async () => {
+    // Validate volunteer allocation if time slots are enabled
+    if (formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && !formData.unlimitedVolunteers) {
+      const eventMax = parseInt(formData.maxVolunteers) || 0;
+      let totalAllocated = 0;
+      
+      formData.timeSlots.forEach(slot => {
+        slot.categories.forEach(category => {
+          if (category.maxVolunteers && category.maxVolunteers > 0) {
+            totalAllocated += category.maxVolunteers;
+          }
+        });
+      });
+      
+      if (totalAllocated > eventMax) {
+        alert(`Cannot submit: You have allocated ${totalAllocated} volunteers but the event maximum is ${eventMax}. Please adjust your category limits.`);
+        return;
+      }
+    }
+
     const data = new FormData();
 
     for (const key in formData) {
@@ -111,6 +132,11 @@ export default function EventCreationWrapper({
       } else if (key === "govtApprovalLetter") {
         if (formData.govtApprovalLetter) {
           data.append("govtApprovalLetter", formData.govtApprovalLetter);
+        }
+      } else if (key === "timeSlots") {
+        // Handle timeSlots as JSON string since it's a complex object
+        if (formData.timeSlots && formData.timeSlots.length > 0) {
+          data.append("timeSlots", JSON.stringify(formData.timeSlots));
         }
       } else {
         data.append(key, formData[key]);

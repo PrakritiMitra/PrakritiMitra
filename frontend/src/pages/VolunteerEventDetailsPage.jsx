@@ -315,9 +315,9 @@ export default function VolunteerEventDetailsPage() {
 
   // --- EVENT HANDLERS ---
 
-  const handleRegistrationSubmit = async ({ groupMembers }) => {
+  const handleRegistrationSubmit = async ({ groupMembers, selectedTimeSlot }) => {
     try {
-      const payload = { eventId: event._id, groupMembers };
+      const payload = { eventId: event._id, groupMembers, selectedTimeSlot };
       await axiosInstance.post("/api/registrations", payload);
       setShowRegisterModal(false);
       
@@ -1001,7 +1001,7 @@ export default function VolunteerEventDetailsPage() {
       
       {event && <EventChatbox eventId={event._id} currentUser={user} />}
 
-      <VolunteerRegisterModal open={showRegisterModal} onClose={() => setShowRegisterModal(false)} volunteer={user} onSubmit={handleRegistrationSubmit} />
+              <VolunteerRegisterModal open={showRegisterModal} onClose={() => setShowRegisterModal(false)} volunteer={user} onSubmit={handleRegistrationSubmit} event={event} />
       
       <VolunteerQuestionnaireModal open={showQuestionnaireModal} onClose={() => setShowQuestionnaireModal(false)} eventType={event?.eventType} onSubmit={handleQuestionnaireSubmit} />
       

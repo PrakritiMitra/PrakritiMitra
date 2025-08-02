@@ -16,6 +16,10 @@ const {
   updateSeriesStatistics,
   getSeriesByEventId
 } = require('../utils/recurringEventUtils');
+const { 
+  validateTimeSlots, 
+  prepareTimeSlotsForSave 
+} = require('../utils/timeSlotUtils');
 
 // Create new event
 exports.createEvent = async (req, res) => {
@@ -49,6 +53,10 @@ exports.createEvent = async (req, res) => {
       precautions,
       publicTransport,
       contactPerson,
+
+      // Time slot fields
+      timeSlotsEnabled,
+      timeSlots,
     } = req.body;
 
     // Handle equipment array
@@ -59,6 +67,47 @@ exports.createEvent = async (req, res) => {
       : [];
 
     if (otherEquipment) equipmentArray.push(otherEquipment);
+
+    // Handle time slots
+    let processedTimeSlots = [];
+    if (timeSlotsEnabled === 'true' && timeSlots) {
+      // Parse timeSlots if it's a JSON string
+      let parsedTimeSlots = timeSlots;
+      if (typeof timeSlots === 'string') {
+        try {
+          parsedTimeSlots = JSON.parse(timeSlots);
+        } catch (error) {
+          return res.status(400).json({ message: 'Invalid time slots data format' });
+        }
+      }
+      
+      const validation = validateTimeSlots(parsedTimeSlots);
+      if (!validation.isValid) {
+        return res.status(400).json({ message: validation.error });
+      }
+      
+      // Validate volunteer allocation
+      if (!unlimitedVolunteers && maxVolunteers) {
+        const eventMax = parseInt(maxVolunteers);
+        let totalAllocated = 0;
+        
+        parsedTimeSlots.forEach(slot => {
+          slot.categories.forEach(category => {
+            if (category.maxVolunteers && category.maxVolunteers > 0) {
+              totalAllocated += category.maxVolunteers;
+            }
+          });
+        });
+        
+        if (totalAllocated > eventMax) {
+          return res.status(400).json({ 
+            message: `Total allocated volunteers (${totalAllocated}) exceeds event maximum (${eventMax})` 
+          });
+        }
+      }
+      
+      processedTimeSlots = prepareTimeSlotsForSave(parsedTimeSlots);
+    }
 
     // File handling
     const images = req.files?.eventImages?.map((f) => f.filename) || [];
@@ -99,6 +148,10 @@ exports.createEvent = async (req, res) => {
       precautions: precautions || "",
       publicTransport: publicTransport || "",
       contactPerson: contactPerson || "",
+
+      // Include time slot fields
+      timeSlotsEnabled: timeSlotsEnabled === 'true',
+      timeSlots: processedTimeSlots,
     };
 
     const event = new Event(eventData);

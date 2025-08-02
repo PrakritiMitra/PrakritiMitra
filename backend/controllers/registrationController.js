@@ -3,13 +3,15 @@ const QRCode = require("qrcode");
 const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require('uuid');
+const { updateCategoryVolunteerCount } = require('../utils/timeSlotUtils');
 
 // Helper to create registration and QR code
-async function createRegistrationAndQRCode({ eventId, volunteerId, groupMembers }) {
+async function createRegistrationAndQRCode({ eventId, volunteerId, groupMembers, selectedTimeSlot }) {
   const registration = new Registration({
     eventId,
     volunteerId,
     groupMembers: groupMembers || [],
+    selectedTimeSlot: selectedTimeSlot || null,
   });
   await registration.save();
 
@@ -30,7 +32,7 @@ async function createRegistrationAndQRCode({ eventId, volunteerId, groupMembers 
 
 exports.registerForEvent = async (req, res) => {
   try {
-    const { eventId, groupMembers } = req.body;
+    const { eventId, groupMembers, selectedTimeSlot } = req.body;
     const volunteerId = req.user._id;
     const io = req.app.get('io');
 
@@ -67,9 +69,59 @@ exports.registerForEvent = async (req, res) => {
       await event.save();
     }
 
+    // Handle time slot registration if event has time slots enabled
+    if (event.timeSlotsEnabled && event.timeSlots && event.timeSlots.length > 0) {
+      if (!selectedTimeSlot || !selectedTimeSlot.slotId || !selectedTimeSlot.categoryId) {
+        return res.status(400).json({ 
+          message: "Time slot and category selection is required for this event." 
+        });
+      }
+
+      // Validate time slot and category exist
+      const timeSlot = event.timeSlots.find(slot => slot.id === selectedTimeSlot.slotId);
+      if (!timeSlot) {
+        return res.status(400).json({ message: "Selected time slot not found." });
+      }
+
+      const category = timeSlot.categories.find(cat => cat.id === selectedTimeSlot.categoryId);
+      if (!category) {
+        return res.status(400).json({ message: "Selected category not found." });
+      }
+
+      // Check if category has available spots
+      if (category.maxVolunteers !== null && category.currentVolunteers >= category.maxVolunteers) {
+        return res.status(400).json({ 
+          message: `Category "${category.name}" is full. Please select another category.` 
+        });
+      }
+
+      // Check if volunteer is already registered for this time slot
+      const existingRegistration = await Registration.findOne({ 
+        eventId, 
+        volunteerId,
+        'selectedTimeSlot.slotId': selectedTimeSlot.slotId 
+      });
+      if (existingRegistration) {
+        return res.status(400).json({ 
+          message: "You are already registered for this time slot." 
+        });
+      }
+    }
+
     // Unlimited volunteers: allow registration
     if (event.unlimitedVolunteers) {
-      const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
+      const registration = await createRegistrationAndQRCode({ 
+        eventId, 
+        volunteerId, 
+        groupMembers, 
+        selectedTimeSlot 
+      });
+      
+      // Update category volunteer count if time slots are enabled
+      if (event.timeSlotsEnabled && selectedTimeSlot) {
+        updateCategoryVolunteerCount(event, selectedTimeSlot.slotId, selectedTimeSlot.categoryId, true);
+        await event.save();
+      }
       
       // Add volunteer to event's volunteers array for calendar tracking
       const Event = require('../models/event');
@@ -111,7 +163,18 @@ exports.registerForEvent = async (req, res) => {
       return res.status(400).json({ message: "No slots available." });
     }
 
-    const registration = await createRegistrationAndQRCode({ eventId, volunteerId, groupMembers });
+    const registration = await createRegistrationAndQRCode({ 
+      eventId, 
+      volunteerId, 
+      groupMembers, 
+      selectedTimeSlot 
+    });
+    
+    // Update category volunteer count if time slots are enabled
+    if (event.timeSlotsEnabled && selectedTimeSlot) {
+      updateCategoryVolunteerCount(event, selectedTimeSlot.slotId, selectedTimeSlot.categoryId, true);
+      await event.save();
+    }
     
     const availableSlots = updatedEvent.maxVolunteers - updatedEvent.volunteers.length;
     io.to(`eventSlotsRoom:${eventId}`).emit('slotsUpdated', {

@@ -88,6 +88,41 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
         )}
         {displayListItem("Other Equipment", formData.otherEquipment)}
         {displayListItem("Instructions", formData.instructions)}
+        
+        {/* Time Slots Section */}
+        {formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && (
+          <>
+            {displayListItem("Time Slots Enabled", "Yes")}
+            <ListItem>
+              <ListItemText
+                primary="Time Slots & Categories"
+                secondary={
+                  <div>
+                    {formData.timeSlots.map((slot, index) => (
+                      <Box key={slot.id} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                          {slot.name} ({slot.startTime} - {slot.endTime})
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                          {slot.categories.map((category) => (
+                            <Chip
+                              key={category.id}
+                              label={`${category.name}${category.maxVolunteers ? ` (Max: ${category.maxVolunteers})` : ' (Unlimited)'}`}
+                              color="primary"
+                              variant="outlined"
+                              size="small"
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    ))}
+                  </div>
+                }
+              />
+            </ListItem>
+          </>
+        )}
+        
         <ListItem>
           <ListItemText
             primary="Equipment Needed"

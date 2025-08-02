@@ -88,10 +88,10 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
     }
   };
 
-  const handleRegistrationSubmit = async ({ groupMembers }) => {
+  const handleRegistrationSubmit = async ({ groupMembers, selectedTimeSlot }) => {
     try {
       setLoading(true);
-      const payload = { eventId: event._id, groupMembers };
+      const payload = { eventId: event._id, groupMembers, selectedTimeSlot };
       await axiosInstance.post('/api/registrations', payload);
       
       // Re-fetch registration details to update UI

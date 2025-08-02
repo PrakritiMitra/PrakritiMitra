@@ -1,6 +1,6 @@
 // src/components/event/EventStepOne.jsx
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   TextField,
   Box,
@@ -13,8 +13,11 @@ import {
   Select,
   Typography,
   FormGroup,
+  Alert,
+  Chip,
 } from "@mui/material";
 import LocationPicker from './LocationPicker'; // Make sure this path is correct
+import TimeSlotBuilder from './TimeSlotBuilder';
 
 export default function EventStepOne({
   formData,
@@ -29,6 +32,51 @@ export default function EventStepOne({
   onRemoveExistingImage,
   onRemoveExistingLetter
 }) {
+  const [remainingVolunteers, setRemainingVolunteers] = useState(0);
+  const [allocationError, setAllocationError] = useState("");
+
+  // Calculate remaining volunteers whenever maxVolunteers or timeSlots change
+  useEffect(() => {
+    if (formData.unlimitedVolunteers) {
+      setRemainingVolunteers(Infinity);
+      setAllocationError("");
+      return;
+    }
+
+    const eventMax = parseInt(formData.maxVolunteers) || 0;
+    if (eventMax <= 0) {
+      setRemainingVolunteers(0);
+      setAllocationError("");
+      return;
+    }
+
+    // Calculate total allocated volunteers across all time slots and categories
+    let totalAllocated = 0;
+    if (formData.timeSlots && formData.timeSlots.length > 0) {
+      formData.timeSlots.forEach(slot => {
+        slot.categories.forEach(category => {
+          if (category.maxVolunteers && category.maxVolunteers > 0) {
+            totalAllocated += category.maxVolunteers;
+          }
+        });
+      });
+    }
+
+    const remaining = eventMax - totalAllocated;
+    setRemainingVolunteers(remaining);
+
+    // Set error if over-allocated
+    if (remaining < 0) {
+      setAllocationError(`Over-allocated by ${Math.abs(remaining)} volunteers`);
+    } else {
+      setAllocationError("");
+    }
+  }, [formData.maxVolunteers, formData.unlimitedVolunteers, formData.timeSlots]);
+
+  const handleMaxVolunteersChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
   const equipmentOptions = ["Gloves", "Bags", "Masks", "Tools"];
   const eventTypes = [
     "Beach Cleanup",
@@ -156,14 +204,45 @@ export default function EventStepOne({
           name="maxVolunteers"
           label="Max Volunteers"
           value={formData.maxVolunteers}
-          onChange={handleChange}
+          onChange={handleMaxVolunteersChange}
           disabled={formData.unlimitedVolunteers}
+          inputProps={{ min: 1 }}
         />
         <FormControlLabel
           control={<Checkbox checked={formData.unlimitedVolunteers} onChange={handleChange} name="unlimitedVolunteers" />}
           label="Unlimited"
         />
       </Box>
+
+      {/* Volunteer Allocation Status */}
+      {formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && (
+        <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Volunteer Allocation Status
+          </Typography>
+          
+          {formData.unlimitedVolunteers ? (
+            <Chip 
+              label="Unlimited volunteers - no allocation limits" 
+              color="success" 
+              variant="outlined"
+            />
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Chip 
+                label={`Remaining: ${remainingVolunteers} volunteers`}
+                color={remainingVolunteers < 0 ? 'error' : remainingVolunteers < 10 ? 'warning' : 'success'}
+                variant="outlined"
+              />
+              {allocationError && (
+                <Alert severity="error" sx={{ flexGrow: 1 }}>
+                  {allocationError}
+                </Alert>
+              )}
+            </Box>
+          )}
+        </Box>
+      )}
 
       <FormControl fullWidth margin="normal">
         <InputLabel>Event Type</InputLabel>
@@ -349,6 +428,16 @@ export default function EventStepOne({
         )}
         <input type="file" accept="image/*,application/pdf" onChange={handleLetterChange} />
       </Box>
+
+      <TimeSlotBuilder
+        timeSlotsEnabled={formData.timeSlotsEnabled || false}
+        setTimeSlotsEnabled={(enabled) => setFormData(prev => ({ ...prev, timeSlotsEnabled: enabled }))}
+        timeSlots={formData.timeSlots || []}
+        setTimeSlots={(slots) => setFormData(prev => ({ ...prev, timeSlots: slots }))}
+        remainingVolunteers={remainingVolunteers}
+        unlimitedVolunteers={formData.unlimitedVolunteers}
+        allocationError={allocationError}
+      />
 
       <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3 }}>
         Proceed to Questionnaire →
