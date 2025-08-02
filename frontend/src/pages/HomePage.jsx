@@ -1,9 +1,20 @@
 // src/pages/HomePage.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { getUserCounts } from '../api/auth';
+import { getOrganizationCount } from '../api/organization';
+import { getEventCount } from '../api/event';
 
 export default function HomePage() {
+  const [stats, setStats] = useState({
+    volunteerCount: 0,
+    organizerCount: 0,
+    organizationCount: 0,
+    eventCount: 0
+  });
+  const [loading, setLoading] = useState(true);
+
   // Get user from localStorage
   const user = React.useMemo(() => {
     try {
@@ -11,6 +22,44 @@ export default function HomePage() {
     } catch {
       return null;
     }
+  }, []);
+
+  // Fetch statistics
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        console.log('🔹 Fetching statistics from backend...');
+        
+        const [userCounts, orgCount, eventCount] = await Promise.all([
+          getUserCounts(),
+          getOrganizationCount(),
+          getEventCount()
+        ]);
+
+        console.log('📊 Statistics received:', { userCounts, orgCount, eventCount });
+
+        setStats({
+          volunteerCount: userCounts.volunteerCount || 0,
+          organizerCount: userCounts.organizerCount || 0,
+          organizationCount: orgCount.organizationCount || 0,
+          eventCount: eventCount.eventCount || 0
+        });
+        
+        console.log('✅ Statistics updated:', {
+          volunteerCount: userCounts.volunteerCount || 0,
+          organizerCount: userCounts.organizerCount || 0,
+          organizationCount: orgCount.organizationCount || 0,
+          eventCount: eventCount.eventCount || 0
+        });
+      } catch (error) {
+        console.error('❌ Error fetching statistics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   // Determine dashboard link based on user role
@@ -77,8 +126,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-
-
 
         {/* Background decoration */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -148,20 +195,32 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">500+</div>
+          <div className="flex justify-between items-center max-w-6xl mx-auto">
+            <div className="text-center flex-1">
+              <div className="text-4xl font-bold text-white mb-2">
+                {loading ? '...' : `${stats.volunteerCount}+`}
+              </div>
               <div className="text-blue-100">Active Volunteers</div>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">50+</div>
+            <div className="text-center flex-1">
+              <div className="text-4xl font-bold text-white mb-2">
+                {loading ? '...' : `${stats.organizerCount}+`}
+              </div>
+              <div className="text-blue-100">Active Organizers</div>
+            </div>
+            <div className="text-center flex-1">
+              <div className="text-4xl font-bold text-white mb-2">
+                {loading ? '...' : `${stats.organizationCount}+`}
+              </div>
               <div className="text-blue-100">Organizations</div>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-2">100+</div>
+            <div className="text-center flex-1">
+              <div className="text-4xl font-bold text-white mb-2">
+                {loading ? '...' : `${stats.eventCount}+`}
+              </div>
               <div className="text-blue-100">Events Completed</div>
             </div>
-            <div className="text-center">
+            <div className="text-center flex-1">
               <div className="text-4xl font-bold text-white mb-2">10K+</div>
               <div className="text-blue-100">KG Waste Collected</div>
             </div>

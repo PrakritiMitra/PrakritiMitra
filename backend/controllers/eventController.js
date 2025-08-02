@@ -345,6 +345,9 @@ exports.updateEvent = async (req, res) => {
       contactPerson,
     } = req.body;
 
+    console.log("🔧 Backend - Received mapLocation:", mapLocation);
+    console.log("🔧 Backend - Request body:", req.body);
+
     // Update fields
     event.title = title || event.title;
     event.description = description || event.description;
@@ -356,6 +359,7 @@ exports.updateEvent = async (req, res) => {
         lat: parseFloat(mapLocation.lat) || event.mapLocation.lat,
         lng: parseFloat(mapLocation.lng) || event.mapLocation.lng,
       };
+      console.log("🔧 Backend - Updated mapLocation:", event.mapLocation);
     }
 
     event.startDateTime = startDateTime || event.startDateTime;
