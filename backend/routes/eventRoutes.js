@@ -98,6 +98,24 @@ router.post('/:eventId/complete', protect, eventController.handleEventCompletion
 // @route   GET /api/events/organization/:orgId
 router.get('/organization/:orgId', eventController.getEventsByOrganization);
 
+// Get event time slots
+router.get('/:id/timeSlots', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    res.json({
+      timeSlotsEnabled: event.timeSlotsEnabled,
+      timeSlots: event.timeSlots || []
+    });
+  } catch (error) {
+    console.error('Error fetching event time slots:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/events/upcoming
 router.get('/upcoming', eventController.getUpcomingEvents);
 

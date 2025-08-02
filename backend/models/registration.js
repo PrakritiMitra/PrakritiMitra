@@ -58,6 +58,15 @@ const registrationSchema = new mongoose.Schema({
     answers: { type: Object, default: {} },
     submittedAt: { type: Date }
   },
+
+  // Time slot registration details
+  selectedTimeSlot: {
+    slotId: { type: String },
+    slotName: { type: String },
+    categoryId: { type: String },
+    categoryName: { type: String }
+  },
+
 });
 
 // Optional: static method to ensure indexes are built

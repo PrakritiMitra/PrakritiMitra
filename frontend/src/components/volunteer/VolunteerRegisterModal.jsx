@@ -1,12 +1,14 @@
 // src/components/volunteer/VolunteerRegisterModal.jsx
 
 import React, { useState } from "react";
+import TimeSlotSelector from './TimeSlotSelector';
 
-const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
+const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) => {
   const [step, setStep] = useState(1);
   const [isGroup, setIsGroup] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
   const [newMember, setNewMember] = useState({ name: "", phone: "", email: "" });
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
 
   const handleAddMember = () => {
     if (newMember.name && newMember.phone && newMember.email) {
@@ -16,6 +18,14 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
   };
 
   const handleRegister = () => {
+    // Validate time slot selection if event has time slots
+    if (event?.timeSlotsEnabled && event?.timeSlots?.length > 0) {
+      if (!selectedTimeSlot) {
+        alert("Please select a time slot and category.");
+        return;
+      }
+    }
+
     // Validate group members if group registration
     if (isGroup) {
       if (!groupMembers.length) {
@@ -31,6 +41,7 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
     }
     const payload = {
       groupMembers: isGroup ? groupMembers : [],
+      selectedTimeSlot: selectedTimeSlot,
     };
     onSubmit(payload);
   };
@@ -84,13 +95,19 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
             <div className="text-lg font-semibold mb-4">Register as Individual or Group?</div>
             <div className="flex gap-4 mb-4">
               <button
-                onClick={() => { setIsGroup(false); setStep(4); }}
+                onClick={() => { 
+                  setIsGroup(false); 
+                  setStep(event?.timeSlotsEnabled && event?.timeSlots?.length > 0 ? 5 : 4); 
+                }}
                 className={`flex-1 py-2 rounded ${!isGroup ? 'bg-blue-600 text-white' : 'bg-white border border-blue-600 text-blue-600'} font-semibold`}
               >
                 Individual
               </button>
               <button
-                onClick={() => { setIsGroup(true); setStep(3); }}
+                onClick={() => { 
+                  setIsGroup(true); 
+                  setStep(event?.timeSlotsEnabled && event?.timeSlots?.length > 0 ? 5 : 3); 
+                }}
                 className={`flex-1 py-2 rounded ${isGroup ? 'bg-blue-600 text-white' : 'bg-white border border-blue-600 text-blue-600'} font-semibold`}
               >
                 Group
@@ -149,7 +166,7 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
                 Back
               </button>
               <button
-                onClick={() => setStep(4)}
+                onClick={() => setStep(event?.timeSlotsEnabled && event?.timeSlots?.length > 0 ? 5 : 4)}
                 className={`px-4 py-2 rounded ${groupMembers.length === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                 disabled={groupMembers.length === 0}
               >
@@ -165,10 +182,20 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
             <p className="mb-4 text-sm text-gray-600">
               Please confirm to register for this event. A QR code will be generated after successful registration.
             </p>
+            
+            {selectedTimeSlot && (
+              <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+                <p className="text-sm font-semibold text-blue-800">Selected Time Slot:</p>
+                <p className="text-sm text-blue-700">
+                  {selectedTimeSlot.slotName} ({selectedTimeSlot.categoryName})
+                </p>
+              </div>
+            )}
+            
             <div className="flex justify-between">
               <button
                 className="px-4 py-2 rounded border border-gray-400 text-gray-700 hover:bg-gray-100"
-                onClick={() => setStep(isGroup ? 3 : 2)}
+                onClick={() => setStep(event?.timeSlotsEnabled && event?.timeSlots?.length > 0 ? 5 : (isGroup ? 3 : 2))}
               >
                 Back
               </button>
@@ -177,6 +204,34 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit }) => {
                 className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
               >
                 Register
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && event?.timeSlotsEnabled && event?.timeSlots?.length > 0 && (
+          <div>
+            <div className="text-lg font-semibold mb-3">Select Time Slot & Category</div>
+            <div className="mb-4">
+              <TimeSlotSelector
+                timeSlots={event.timeSlots}
+                onSelectionChange={setSelectedTimeSlot}
+                selectedTimeSlot={selectedTimeSlot}
+              />
+            </div>
+            <div className="flex justify-between">
+              <button
+                className="px-4 py-2 rounded border border-gray-400 text-gray-700 hover:bg-gray-100"
+                onClick={() => setStep(isGroup ? 3 : 2)}
+              >
+                Back
+              </button>
+              <button
+                onClick={() => setStep(4)}
+                className={`px-4 py-2 rounded ${!selectedTimeSlot ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                disabled={!selectedTimeSlot}
+              >
+                Next
               </button>
             </div>
           </div>
