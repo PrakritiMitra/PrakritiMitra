@@ -7,6 +7,22 @@ const { eventMultiUpload, completedEventUpload } = require('../middlewares/uploa
 
 const Event = require("../models/event");
 
+// Get event count for statistics
+router.get('/count', async (req, res) => {
+  try {
+    console.log('🔹 Fetching event count...');
+    
+    const eventCount = await Event.countDocuments();
+    
+    console.log(`✅ Event count: ${eventCount}`);
+    
+    res.json({ eventCount });
+  } catch (error) {
+    console.error('❌ Error getting event count:', error);
+    res.status(500).json({ message: 'Failed to get event count' });
+  }
+});
+
 // @route   POST /api/events/create
 router.post( '/create', protect, eventMultiUpload, eventController.createEvent);
 

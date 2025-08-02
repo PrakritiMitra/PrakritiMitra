@@ -5,6 +5,23 @@ const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
 const orgCtrl = require('../controllers/organizationController');
 const { multiUpload } = require('../middlewares/upload');
+const Organization = require('../models/organization');
+
+// Get organization count for statistics
+router.get('/count', async (req, res) => {
+  try {
+    console.log('🔹 Fetching organization count...');
+    
+    const organizationCount = await Organization.countDocuments();
+    
+    console.log(`✅ Organization count: ${organizationCount}`);
+    
+    res.json({ organizationCount });
+  } catch (error) {
+    console.error('❌ Error getting organization count:', error);
+    res.status(500).json({ message: 'Failed to get organization count' });
+  }
+});
 
 // Register a new organization (organizer creates it)
 router.post('/register', protect, multiUpload, orgCtrl.registerOrganization);
