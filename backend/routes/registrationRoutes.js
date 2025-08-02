@@ -30,5 +30,9 @@ router.get('/:registrationId/exit-qr', require('../controllers/registrationContr
 router.post('/event/:eventId/questionnaire', protect, require('../controllers/registrationController').completeVolunteerQuestionnaire);
 // GET /api/registrations/event/:eventId/comments - get questionnaire comments for an event
 router.get('/event/:eventId/comments', protect, require('../controllers/registrationController').getEventQuestionnaireComments);
+// GET /api/registrations/event/:eventId/stats - get real-time attendance statistics
+router.get('/event/:eventId/stats', protect, require('../controllers/registrationController').getAttendanceStats);
+// GET /api/registrations/event/:eventId/report - download attendance report
+router.get('/event/:eventId/report', protect, require('../controllers/attendanceReportController').generateAttendanceReport);
 
 module.exports = router;

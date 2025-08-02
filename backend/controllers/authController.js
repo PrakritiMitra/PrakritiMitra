@@ -11,7 +11,6 @@ const generateToken = (userId) => {
 // Volunteer Signup
 exports.signupVolunteer = async (req, res) => {
   try {
-    console.log("🔹 Volunteer Signup Request (multipart):", req.body);
 
     const {
       name,

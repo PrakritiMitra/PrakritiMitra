@@ -449,8 +449,6 @@ exports.getCalendarEvents = async (req, res) => {
     const { start, end, role } = req.query;
     const currentUser = req.user._id;
 
-    console.log('Calendar request:', { start, end, role, currentUser: currentUser.toString() });
-
     if (!start || !end) {
       return res.status(400).json({ message: 'Start and end dates are required' });
     }

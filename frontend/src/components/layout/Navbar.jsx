@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import axiosInstance from "../../api/axiosInstance";
 import { getMyOrganization } from "../../api/organization";
-import { ChevronDown } from "react-feather";
+import { ChevronDown, LogOut, User } from "react-feather";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
@@ -20,6 +20,9 @@ export default function Navbar() {
   const [activeSearchTab, setActiveSearchTab] = useState("volunteers"); // "volunteers" or "organizers"
 
   const [orgExists, setOrgExists] = useState(null); // null = unknown, true/false = resolved
+  
+  // Dropdown states
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -104,6 +107,9 @@ export default function Navbar() {
       if (!event.target.closest('.search-container')) {
         setShowSearchResults(false);
       }
+      if (!event.target.closest('.dropdown-container')) {
+        setActiveDropdown(null);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -124,26 +130,35 @@ export default function Navbar() {
     return "/";
   };
 
+  const toggleDropdown = (dropdownName) => {
+    setActiveDropdown(activeDropdown === dropdownName ? null : dropdownName);
+  };
+
+  const getUserDisplayName = () => {
+    if (!user) return "User";
+    return user.username || user.name || "User";
+  };
+
   return (
     <nav className="bg-white shadow-md fixed top-0 w-full z-50">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold text-blue-700">
+      <div className="max-w-7xl mx-auto px-4 py-2.5 flex justify-between items-center">
+        <Link to="/" className="text-xl font-bold text-blue-700">
           PrakritiMitra
         </Link>
 
         {/* Search Bar - Only show for logged-in users */}
         {token && (
-          <div className="flex-1 max-w-md mx-8 search-container">
+          <div className="flex-1 max-w-md mx-6 search-container">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search volunteers and organizers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-1.5 pl-8 pr-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -290,12 +305,12 @@ export default function Navbar() {
           </div>
         )}
 
-        <div className="flex space-x-6">
+        <div className="flex items-center space-x-5">
           {!token ? (
             <>
               <Link
                 to="/"
-                className={`font-medium text-sm ${
+                className={`text-sm font-medium ${
                   isActive("/")
                     ? "text-blue-600"
                     : "text-gray-700 hover:text-blue-500"
@@ -305,7 +320,7 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/signup"
-                className={`font-medium text-sm ${
+                className={`text-sm font-medium ${
                   isActive("/signup")
                     ? "text-blue-600"
                     : "text-gray-700 hover:text-blue-500"
@@ -315,7 +330,7 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/login"
-                className={`font-medium text-sm ${
+                className={`text-sm font-medium ${
                   isActive("/login")
                     ? "text-blue-600"
                     : "text-gray-700 hover:text-blue-500"
@@ -326,9 +341,10 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              {/* Dashboard - Always first */}
               <Link
                 to={getDashboardPath()}
-                className={`font-medium text-sm ${
+                className={`text-sm font-medium ${
                   isActive(getDashboardPath())
                     ? "text-blue-600"
                     : "text-gray-700 hover:text-blue-500"
@@ -337,148 +353,266 @@ export default function Navbar() {
                 Dashboard
               </Link>
 
-              {/* My Events link for organizers */}
+              {/* Events Management Dropdown for Organizers */}
               {user?.role === "organizer" && (
-                <Link
-                  to="/my-events"
-                  className={`font-medium text-sm ${
-                    isActive("/my-events")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  My Events
-                </Link>
+                <div className="relative dropdown-container">
+                  <button
+                    onClick={() => toggleDropdown('events')}
+                    className={`text-sm font-medium flex items-center gap-1 ${
+                      isActive("/my-events") || isActive("/recurring-series")
+                        ? "text-blue-600"
+                        : "text-gray-700 hover:text-blue-500"
+                    }`}
+                  >
+                    Events
+                    <ChevronDown size={14} className={`transition-transform ${activeDropdown === 'events' ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {activeDropdown === 'events' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.18 }}
+                        className="absolute left-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                      >
+                        <Link
+                          to="/my-events"
+                          onClick={() => setActiveDropdown(null)}
+                          className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                        >
+                          My Events
+                        </Link>
+                        <Link
+                          to="/recurring-series"
+                          onClick={() => setActiveDropdown(null)}
+                          className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-b-lg transition-colors"
+                        >
+                          Recurring Series
+                        </Link>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )}
 
-              {/* Recurring Series link for organizers */}
-              {user?.role === "organizer" && (
-                <Link
-                  to="/recurring-series"
-                  className={`font-medium text-sm ${
-                    isActive("/recurring-series")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  Recurring Series
-                </Link>
-              )}
-
+              {/* My Events for Volunteers */}
               {user?.role === "volunteer" && (
                 <Link
                   to="/volunteer/my-events"
-                  className={`font-medium text-sm ${isActive("/volunteer/my-events") ? "text-blue-600" : "text-gray-700 hover:text-blue-500"}`}
+                  className={`text-sm font-medium ${isActive("/volunteer/my-events") ? "text-blue-600" : "text-gray-700 hover:text-blue-500"}`}
                 >
                   My Events
                 </Link>
               )}
 
-              {/* Show for all organizers: Your Organizations */}
+              {/* Organizations Management Dropdown for Organizers */}
               {user?.role === "organizer" && (
-                <Link
-                  to="/your-organizations"
-                  className={`font-medium text-sm ${
-                    isActive("/your-organizations")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  My Organizations
-                </Link>
-              )}
-
-              {/* Explore other organizations */}
-              {user?.role === "organizer" && (
-                <Link
-                  to="/join-organization"
-                  className={`font-medium text-sm ${
-                    isActive("/join-organization")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  Explore Organizations
-                </Link>
-              )}
-
-              {user?.role === "organizer" && orgExists === false && (
-                <Link
-                  to="/register-organization"
-                  className={`font-medium text-sm ${
-                    isActive("/register-organization")
-                      ? "text-blue-600"
-                      : "text-gray-700 hover:text-blue-500"
-                  }`}
-                >
-                  Register Org
-                </Link>
-              )}
-
-              <Link
-                to="/profile"
-                className="flex items-center space-x-2 text-gray-700 hover:text-blue-500 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                  {user && user.profileImage ? (
-                    <img
-                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
-                      alt="Profile"
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-sm font-bold text-blue-600">
-                      {user && (user.username || user.name)
-                        ? (user.username || user.name).charAt(0).toUpperCase()
-                        : "U"}
-                    </div>
-                  )}
+                <div className="relative dropdown-container">
+                  <button
+                    onClick={() => toggleDropdown('organizations')}
+                    className={`text-sm font-medium flex items-center gap-1 ${
+                      isActive("/your-organizations") || isActive("/join-organization") || isActive("/register-organization")
+                        ? "text-blue-600"
+                        : "text-gray-700 hover:text-blue-500"
+                    }`}
+                  >
+                    Organizations
+                    <ChevronDown size={14} className={`transition-transform ${activeDropdown === 'organizations' ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {activeDropdown === 'organizations' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.18 }}
+                        className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                      >
+                        <Link
+                          to="/your-organizations"
+                          onClick={() => setActiveDropdown(null)}
+                          className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                        >
+                          My Organizations
+                        </Link>
+                        <Link
+                          to="/join-organization"
+                          onClick={() => setActiveDropdown(null)}
+                          className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+                        >
+                          Explore Organizations
+                        </Link>
+                        {orgExists === false && (
+                          <Link
+                            to="/register-organization"
+                            onClick={() => setActiveDropdown(null)}
+                            className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-b-lg transition-colors"
+                          >
+                            Register Organization
+                          </Link>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <span className="font-medium text-sm"></span>
-              </Link>
+              )}
+
+              {/* Sponsorships Dropdown - for all users */}
+              <div className="relative dropdown-container">
+                <button
+                  onClick={() => toggleDropdown('sponsorships')}
+                  className={`text-sm font-medium flex items-center gap-1 ${
+                    isActive("/my-applications")
+                      ? "text-blue-600"
+                      : "text-gray-700 hover:text-blue-500"
+                  }`}
+                >
+                  Sponsorships
+                  <ChevronDown size={14} className={`transition-transform ${activeDropdown === 'sponsorships' ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {activeDropdown === 'sponsorships' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                    >
+                      <Link
+                        to="/my-applications"
+                        onClick={() => setActiveDropdown(null)}
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                      >
+                        My Sponsorship Applications
+                      </Link>
+                      {/* Future sponsorship-related links can be added here */}
+                      {/* Example:
+                      <Link
+                        to="/sponsor-profile"
+                        onClick={() => setActiveDropdown(null)}
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+                      >
+                        Sponsor Profile
+                      </Link>
+                      <Link
+                        to="/sponsorship-opportunities"
+                        onClick={() => setActiveDropdown(null)}
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-b-lg transition-colors"
+                      >
+                        Find Opportunities
+                      </Link>
+                      */}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {/* Resource Center dropdown for all logged-in users */}
-              <div className="relative group">
+              <div className="relative dropdown-container">
                 <button
-                  className={`font-medium text-sm flex items-center gap-1 ${
+                  onClick={() => toggleDropdown('resources')}
+                  className={`text-sm font-medium flex items-center gap-1 ${
                     isActive("/resources") || isActive("/faqs")
                       ? "text-blue-600"
                       : "text-gray-700 hover:text-blue-500"
                   }`}
                 >
-                  Resource Center
-                  <ChevronDown size={16} />
+                  Resources
+                  <ChevronDown size={14} className={`transition-transform ${activeDropdown === 'resources' ? 'rotate-180' : ''}`} />
                 </button>
                 <AnimatePresence>
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.18 }}
-                    className="absolute left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20 hidden group-hover:block group-focus:block"
-                  >
-                    <Link
-                      to="/resources"
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                  {activeDropdown === 'resources' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute left-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
                     >
-                      Resource Center
-                    </Link>
-                    <Link
-                      to="/faqs"
-                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-b-lg transition-colors"
-                    >
-                      FAQs
-                    </Link>
-                  </motion.div>
+                      <Link
+                        to="/resources"
+                        onClick={() => setActiveDropdown(null)}
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                      >
+                        Resource Center
+                      </Link>
+                      <Link
+                        to="/faqs"
+                        onClick={() => setActiveDropdown(null)}
+                        className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-b-lg transition-colors"
+                      >
+                        FAQs
+                      </Link>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
 
-              <button
-                onClick={handleLogout}
-                className="font-medium text-sm text-gray-700 hover:text-red-500"
-              >
-                Logout
-              </button>
+              {/* Profile & Logout Dropdown */}
+              <div className="relative dropdown-container">
+                <button
+                  onClick={() => toggleDropdown('profile')}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-blue-500 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                    {user && user.profileImage ? (
+                      <img
+                        src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-sm font-bold text-blue-600">
+                        {user && (user.username || user.name)
+                          ? (user.username || user.name).charAt(0).toUpperCase()
+                          : "U"}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium">{getUserDisplayName()}</span>
+                  <ChevronDown size={14} className={`transition-transform ${activeDropdown === 'profile' ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {activeDropdown === 'profile' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18 }}
+                      className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                    >
+                      <Link
+                        to="/profile"
+                        onClick={() => setActiveDropdown(null)}
+                        className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 rounded-t-lg transition-colors"
+                      >
+                        <User size={16} className="mr-2" />
+                        Profile
+                      </Link>
+                      <Link
+                        to="/sponsor-profile"
+                        onClick={() => setActiveDropdown(null)}
+                        className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+                      >
+                        <User size={16} className="mr-2" />
+                        Sponsor Profile
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setActiveDropdown(null);
+                          handleLogout();
+                        }}
+                        className="flex items-center w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-red-600 rounded-b-lg transition-colors"
+                      >
+                        <LogOut size={16} className="mr-2" />
+                        Logout
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </>
           )}
         </div>

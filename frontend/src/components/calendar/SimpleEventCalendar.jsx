@@ -145,7 +145,6 @@ const SimpleEventCalendar = ({ role, userId }) => {
   // Listen for calendar refresh events
   useEffect(() => {
     const unsubscribe = calendarEventEmitter.subscribe('calendarRefresh', (data) => {
-      console.log('Calendar refresh triggered:', data);
       fetchEvents(true); // Use refresh mode
     });
 

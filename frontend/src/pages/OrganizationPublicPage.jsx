@@ -7,6 +7,7 @@ import {
 import { getEventsByOrganization } from '../api/event';
 import EventCard from '../components/event/EventCard';
 import Navbar from '../components/layout/Navbar';
+import { OrganizationSponsorshipSection } from '../components/sponsor';
 
 const orgFileUrl = (filename) =>
   filename ? `http://localhost:5000/uploads/organizationdetails/${filename.replace(/\\/g, '/')}` : null;
@@ -41,6 +42,9 @@ export default function OrganizationPublicPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const user = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
     async function fetchData() {
@@ -54,6 +58,18 @@ export default function OrganizationPublicPage() {
         setOrg(orgRes.data);
         setTeam(teamRes.data);
         setEvents(eventsRes);
+
+        // Check if current user is admin of this organization
+        if (user) {
+          const memberEntry = teamRes.data.find(
+            (member) => member.userId._id === user._id
+          );
+          if (memberEntry && memberEntry.status === "approved") {
+            setIsAdmin(
+              orgRes.data.createdBy === user._id || memberEntry.isAdmin
+            );
+          }
+        }
       } catch (err) {
         setOrg(null);
         setTeam([]);
@@ -90,8 +106,9 @@ export default function OrganizationPublicPage() {
   const past = events.filter((e) => new Date(e.startDateTime) < now);
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow mt-10">
+    <>
       <Navbar />
+      <div className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow mt-10">
       <div className="flex flex-col sm:flex-row items-center gap-6">
         {logo && (
           <img src={orgFileUrl(logo)} alt={name} className="w-28 h-28 rounded-lg object-cover border" />
@@ -100,14 +117,40 @@ export default function OrganizationPublicPage() {
           <h1 className="text-3xl font-bold text-blue-700 mb-1">{name}</h1>
           <div className="text-gray-600 mb-2">{description}</div>
         </div>
-        <button
-          className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-700 rounded hover:bg-blue-50 transition"
-          onClick={() => setDrawerOpen(true)}
-        >
-          <span className="material-icons">groups</span>
-          View Organizers
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-700 rounded hover:bg-blue-50 transition"
+            onClick={() => setDrawerOpen(true)}
+          >
+            <span className="material-icons"></span>
+            View Organizers
+          </button>
+          {isAdmin && (
+            <>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                onClick={() => navigate(`/organization/${id}/settings`)}
+              >
+                ⚙️ Settings
+              </button>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                onClick={() => navigate(`/organization/${id}/applications`)}
+              >
+                📋 View Applications
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      
+      {/* Sponsorship Section */}
+      <OrganizationSponsorshipSection 
+        organizationId={id}
+        organization={org}
+        isAdmin={isAdmin}
+      />
+      
       <hr className="my-4" />
       <div className="font-semibold text-lg mb-1">About</div>
       <div className="mb-3">{visionMission}</div>
@@ -206,8 +249,9 @@ export default function OrganizationPublicPage() {
               </div>
             ))}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+                 </div>
+       )}
+     </div>
+     </>
+   );
+ }

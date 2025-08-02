@@ -327,6 +327,60 @@ exports.getOrganizationsByUserId = async (req, res) => {
   }
 };
 
+// Update organization
+exports.updateOrganization = async (req, res) => {
+  try {
+    const orgId = req.params.id;
+    const updateData = req.body;
+
+
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      return res.status(404).json({ message: 'Organization not found' });
+    }
+
+    // Check if user is authorized to update (creator or admin)
+    const userId = req.user._id.toString();
+    const isCreator = org.createdBy.toString() === userId;
+    const isAdmin = org.team.some(m => m.userId.toString() === userId && m.isAdmin);
+
+    if (!isCreator && !isAdmin) {
+      return res.status(403).json({ message: 'You are not authorized to update this organization' });
+    }
+
+    // Update the organization
+    // Use $set for nested objects to ensure proper updating
+    const updateQuery = {};
+    
+    // Handle basic fields
+    Object.keys(updateData).forEach(key => {
+      if (key !== 'sponsorship') {
+        updateQuery[key] = updateData[key];
+      }
+    });
+    
+    // Handle sponsorship object separately with $set
+    if (updateData.sponsorship) {
+      Object.keys(updateData.sponsorship).forEach(key => {
+        updateQuery[`sponsorship.${key}`] = updateData.sponsorship[key];
+      });
+    }
+    
+    
+    const updatedOrg = await Organization.findByIdAndUpdate(
+      orgId,
+      updateQuery,
+      { new: true, runValidators: true }
+    );
+
+
+    res.json(updatedOrg);
+  } catch (err) {
+    console.error('❌ Failed to update organization:', err);
+    res.status(500).json({ message: 'Server error while updating organization' });
+  }
+};
+
 // Delete organization
 exports.deleteOrganization = async (req, res) => {
   try {

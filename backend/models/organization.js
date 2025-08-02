@@ -81,6 +81,62 @@ const organizationSchema = new mongoose.Schema({
   // ✅ Organizers who joined or requested to join
   team: [TeamMemberSchema], // uses subschema with timestamps
 
+  // Sponsorship settings
+  sponsorship: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    description: String, // "We welcome sponsors to support our mission"
+    contactEmail: String, // For sponsorship inquiries
+    minimumContribution: {
+      type: Number,
+      default: 5000
+    },
+    allowCustomSponsorship: {
+      type: Boolean,
+      default: true
+    },
+    customSponsorshipContact: {
+      email: String,
+      phone: String,
+      description: String // "Contact us for custom arrangements"
+    }
+  },
+
+  // Sponsorship packages (for general org support)
+  sponsorshipPackages: [{
+    name: String, // "Environmental Champion"
+    description: String,
+    status: {
+      type: String,
+      enum: ['draft', 'active', 'closed'],
+      default: 'draft'
+    },
+    tiers: [{
+      name: String, // "Platinum", "Gold", "Silver", "Community"
+      minContribution: Number,
+      maxSponsors: Number,
+      benefits: [String], // ["Logo on website", "Social media mentions"]
+      description: String
+    }],
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Current sponsors (references to Sponsorship model)
+  sponsorships: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Sponsorship'
+  }],
+
+  // Legacy sponsors field (keeping for backward compatibility)
   sponsors: [
     {
       type: mongoose.Schema.Types.ObjectId,
@@ -100,6 +156,26 @@ const organizationSchema = new mongoose.Schema({
     totalVolunteers: {
       type: Number,
       default: 0,
+    }
+  },
+
+  // Sponsorship impact
+  sponsorshipImpact: {
+    totalSponsorships: {
+      type: Number,
+      default: 0
+    },
+    totalSponsorshipValue: {
+      type: Number,
+      default: 0
+    },
+    activeSponsors: {
+      type: Number,
+      default: 0
+    },
+    eventsWithSponsors: {
+      type: Number,
+      default: 0
     }
   }
 

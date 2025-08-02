@@ -301,7 +301,6 @@ exports.generateSummaries = async (req, res) => {
     setImmediate(async () => {
       try {
         await generateMissingSummaries(seriesId);
-        console.log(`✅ Completed generating summaries for series ${seriesId}`);
       } catch (error) {
         console.error(`❌ Error generating summaries for series ${seriesId}:`, error);
       }
