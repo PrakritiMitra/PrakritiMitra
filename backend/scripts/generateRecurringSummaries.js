@@ -16,14 +16,11 @@ const generateAllMissingSummaries = async () => {
     const RecurringEventSeries = require('../models/recurringEventSeries');
     const series = await RecurringEventSeries.find({});
 
-    console.log(`🔍 Found ${series.length} recurring event series`);
 
     for (const seriesItem of series) {
-      console.log(`\n📋 Processing series: ${seriesItem.title} (${seriesItem._id})`);
       await generateMissingSummaries(seriesItem._id);
     }
 
-    console.log('\n✅ Completed generating missing summaries for all series');
     process.exit(0);
   } catch (error) {
     console.error('❌ Error:', error);

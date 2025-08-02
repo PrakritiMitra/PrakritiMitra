@@ -268,6 +268,21 @@ exports.updateAttendance = async (req, res) => {
       }
     }
     await registration.save();
+    
+    // Emit socket event for real-time attendance updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`attendance:${registration.eventId}`).emit('attendanceUpdated', {
+        eventId: registration.eventId,
+        registrationId: registration._id,
+        volunteerId: registration.volunteerId,
+        hasAttended: registration.hasAttended,
+        inTime: registration.inTime,
+        outTime: registration.outTime,
+        timestamp: new Date()
+      });
+    }
+    
     res.json({ message: 'Attendance updated.', registration });
   } catch (err) {
     res.status(500).json({ message: 'Server error updating attendance.' });
@@ -333,9 +348,7 @@ exports.getEventsForVolunteer = async (req, res) => {
 exports.getRegistrationsForVolunteer = async (req, res) => {
   try {
     const volunteerId = req.params.volunteerId;
-    console.log('[DEBUG] Fetching registrations for volunteerId:', volunteerId);
     const registrations = await Registration.find({ volunteerId });
-    console.log('[DEBUG] Registrations found:', registrations.length, registrations.map(r => r.eventId));
     res.json(registrations);
   } catch (err) {
     console.error('[DEBUG] Error fetching registrations:', err);
@@ -599,6 +612,122 @@ exports.getEventQuestionnaireComments = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Failed to fetch questionnaire comments', 
+      error: err.message 
+    });
+  }
+};
+
+// Get real-time attendance statistics for an event
+exports.getAttendanceStats = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    
+    // Get the event and its organizerTeam
+    const Event = require('../models/event');
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found.' });
+    }
+
+    // Get all registrations for this event
+    const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name username email phone profileImage role');
+    
+    // Get organizer team IDs
+    const organizerTeamIds = event.organizerTeam.map(obj => obj.user.toString());
+    
+    // Get removed and banned volunteer IDs
+    const removedVolunteerIds = event?.removedVolunteers?.map(id => id.toString()) || [];
+    const bannedVolunteerIds = event?.bannedVolunteers?.map(id => id.toString()) || [];
+    
+    // Filter out organizers, removed, and banned volunteers
+    const volunteerRegistrations = registrations.filter(r => {
+      const volunteerId = r.volunteerId.toString();
+      return !organizerTeamIds.includes(volunteerId) && 
+             !removedVolunteerIds.includes(volunteerId) && 
+             !bannedVolunteerIds.includes(volunteerId);
+    });
+
+    // Calculate statistics
+    const now = new Date();
+    const eventStartTime = new Date(event.startDateTime);
+    const eventEndTime = new Date(event.endDateTime);
+    
+    // Volunteer statistics
+    const totalVolunteers = volunteerRegistrations.length;
+    const checkedIn = volunteerRegistrations.filter(r => r.inTime).length;
+    const checkedOut = volunteerRegistrations.filter(r => r.outTime).length;
+    const currentlyPresent = volunteerRegistrations.filter(r => r.inTime && !r.outTime).length;
+    const notArrived = totalVolunteers - checkedIn;
+    const attendanceRate = totalVolunteers > 0 ? Math.round((checkedIn / totalVolunteers) * 100) : 0;
+    
+    // Organizer statistics
+    const totalOrganizers = event.organizerTeam.length;
+    const organizersPresent = event.organizerTeam.filter(obj => obj.hasAttended).length;
+    const organizerAttendanceRate = totalOrganizers > 0 ? Math.round((organizersPresent / totalOrganizers) * 100) : 0;
+    
+    // Overall statistics
+    const totalParticipants = totalVolunteers + totalOrganizers;
+    const totalPresent = checkedIn + organizersPresent;
+    const overallAttendanceRate = totalParticipants > 0 ? Math.round((totalPresent / totalParticipants) * 100) : 0;
+    
+    // Event status
+    const isEventStarted = now >= eventStartTime;
+    const isEventEnded = now >= eventEndTime;
+    const isEventLive = isEventStarted && !isEventEnded;
+    
+    // Recent activity (last 10 minutes)
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+    const recentCheckIns = volunteerRegistrations.filter(r => 
+      r.inTime && new Date(r.inTime) >= tenMinutesAgo
+    ).length;
+    const recentCheckOuts = volunteerRegistrations.filter(r => 
+      r.outTime && new Date(r.outTime) >= tenMinutesAgo
+    ).length;
+
+    const stats = {
+      event: {
+        id: event._id,
+        title: event.title,
+        startDateTime: event.startDateTime,
+        endDateTime: event.endDateTime,
+        isStarted: isEventStarted,
+        isEnded: isEventEnded,
+        isLive: isEventLive
+      },
+      volunteers: {
+        total: totalVolunteers,
+        checkedIn,
+        checkedOut,
+        currentlyPresent,
+        notArrived,
+        attendanceRate
+      },
+      organizers: {
+        total: totalOrganizers,
+        present: organizersPresent,
+        attendanceRate: organizerAttendanceRate
+      },
+      overall: {
+        totalParticipants,
+        totalPresent,
+        attendanceRate: overallAttendanceRate
+      },
+      recentActivity: {
+        checkIns: recentCheckIns,
+        checkOuts: recentCheckOuts,
+        lastUpdated: now
+      }
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (err) {
+    console.error('Error fetching attendance stats:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error fetching attendance statistics',
       error: err.message 
     });
   }

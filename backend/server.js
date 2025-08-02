@@ -20,6 +20,9 @@ const faqRoutes = require('./routes/faqRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const recurringEventRoutes = require('./routes/recurringEventRoutes');
+const sponsorRoutes = require('./routes/sponsorRoutes');
+const sponsorshipRoutes = require('./routes/sponsorshipRoutes');
+const sponsorshipIntentRoutes = require('./routes/sponsorshipIntentRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -57,6 +60,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/uploads/qrcodes', express.static(path.join(__dirname, 'uploads/qrcodes')));
 app.use('/uploads/certificates', express.static(path.join(__dirname, 'uploads/certificates')));
+app.use('/uploads/sponsors', express.static(path.join(__dirname, 'uploads/sponsors')));
 
 
 // ✅ Routes
@@ -73,6 +77,11 @@ app.use('/api/faqs', faqRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/recurring-events', recurringEventRoutes);
+
+// Sponsorship routes
+app.use('/api/sponsors', sponsorRoutes);
+app.use('/api/sponsorships', sponsorshipRoutes);
+app.use('/api/sponsorship-intents', sponsorshipIntentRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);

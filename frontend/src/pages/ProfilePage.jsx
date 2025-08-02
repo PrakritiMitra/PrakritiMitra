@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [removeGovtIdProof, setRemoveGovtIdProof] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [usernameError, setUsernameError] = useState('');
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -209,6 +210,7 @@ export default function ProfilePage() {
       setSaving(false);
     }
   };
+
 
   if (loading) {
     return (

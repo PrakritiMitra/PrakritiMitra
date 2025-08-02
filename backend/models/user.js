@@ -124,6 +124,30 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  // Sponsor capabilities (for existing users who want to become sponsors)
+  sponsor: {
+    isSponsor: {
+      type: Boolean,
+      default: false
+    },
+    sponsorProfile: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Sponsor'
+    },
+    upgradeRequestedAt: Date,
+    upgradeApprovedAt: Date
+  },
+
+  // Track sponsorship history for users who are sponsors
+  sponsoredEvents: [{
+    event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization' },
+    sponsorship: { type: mongoose.Schema.Types.ObjectId, ref: 'Sponsorship' },
+    contribution: { type: String },
+    tier: String,
+    date: Date
+  }],
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

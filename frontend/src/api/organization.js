@@ -40,3 +40,6 @@ export const getOrganizationOrganizers = async (id) => {
 // Fetch user by ID (for organizer profile)
 export const getUserById = (id) =>
   axios.get(`/api/users/${id}`);
+
+export const updateOrganization = (id, data) =>
+  axios.put(`/api/organizations/${id}`, data);

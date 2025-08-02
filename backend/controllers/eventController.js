@@ -20,8 +20,6 @@ const {
 // Create new event
 exports.createEvent = async (req, res) => {
   try {
-    console.log("🔹 Create Event Request Body:", req.body);
-    console.log("🖼️ Uploaded Files:", req.files);
 
     const {
       title,
@@ -156,7 +154,6 @@ exports.createEvent = async (req, res) => {
         event.nextRecurringDate = nextRecurringDate;
         await event.save();
 
-        console.log(`✅ Recurring event series created: ${series._id}`);
       } catch (seriesError) {
         console.error('❌ Failed to create recurring series:', seriesError);
         // Don't fail the event creation if series creation fails
@@ -173,7 +170,6 @@ exports.createEvent = async (req, res) => {
         const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
         const summary = res.data.summary;
         await Event.findByIdAndUpdate(event._id, { summary });
-        console.log('Summary updated for event', event._id);
       } catch (err) {
         console.error('Failed to generate event summary (background):', err);
       }
@@ -188,13 +184,11 @@ exports.createEvent = async (req, res) => {
 exports.getAllEvents = async (req, res) => {
   try {
     const now = new Date();
-    console.log("🔹 Fetching upcoming events after:", now);
 
     const events = await Event.find({ startDateTime: { $exists: true, $gte: now } })
       .sort({ startDateTime: 1 }) // Optional: sort by soonest first
       .populate("organization");
 
-    console.log(`✅ ${events.length} upcoming events found`);
     res.status(200).json(events);
   } catch (err) {
     console.error("❌ Failed to fetch upcoming events:", err);
@@ -206,11 +200,7 @@ exports.getAllEvents = async (req, res) => {
 exports.getEventsByOrganization = async (req, res) => {
   try {
     const orgId = req.params.orgId;
-    console.log(`🔹 Fetching events for organization: ${orgId}`);
-
     const events = await Event.find({ organization: orgId }).populate("organization");
-
-    console.log(`✅ ${events.length} events found for org: ${orgId}`);
     res.status(200).json(events);
   } catch (err) {
     console.error(`❌ Failed to fetch events for org ${req.params.orgId}:`, err);
@@ -222,13 +212,11 @@ exports.getEventsByOrganization = async (req, res) => {
 exports.getUpcomingEvents = async (req, res) => {
   try {
     const now = new Date();
-    console.log("🔹 Fetching upcoming events after:", now);
 
     const upcomingEvents = await Event.find({ startDateTime: { $exists: true, $gte: now } })
       .sort({ startDateTime: 1 }) // Optional: sort by soonest first
       .populate("organization");
 
-    console.log(`✅ ${upcomingEvents.length} upcoming events found`);
     res.status(200).json(upcomingEvents);
   } catch (err) {
     console.error("❌ Failed to fetch upcoming events:", err);
@@ -399,7 +387,6 @@ exports.updateEvent = async (req, res) => {
         const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
         const summary = res.data.summary;
         await Event.findByIdAndUpdate(event._id, { summary });
-        console.log('Summary updated for event', event._id);
       } catch (err) {
         console.error('Failed to generate event summary (background):', err);
       }
@@ -438,7 +425,6 @@ exports.deleteEvent = async (req, res) => {
           const imgPath = path.join(__dirname, "../uploads/Events", img);
           if (fs.existsSync(imgPath)) {
             fs.unlinkSync(imgPath);
-            console.log(`✅ Deleted event image: ${img}`);
           }
         });
       }
@@ -448,7 +434,6 @@ exports.deleteEvent = async (req, res) => {
         const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
         if (fs.existsSync(letterPath)) {
           fs.unlinkSync(letterPath);
-          console.log(`✅ Deleted approval letter: ${event.govtApprovalLetter}`);
         }
       }
     } catch (fileError) {
@@ -738,7 +723,6 @@ exports.getEventSlots = async (req, res) => {
  // Complete Questionnaire for an Event
 exports.completeQuestionnaire = async (req, res) => {
   try {
-    console.log('completeQuestionnaire called');
     const eventId = req.params.id;
     let answers = req.body.answers;
     if (typeof answers === 'string') {
@@ -748,7 +732,6 @@ exports.completeQuestionnaire = async (req, res) => {
     if (typeof awards === 'string') {
       try { awards = JSON.parse(awards); } catch { awards = {}; }
     }
-    console.log('User:', req.user);
     const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email profileImage');
     if (!event) return res.status(404).json({ message: 'Event not found' });
 
@@ -767,8 +750,6 @@ exports.completeQuestionnaire = async (req, res) => {
 
     // Determine if this user is the creator (first in organizerTeam)
     const isCreator = event.organizerTeam.length > 0 && event.organizerTeam[0].user._id.toString() === req.user._id.toString();
-    console.log('isCreator:', isCreator);
-    console.log('awards:', awards);
 
     // Save answers and mark as completed
     organizer.questionnaire = {
@@ -1228,7 +1209,6 @@ exports.handleEventCompletion = async (req, res) => {
           // Update statistics
           await updateSeriesStatistics(series, RecurringEventSeries);
 
-          console.log(`✅ Next recurring instance created: ${newEvent._id}`);
 
           res.status(200).json({
             success: true,

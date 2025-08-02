@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getFullOrganizerTeam, updateOrganizerAttendance } from "../api/event";
-import { getVolunteersForEvent, updateVolunteerAttendance } from "../api/registration";
+import { getVolunteersForEvent, updateVolunteerAttendance, downloadAttendanceReport } from "../api/registration";
 import Navbar from "../components/layout/Navbar";
 import AttendanceQrScanner from "../components/attendance/AttendanceQrScanner";
+import AttendanceDashboard from "../components/attendance/AttendanceDashboard";
 import axiosInstance from "../api/axiosInstance"; // <-- Use axiosInstance
 import { useRef } from 'react';
 import { FaPencilAlt } from 'react-icons/fa';
@@ -19,6 +20,7 @@ export default function EventAttendancePage() {
   const imageBaseUrl = "http://localhost:5000/uploads/Profiles/";
   const [showScanner, setShowScanner] = useState(false);
   const [volunteerEdit, setVolunteerEdit] = useState({}); // { [registrationId]: { type: 'in'|'out', value: '' } }
+  const [downloadingReport, setDownloadingReport] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -148,6 +150,31 @@ export default function EventAttendancePage() {
   // Helper: is current user the event creator?
   const isEventCreator = eventId && organizers.length > 0 && organizers[0].user && currentUser && organizers[0].user._id === currentUser._id;
 
+  // Handle report download
+  const handleDownloadReport = async (format = 'pdf') => {
+    try {
+      setDownloadingReport(true);
+      const blob = await downloadAttendanceReport(eventId, format);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `attendance_report_${format}.${format === 'excel' ? 'xlsx' : format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      alert(`Attendance report downloaded successfully as ${format.toUpperCase()}!`);
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      alert('Failed to download attendance report');
+    } finally {
+      setDownloadingReport(false);
+    }
+  };
+
   // Debug: Log volunteers before rendering
   
 
@@ -160,13 +187,59 @@ export default function EventAttendancePage() {
         </button>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-blue-800">Event Attendance</h1>
-          <button
-            className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-transform transform hover:scale-105"
-            onClick={() => setShowScanner(true)}
-          >
-            Scan Volunteer QR
-          </button>
+          <div className="flex gap-2">
+            {/* Download Report Dropdown */}
+            <div className="relative">
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-transform transform hover:scale-105 disabled:opacity-50"
+                onClick={() => document.getElementById('reportDropdown').classList.toggle('hidden')}
+                disabled={downloadingReport}
+              >
+                {downloadingReport ? 'Downloading...' : '📊 Download Report'}
+              </button>
+              <div id="reportDropdown" className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50">
+                <div className="py-1">
+                  <button
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      handleDownloadReport('pdf');
+                      document.getElementById('reportDropdown').classList.add('hidden');
+                    }}
+                  >
+                    📄 Download as PDF
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      handleDownloadReport('excel');
+                      document.getElementById('reportDropdown').classList.add('hidden');
+                    }}
+                  >
+                    📊 Download as Excel
+                  </button>
+                  <button
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      handleDownloadReport('csv');
+                      document.getElementById('reportDropdown').classList.add('hidden');
+                    }}
+                  >
+                    📋 Download as CSV
+                  </button>
+                </div>
+              </div>
+            </div>
+            <button
+              className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-transform transform hover:scale-105"
+              onClick={() => setShowScanner(true)}
+            >
+              Scan Volunteer QR
+            </button>
+          </div>
         </div>
+
+        {/* Real-time Attendance Dashboard */}
+        <AttendanceDashboard eventId={eventId} />
 
         {showScanner && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
