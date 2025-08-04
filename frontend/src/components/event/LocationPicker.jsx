@@ -41,36 +41,53 @@ export default function LocationPicker({ value, onChange }) {
     }
   }, [isLoaded, loadError]);
 
+  // Safety check for value prop
+  const safeValue = value || {};
+
   const handleMapClick = useCallback((e) => {
     const lat = e.latLng.lat();
     const lng = e.latLng.lng();
     
     // Reverse geocoding to get address
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const address = results[0].formatted_address;
-        setInputValue(address);
-        setSuggestions([]);
-        setShowSuggestions(false);
-        onChange({
-          lat,
-          lng,
-          address,
-        });
-      } else {
-        // Fallback if geocoding fails
-        const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        setInputValue(address);
-        setSuggestions([]);
-        setShowSuggestions(false);
-        onChange({
-          lat,
-          lng,
-          address,
-        });
-      }
-    });
+    try {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const address = results[0].formatted_address;
+          setInputValue(address);
+          setSuggestions([]);
+          setShowSuggestions(false);
+          onChange({
+            lat,
+            lng,
+            address,
+          });
+        } else {
+          // Fallback if geocoding fails
+          const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+          setInputValue(address);
+          setSuggestions([]);
+          setShowSuggestions(false);
+          onChange({
+            lat,
+            lng,
+            address,
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error in reverse geocoding:', error);
+      // Fallback if geocoding fails
+      const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      setInputValue(address);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      onChange({
+        lat,
+        lng,
+        address,
+      });
+    }
   }, [onChange]);
 
   const handleAddressChange = useCallback((e) => {
@@ -87,23 +104,29 @@ export default function LocationPicker({ value, onChange }) {
 
     // Use Places AutocompleteService for suggestions
     if (window.google && window.google.maps && window.google.maps.places) {
-      const service = new window.google.maps.places.AutocompleteService();
-      service.getPlacePredictions(
-        {
-          input: newValue,
-          componentRestrictions: { country: 'IN' }, // Restrict to India
-          types: ['establishment', 'geocode']
-        },
-        (predictions, status) => {
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-            setSuggestions(predictions);
-            setShowSuggestions(true);
-          } else {
-            setSuggestions([]);
-            setShowSuggestions(false);
+      try {
+        const service = new window.google.maps.places.AutocompleteService();
+        service.getPlacePredictions(
+          {
+            input: newValue,
+            componentRestrictions: { country: 'IN' }, // Restrict to India
+            types: ['establishment', 'geocode']
+          },
+          (predictions, status) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+              setSuggestions(predictions);
+              setShowSuggestions(true);
+            } else {
+              setSuggestions([]);
+              setShowSuggestions(false);
+            }
           }
-        }
-      );
+        );
+      } catch (error) {
+        console.error('Error getting place predictions:', error);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
     }
   }, [onChange]);
 
@@ -113,24 +136,28 @@ export default function LocationPicker({ value, onChange }) {
     setShowSuggestions(false);
     
     // Get place details using PlacesService
-    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
-    service.getDetails(
-      {
-        placeId: suggestion.place_id,
-        fields: ['geometry', 'formatted_address']
-      },
-      (place, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && place && place.geometry) {
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      onChange({
-        lat,
-        lng,
-            address: place.formatted_address || suggestion.description,
-      });
+    try {
+      const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+      service.getDetails(
+        {
+          placeId: suggestion.place_id,
+          fields: ['geometry', 'formatted_address']
+        },
+        (place, status) => {
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && place && place.geometry) {
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            onChange({
+              lat,
+              lng,
+              address: place.formatted_address || suggestion.description,
+            });
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error getting place details:', error);
     }
-      }
-    );
   }, [onChange]);
 
   const handleKeyDown = useCallback((e) => {
@@ -227,15 +254,15 @@ export default function LocationPicker({ value, onChange }) {
       </div>
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
-        center={value?.lat && value?.lng ? { lat: value.lat, lng: value.lng } : defaultCenter}
-        zoom={value?.lat && value?.lng ? 15 : 10}
+        center={safeValue?.lat && safeValue?.lng ? { lat: safeValue.lat, lng: safeValue.lng } : defaultCenter}
+        zoom={safeValue?.lat && safeValue?.lng ? 15 : 10}
         onClick={handleMapClick}
         onError={(error) => {
           console.error("Google Map error:", error);
           setError(error);
         }}
       >
-        {value?.lat && value?.lng && <Marker position={{ lat: value.lat, lng: value.lng }} />}
+        {safeValue?.lat && safeValue?.lng && <Marker position={{ lat: safeValue.lat, lng: safeValue.lng }} />}
       </GoogleMap>
       {error && (
         <div style={{ marginTop: 8, padding: 8, backgroundColor: '#ffebee', color: '#c62828', borderRadius: 4 }}>

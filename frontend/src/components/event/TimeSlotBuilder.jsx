@@ -26,7 +26,10 @@ const TimeSlotBuilder = ({
   setTimeSlots,
   remainingVolunteers = 0,
   unlimitedVolunteers = false,
-  allocationError = ""
+  allocationError = "",
+  editingCategory = null,
+  setEditingCategory = null,
+  readOnly = false
 }) => {
   const defaultSlotNames = ['Morning', 'Afternoon', 'Evening', 'Night'];
   const timeIntervals = Array.from({ length: 96 }, (_, i) => {
@@ -47,10 +50,24 @@ const TimeSlotBuilder = ({
   };
 
   const removeTimeSlot = (slotId) => {
+    // In readOnly mode, only allow removing newly added slots (those without existing data)
+    if (readOnly) {
+      const slot = timeSlots.find(s => s.id === slotId);
+      if (slot && slot.existing) {
+        return; // Don't allow removing existing slots
+      }
+    }
     setTimeSlots(timeSlots.filter(slot => slot.id !== slotId));
   };
 
   const updateTimeSlot = (slotId, field, value) => {
+    // In readOnly mode, don't allow updating existing slots
+    if (readOnly) {
+      const slot = timeSlots.find(s => s.id === slotId);
+      if (slot && slot.existing) {
+        return; // Don't allow updating existing slots
+      }
+    }
     setTimeSlots(timeSlots.map(slot => 
       slot.id === slotId ? { ...slot, [field]: value } : slot
     ));
@@ -60,7 +77,8 @@ const TimeSlotBuilder = ({
     const newCategory = {
       id: uuidv4(),
       name: '',
-      maxVolunteers: null
+      maxVolunteers: null,
+      isNew: true // Mark as newly added
     };
     setTimeSlots(timeSlots.map(slot => 
       slot.id === slotId 
@@ -70,6 +88,14 @@ const TimeSlotBuilder = ({
   };
 
   const removeCategory = (slotId, categoryId) => {
+    // In readOnly mode, only allow removing newly added categories
+    if (readOnly) {
+      const slot = timeSlots.find(s => s.id === slotId);
+      const category = slot?.categories.find(c => c.id === categoryId);
+      if (category && category.existing) {
+        return; // Don't allow removing existing categories
+      }
+    }
     setTimeSlots(timeSlots.map(slot => 
       slot.id === slotId 
         ? { ...slot, categories: slot.categories.filter(cat => cat.id !== categoryId) }
@@ -78,15 +104,27 @@ const TimeSlotBuilder = ({
   };
 
   const updateCategory = (slotId, categoryId, field, value) => {
+    // In readOnly mode, don't allow updating existing categories
+    if (readOnly) {
+      const slot = timeSlots.find(s => s.id === slotId);
+      const category = slot?.categories.find(c => c.id === categoryId);
+      if (category && category.existing) {
+        return; // Don't allow updating existing categories
+      }
+    }
+
     // Special validation for maxVolunteers field
     if (field === 'maxVolunteers') {
       const numValue = value === '' ? null : parseInt(value);
       
-      // Check if the new value would exceed remaining volunteers
-      if (!unlimitedVolunteers && numValue && numValue > remainingVolunteers) {
-        // Don't update if it would exceed the limit
-        return;
-      }
+      console.log('🔍 Category Update Debug:');
+      console.log('  - Slot ID:', slotId);
+      console.log('  - Category ID:', categoryId);
+      console.log('  - Field:', field);
+      console.log('  - Value:', value);
+      console.log('  - Parsed value:', numValue);
+      console.log('  - Remaining volunteers:', remainingVolunteers);
+      console.log('  - Unlimited volunteers:', unlimitedVolunteers);
     }
     
     setTimeSlots(timeSlots.map(slot => 
@@ -99,6 +137,12 @@ const TimeSlotBuilder = ({
           }
         : slot
     ));
+  };
+
+  const clearEditingState = () => {
+    if (setEditingCategory) {
+      setEditingCategory(null);
+    }
   };
 
   const validateTimeSlots = () => {
@@ -216,19 +260,33 @@ const TimeSlotBuilder = ({
           )}
 
           {timeSlots.map((slot, slotIndex) => (
-            <Card key={slot.id} sx={{ mb: 2 }}>
+            <Card key={slot.id} sx={{ 
+              mb: 2, 
+              border: slot.existing ? '1px solid #e0e0e0' : '1px solid #1976d2',
+              bgcolor: slot.existing ? 'grey.50' : 'white'
+            }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-                    Time Slot {slotIndex + 1}
+                    {slot.existing ? 'Existing ' : 'New '}Time Slot {slotIndex + 1}
                   </Typography>
-                  <IconButton 
-                    onClick={() => removeTimeSlot(slot.id)}
-                    color="error"
-                    size="small"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+                  {slot.existing && (
+                    <Chip 
+                      label="Read Only" 
+                      color="default" 
+                      size="small" 
+                      variant="outlined"
+                    />
+                  )}
+                  {!slot.existing && (
+                    <IconButton 
+                      onClick={() => removeTimeSlot(slot.id)}
+                      color="error"
+                      size="small"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  )}
                 </Box>
 
                 <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -239,6 +297,7 @@ const TimeSlotBuilder = ({
                       value={slot.name}
                       onChange={(e) => updateTimeSlot(slot.id, 'name', e.target.value)}
                       placeholder="e.g., Morning"
+                      disabled={slot.existing && readOnly}
                     />
                   </Grid>
                   <Grid item xs={12} sm={3}>
@@ -248,6 +307,7 @@ const TimeSlotBuilder = ({
                         value={slot.startTime}
                         onChange={(e) => updateTimeSlot(slot.id, 'startTime', e.target.value)}
                         label="Start Time"
+                        disabled={slot.existing && readOnly}
                       >
                         {timeIntervals.map((time) => (
                           <MenuItem key={time} value={time}>
@@ -264,6 +324,7 @@ const TimeSlotBuilder = ({
                         value={slot.endTime}
                         onChange={(e) => updateTimeSlot(slot.id, 'endTime', e.target.value)}
                         label="End Time"
+                        disabled={slot.existing && readOnly}
                       >
                         {timeIntervals.map((time) => (
                           <MenuItem key={time} value={time}>
@@ -290,13 +351,22 @@ const TimeSlotBuilder = ({
                 </Typography>
 
                 {slot.categories.map((category, catIndex) => (
-                  <Box key={category.id} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Box key={category.id} sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    mb: 1,
+                    p: 1,
+                    bgcolor: category.existing ? 'grey.100' : 'white',
+                    borderRadius: 1,
+                    border: category.existing ? '1px solid #e0e0e0' : 'none'
+                  }}>
                     <TextField
                       label="Category Name"
                       value={category.name}
                       onChange={(e) => updateCategory(slot.id, category.id, 'name', e.target.value)}
                       sx={{ flexGrow: 1, mr: 1 }}
                       placeholder="e.g., Cleanup"
+                      disabled={category.existing && readOnly}
                     />
                     <TextField
                       label="Max Volunteers"
@@ -305,6 +375,18 @@ const TimeSlotBuilder = ({
                       onChange={(e) => {
                         const value = e.target.value === '' ? null : parseInt(e.target.value);
                         updateCategory(slot.id, category.id, 'maxVolunteers', value);
+                      }}
+                      onFocus={() => {
+                        console.log('🔍 Category Focus Debug:');
+                        console.log('  - Setting editing category:', { slotId: slot.id, categoryId: category.id });
+                        if (setEditingCategory) {
+                          setEditingCategory({ slotId: slot.id, categoryId: category.id });
+                        }
+                      }}
+                      onBlur={() => {
+                        console.log('🔍 Category Blur Debug:');
+                        console.log('  - Clearing editing category');
+                        clearEditingState();
                       }}
                       sx={{ width: 150, mr: 1 }}
                       placeholder="Unlimited"
@@ -320,16 +402,30 @@ const TimeSlotBuilder = ({
                       error={
                         !unlimitedVolunteers && 
                         category.maxVolunteers && 
-                        category.maxVolunteers > remainingVolunteers
+                        category.maxVolunteers > remainingVolunteers &&
+                        !(editingCategory && 
+                          editingCategory.slotId === slot.id && 
+                          editingCategory.categoryId === category.id)
                       }
+                      disabled={category.existing && readOnly}
                     />
-                    <IconButton 
-                      onClick={() => removeCategory(slot.id, category.id)}
-                      color="error"
-                      size="small"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    {!category.existing && (
+                      <IconButton 
+                        onClick={() => removeCategory(slot.id, category.id)}
+                        color="error"
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                    {category.existing && readOnly && (
+                      <Chip 
+                        label="Read Only" 
+                        color="default" 
+                        size="small" 
+                        variant="outlined"
+                      />
+                    )}
                   </Box>
                 ))}
 

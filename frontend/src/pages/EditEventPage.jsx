@@ -1,21 +1,16 @@
 // src/pages/EditEventPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
-import EventStepOne from "../components/event/EventStepOne";
-import EventStepTwo from "../components/event/EventStepTwo";
-import EventPreview from "../components/event/EventPreview";
-import Navbar from "../components/layout/Navbar";
+import EventCreationWrapper from "../components/event/EventCreationWrapper";
+import ReadOnlyTimeSlotViewer from "../components/event/ReadOnlyTimeSlotViewer";
 
 export default function EditEventPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState(null);
-  const [questionnaireData, setQuestionnaireData] = useState(null);
-
+  const [formData, setFormData] = useState({});
+  const [questionnaireData, setQuestionnaireData] = useState({});
   const [existingLetter, setExistingLetter] = useState(null);
   const [removedImages, setRemovedImages] = useState([]);
   const [removedLetter, setRemovedLetter] = useState(false);
@@ -25,6 +20,16 @@ export default function EditEventPage() {
       try {
         const res = await axiosInstance.get(`/api/events/${id}`);
         const e = res.data;
+
+        // Mark existing time slots and categories as existing
+        const existingTimeSlots = e.timeSlots ? e.timeSlots.map(slot => ({
+          ...slot,
+          existing: true,
+          categories: slot.categories ? slot.categories.map(category => ({
+            ...category,
+            existing: true
+          })) : []
+        })) : [];
 
         setFormData({
           title: e.title,
@@ -45,8 +50,11 @@ export default function EditEventPage() {
           recurringValue: e.recurringValue || "",
           organization: e.organization?._id || "",
           eventImages: [],
-          existingImages: e.eventImages || [], // <-- add this
+          existingImages: e.eventImages || [],
           govtApprovalLetter: null,
+          // Add time slots data with existing markers
+          timeSlotsEnabled: e.timeSlotsEnabled || false,
+          timeSlots: existingTimeSlots,
         });
 
         setExistingLetter(e.govtApprovalLetter || null);
@@ -162,59 +170,28 @@ export default function EditEventPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="pt-24 max-w-4xl mx-auto px-4">
-        <h1 className="text-2xl font-bold text-blue-700 mb-4">
-          Edit Event: {formData.title}
-        </h1>
-
-        {step === 1 && (
-          <EventStepOne
-            formData={formData}
-            setFormData={handleFormUpdate}
-            setImageFiles={(updater) =>
-              setFormData((prev) => ({
-                ...prev,
-                eventImages:
-                  typeof updater === "function"
-                    ? updater(Array.isArray(prev.eventImages) ? prev.eventImages : [])
-                    : updater,
-              }))
-            }
-            setLetterFile={(file) =>
-              setFormData((prev) => ({ ...prev, govtApprovalLetter: file }))
-            }
+    <div>
+      {loading ? (
+        <div>Loading...</div>
+      ) : (
+        <div>
+          {/* Show existing time slots in read-only mode */}
+          {formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && (
+            <ReadOnlyTimeSlotViewer timeSlots={formData.timeSlots} />
+          )}
+          
+          <EventCreationWrapper
             selectedOrgId={formData.organization}
-            onNext={() => setStep(2)}
-            isEditMode
-            existingImages={formData.existingImages}
-            existingLetter={existingLetter}
-            onRemoveExistingImage={handleRemoveExistingImage}
-            onRemoveExistingLetter={handleRemoveExistingLetter}
-            startDateTime={formData.startDateTime}
+            organizationOptions={[]}
+            onClose={() => navigate("/")}
+            isEdit={true}
+            eventId={id}
+            initialFormData={formData}
+            initialQuestionnaireData={questionnaireData}
+            readOnly={true}
           />
-        )}
-
-        {step === 2 && (
-          <EventStepTwo
-            questionnaireData={questionnaireData}
-            setQuestionnaireData={setQuestionnaireData}
-            onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
-          />
-        )}
-
-        {step === 3 && (
-          <EventPreview
-            formData={formData}
-            questionnaireData={questionnaireData}
-            existingLetter={existingLetter}
-            onBack={() => setStep(2)}
-            onSubmit={handleSubmit}
-          />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

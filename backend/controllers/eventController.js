@@ -384,10 +384,53 @@ exports.updateEvent = async (req, res) => {
       precautions,
       publicTransport,
       contactPerson,
+      timeSlotsEnabled,
+      timeSlots,
     } = req.body;
 
     console.log("🔧 Backend - Received mapLocation:", mapLocation);
     console.log("🔧 Backend - Request body:", req.body);
+
+    // Handle time slots
+    let processedTimeSlots = [];
+    if (timeSlotsEnabled === 'true' && timeSlots) {
+      // Parse timeSlots if it's a JSON string
+      let parsedTimeSlots = timeSlots;
+      if (typeof timeSlots === 'string') {
+        try {
+          parsedTimeSlots = JSON.parse(timeSlots);
+        } catch (error) {
+          return res.status(400).json({ message: 'Invalid time slots data format' });
+        }
+      }
+      
+      const validation = validateTimeSlots(parsedTimeSlots);
+      if (!validation.isValid) {
+        return res.status(400).json({ message: validation.error });
+      }
+      
+      // Validate volunteer allocation
+      if (!unlimitedVolunteers && maxVolunteers) {
+        const eventMax = parseInt(maxVolunteers);
+        let totalAllocated = 0;
+        
+        parsedTimeSlots.forEach(slot => {
+          slot.categories.forEach(category => {
+            if (category.maxVolunteers && category.maxVolunteers > 0) {
+              totalAllocated += category.maxVolunteers;
+            }
+          });
+        });
+        
+        if (totalAllocated > eventMax) {
+          return res.status(400).json({ 
+            message: `Total allocated volunteers (${totalAllocated}) exceeds event maximum (${eventMax})` 
+          });
+        }
+      }
+      
+      processedTimeSlots = prepareTimeSlotsForSave(parsedTimeSlots);
+    }
 
     // Update fields
     event.title = title || event.title;
@@ -412,30 +455,24 @@ exports.updateEvent = async (req, res) => {
     event.instructions = instructions || event.instructions;
     event.groupRegistration = groupRegistration === "true";
     event.recurringEvent = recurringEvent === "true";
-    event.recurringType = event.recurringEvent ? recurringType : null;
-    event.recurringValue = event.recurringEvent ? recurringValue : null;
-
-    // Equipment
-    let equipmentArray = Array.isArray(equipmentNeeded)
-      ? equipmentNeeded
-      : equipmentNeeded
-      ? [equipmentNeeded]
-      : [];
-    if (otherEquipment) equipmentArray.push(otherEquipment);
-    event.equipmentNeeded = equipmentArray;
-
-    // Questionnaire
+    event.recurringType = recurringEvent ? recurringType : null;
+    event.recurringValue = recurringEvent ? recurringValue : null;
+    event.equipmentNeeded = equipmentNeeded || [];
+    event.otherEquipment = otherEquipment || "";
     event.waterProvided = waterProvided === "true";
     event.medicalSupport = medicalSupport === "true";
-    event.ageGroup = ageGroup || event.ageGroup;
-    event.precautions = precautions || event.precautions;
-    event.publicTransport = publicTransport || event.publicTransport;
-    event.contactPerson = contactPerson || event.contactPerson;
+    event.ageGroup = ageGroup || "";
+    event.precautions = precautions || "";
+    event.publicTransport = publicTransport || "";
+    event.contactPerson = contactPerson || "";
+    
+    // Update time slots
+    event.timeSlotsEnabled = timeSlotsEnabled === 'true';
+    if (processedTimeSlots.length > 0) {
+      event.timeSlots = processedTimeSlots;
+    }
 
-    // Clear the summary before generating a new one
-    event.summary = '';
     await event.save();
-    res.status(200).json(event);
 
     // --- AI SUMMARY GENERATION (background) ---
     setImmediate(async () => {
