@@ -1,6 +1,6 @@
 // src/components/event/EventStepOne.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   TextField,
   Box,
@@ -30,24 +30,22 @@ export default function EventStepOne({
   existingImages = [],
   existingLetter = null,
   onRemoveExistingImage,
-  onRemoveExistingLetter
+  onRemoveExistingLetter,
+  readOnly = false
 }) {
   const [remainingVolunteers, setRemainingVolunteers] = useState(0);
   const [allocationError, setAllocationError] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null); // Track which category is being edited
 
-  // Calculate remaining volunteers whenever maxVolunteers or timeSlots change
-  useEffect(() => {
+  // Calculate remaining volunteers, optionally excluding a specific category
+  const calculateRemainingVolunteers = useCallback((excludeCategory = null) => {
     if (formData.unlimitedVolunteers) {
-      setRemainingVolunteers(Infinity);
-      setAllocationError("");
-      return;
+      return Infinity;
     }
 
     const eventMax = parseInt(formData.maxVolunteers) || 0;
     if (eventMax <= 0) {
-      setRemainingVolunteers(0);
-      setAllocationError("");
-      return;
+      return 0;
     }
 
     // Calculate total allocated volunteers across all time slots and categories
@@ -55,6 +53,13 @@ export default function EventStepOne({
     if (formData.timeSlots && formData.timeSlots.length > 0) {
       formData.timeSlots.forEach(slot => {
         slot.categories.forEach(category => {
+          // Skip the category being edited if specified
+          if (excludeCategory && 
+              excludeCategory.slotId === slot.id && 
+              excludeCategory.categoryId === category.id) {
+            return;
+          }
+          
           if (category.maxVolunteers && category.maxVolunteers > 0) {
             totalAllocated += category.maxVolunteers;
           }
@@ -62,19 +67,37 @@ export default function EventStepOne({
       });
     }
 
-    const remaining = eventMax - totalAllocated;
+    return eventMax - totalAllocated;
+  }, [formData.maxVolunteers, formData.unlimitedVolunteers, formData.timeSlots]);
+
+  useEffect(() => {
+    const remaining = calculateRemainingVolunteers(editingCategory);
     setRemainingVolunteers(remaining);
+
+    // Debug logging
+    console.log('🔍 Volunteer Allocation Debug:');
+    console.log('  - Event max volunteers:', formData.maxVolunteers);
+    console.log('  - Unlimited volunteers:', formData.unlimitedVolunteers);
+    console.log('  - Time slots:', formData.timeSlots);
+    console.log('  - Editing category:', editingCategory);
+    console.log('  - Calculated remaining:', remaining);
 
     // Set error if over-allocated
     if (remaining < 0) {
       setAllocationError(`Over-allocated by ${Math.abs(remaining)} volunteers`);
+      console.log('  - ❌ Over-allocated error set');
     } else {
       setAllocationError("");
+      console.log('  - ✅ No allocation error');
     }
-  }, [formData.maxVolunteers, formData.unlimitedVolunteers, formData.timeSlots]);
+  }, [formData.maxVolunteers, formData.unlimitedVolunteers, formData.timeSlots, editingCategory]);
 
   const handleMaxVolunteersChange = (e) => {
     const { name, value } = e.target;
+    console.log('🔍 Max Volunteers Change Debug:');
+    console.log('  - Field name:', name);
+    console.log('  - New value:', value);
+    console.log('  - Current formData.maxVolunteers:', formData.maxVolunteers);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
   const equipmentOptions = ["Gloves", "Bags", "Masks", "Tools"];
@@ -105,11 +128,19 @@ export default function EventStepOne({
   };
   
   const handleLocationChange = (newLocation) => {
+    // Handle null/undefined values to prevent crashes
+    if (!newLocation) {
+      setFormData((prev) => ({
+        ...prev,
+        mapLocation: null,
+      }));
+      return;
+    }
+
     // newLocation is { lat, lng, address } from the map click or search
     setFormData((prev) => ({
       ...prev,
       mapLocation: {
-        ...prev.mapLocation, // Keep existing data if any
         lat: newLocation.lat,
         lng: newLocation.lng,
         address: newLocation.address, // Update address from LocationPicker
@@ -127,6 +158,8 @@ export default function EventStepOne({
 
   const handleProceed = (e) => {
     e.preventDefault();
+    // Clear editing state before proceeding to ensure accurate validation
+    setEditingCategory(null);
     onNext();
   };
 
@@ -437,6 +470,9 @@ export default function EventStepOne({
         remainingVolunteers={remainingVolunteers}
         unlimitedVolunteers={formData.unlimitedVolunteers}
         allocationError={allocationError}
+        editingCategory={editingCategory}
+        setEditingCategory={setEditingCategory}
+        readOnly={readOnly}
       />
 
       <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3 }}>

@@ -15,6 +15,7 @@ export default function EventCreationWrapper({
   eventId = null,
   initialFormData = null,
   initialQuestionnaireData = null,
+  readOnly = false
 }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -205,14 +206,15 @@ export default function EventCreationWrapper({
           setFormData={handleFormUpdate}
           setImageFiles={handleImageUpdate}
           setLetterFile={handleLetterUpdate}
-          selectedOrgId={formData.organization}
+          selectedOrgId={selectedOrgId}
           organizationOptions={organizationOptions}
           onNext={() => setStep(2)}
           existingImages={existingImages}
           existingLetter={existingLetter}
-          onRemoveImage={handleRemoveExistingImage}
-          onRemoveLetter={handleRemoveExistingLetter}
+          onRemoveExistingImage={handleRemoveExistingImage}
+          onRemoveExistingLetter={handleRemoveExistingLetter}
           isEditMode={isEdit}
+          readOnly={readOnly}
         />
       )}
       {step === 2 && (
