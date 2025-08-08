@@ -128,7 +128,7 @@ const sponsorshipIntentSchema = new mongoose.Schema({
   // Application status
   status: {
     type: String,
-    enum: ['pending', 'under_review', 'approved', 'rejected', 'converted', 'changes_requested'],
+    enum: ['pending', 'under_review', 'approved', 'rejected', 'converted', 'changes_requested', 'payment_completed'],
     default: 'pending'
   },
 
@@ -143,7 +143,7 @@ const sponsorshipIntentSchema = new mongoose.Schema({
     adminNotes: String, // Internal notes
     decision: {
       type: String,
-      enum: ['approve', 'reject', 'request_changes', 'convert_to_sponsorship']
+      enum: ['approve', 'reject', 'request_changes', 'convert_to_sponsorship', 'delete_sponsorship', 'suspend_sponsorship', 'reactivate_sponsorship']
     },
     decisionNotes: String
   },
@@ -178,6 +178,49 @@ const sponsorshipIntentSchema = new mongoose.Schema({
   convertedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Sponsorship'
+  },
+
+  // Payment details (for monetary sponsorships)
+  payment: {
+    status: {
+      type: String,
+      enum: ['pending', 'completed', 'failed', 'refunded'],
+      default: 'pending'
+    },
+    amount: Number,
+    paidAmount: {
+      type: Number,
+      default: 0
+    },
+    paymentMethod: String,
+    transactionId: String,
+    paymentDate: Date,
+    notes: String,
+    // Razorpay specific fields
+    razorpayOrderId: String,
+    razorpayPaymentId: String,
+    razorpaySignature: String,
+    // Payment gateway details
+    gateway: {
+      name: {
+        type: String,
+        default: 'razorpay'
+      },
+      orderId: String,
+      paymentId: String,
+      signature: String,
+      refundId: String
+    },
+    // Payment verification
+    verified: {
+      type: Boolean,
+      default: false
+    },
+    verifiedAt: Date,
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
   },
 
   // Track if sponsorship was deleted (to prevent recreation issues)
@@ -221,14 +264,22 @@ const sponsorshipIntentSchema = new mongoose.Schema({
     },
     changeType: {
       type: String,
-      enum: ['created', 'updated', 'reviewed', 'status_changed']
+      enum: ['created', 'updated', 'reviewed', 'status_changed', 'payment_status_changed', 'decision_changed']
     },
     changes: [{
       field: String,
       oldValue: mongoose.Schema.Types.Mixed,
       newValue: mongoose.Schema.Types.Mixed
     }],
-    notes: String
+    notes: String,
+    // Additional context for payment-related changes
+    paymentContext: {
+      previousPaymentStatus: String,
+      newPaymentStatus: String,
+      decisionBefore: String,
+      decisionAfter: String,
+      adminNotes: String
+    }
   }],
 
   // Track if admin suggestions were implemented

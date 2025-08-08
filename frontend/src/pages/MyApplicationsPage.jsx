@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI } from '../api';
+import { getReceiptsBySponsorship } from '../api/receipt';
 import Navbar from '../components/layout/Navbar';
 
 export default function MyApplicationsPage() {
@@ -86,17 +87,37 @@ export default function MyApplicationsPage() {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, sponsorshipType, convertedTo) => {
     const statusConfig = {
-      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Pending Review' },
-      under_review: { color: 'bg-blue-100 text-blue-800', label: 'Under Review' },
-      approved: { color: 'bg-green-100 text-green-800', label: 'Approved' },
-      rejected: { color: 'bg-red-100 text-red-800', label: 'Rejected' },
-      converted: { color: 'bg-purple-100 text-purple-800', label: 'Converted to Sponsorship' },
-      changes_requested: { color: 'bg-orange-100 text-orange-800', label: 'Changes Requested' }
+      pending: { 
+        color: 'bg-yellow-100 text-yellow-800', 
+        label: 'Pending Review' 
+      },
+      under_review: { 
+        color: 'bg-blue-100 text-blue-800', 
+        label: 'Under Review' 
+      },
+      approved: { 
+        color: sponsorshipType === 'monetary' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800', 
+        label: sponsorshipType === 'monetary' ? 
+          (convertedTo ? 'Approved - Payment Completed' : 'Approved - Payment Required') : 
+          'Approved' 
+      },
+      rejected: { 
+        color: 'bg-red-100 text-red-800', 
+        label: 'Rejected' 
+      },
+      changes_requested: { 
+        color: 'bg-purple-100 text-purple-800', 
+        label: 'Changes Requested' 
+      },
+      converted: { 
+        color: 'bg-green-100 text-green-800', 
+        label: 'Converted to Sponsorship' 
+      }
     };
 
-    const config = statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status };
+    const config = statusConfig[status] || { color: 'bg-gray-100 text-gray-800', label: status.replace('_', ' ').toUpperCase() };
     
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
@@ -140,6 +161,27 @@ export default function MyApplicationsPage() {
   // Add refresh function
   const handleRefresh = () => {
     fetchApplications();
+  };
+
+  const handleViewReceipt = async (application) => {
+    try {
+      // If the application has a convertedTo (sponsorship), we can get receipts for that sponsorship
+      if (application.convertedTo) {
+        // Fetch receipts for the converted sponsorship
+        const response = await getReceiptsBySponsorship(application.convertedTo);
+        if (response.success && response.receipts && response.receipts.length > 0) {
+          // Navigate to the first receipt's details page
+          navigate(`/receipt/${response.receipts[0]._id}`);
+        } else {
+          alert('No receipt found for this sponsorship. Please check back later.');
+        }
+      } else {
+        alert('Receipt not available yet. Please wait for the sponsorship to be created.');
+      }
+    } catch (error) {
+      console.error('Error viewing receipt:', error);
+      alert('Failed to load receipt. Please try again.');
+    }
   };
 
   // Listen for navigation back to this page
@@ -291,7 +333,7 @@ export default function MyApplicationsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(application.status)}
+                          {getStatusBadge(application.status, application.sponsorship.type, application.convertedTo)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(application.createdAt)}
@@ -310,6 +352,49 @@ export default function MyApplicationsPage() {
                                 className="text-green-600 hover:text-green-900"
                               >
                                 Edit
+                              </button>
+                            )}
+                            {application.status === 'approved' && application.sponsorship.type === 'monetary' && !application.convertedTo && (
+                              <button
+                                onClick={() => navigate(`/intent-payment/${application._id}`)}
+                                className="text-orange-600 hover:text-orange-900"
+                              >
+                                Payment
+                              </button>
+                            )}
+                            
+                            {application.status === 'approved' && application.sponsorship.type === 'monetary' && application.convertedTo && (
+                              <button
+                                onClick={() => navigate(`/payment-status/${application.convertedTo}`)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                View Payment
+                              </button>
+                            )}
+
+                            {/* Show payment status for completed payments even if not converted */}
+                            {application.status === 'approved' && 
+                             application.sponsorship.type === 'monetary' && 
+                             !application.convertedTo && 
+                             application.payment?.status === 'completed' && (
+                              <button
+                                onClick={() => navigate(`/intent-payment/${application._id}`)}
+                                className="text-green-600 hover:text-green-900"
+                              >
+                                Payment Completed
+                              </button>
+                            )}
+
+                            {/* Receipt link for completed payments */}
+                            {(application.status === 'approved' || application.status === 'converted') && 
+                             application.sponsorship.type === 'monetary' && 
+                             application.payment?.status === 'completed' && 
+                             application.convertedTo && (
+                              <button
+                                onClick={() => handleViewReceipt(application)}
+                                className="text-purple-600 hover:text-purple-900"
+                              >
+                                View Receipt
                               </button>
                             )}
                           </div>
@@ -410,6 +495,33 @@ export default function MyApplicationsPage() {
                       Edit Application
                     </button>
                   )}
+                  
+                  {/* Receipt link for completed payments */}
+                  {(selectedApplication.status === 'approved' || selectedApplication.status === 'converted') && 
+                   selectedApplication.sponsorship.type === 'monetary' && 
+                   selectedApplication.payment?.status === 'completed' && 
+                   selectedApplication.convertedTo && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await getReceiptsBySponsorship(selectedApplication.convertedTo);
+                          if (response.success && response.receipts && response.receipts.length > 0) {
+                            navigate(`/receipt/${response.receipts[0]._id}`);
+                            handleCloseModal();
+                          } else {
+                            alert('No receipt found for this sponsorship. Please check back later.');
+                          }
+                        } catch (error) {
+                          console.error('Error viewing receipt:', error);
+                          alert('Failed to load receipt. Please try again.');
+                        }
+                      }}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      View Receipt
+                    </button>
+                  )}
+                  
                   <button
                     onClick={handleCloseModal}
                     className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"

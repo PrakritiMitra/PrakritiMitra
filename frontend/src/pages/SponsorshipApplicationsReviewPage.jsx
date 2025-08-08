@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI, sponsorAPI, getOrganizationById } from '../api';
+import { getReceiptsBySponsorship } from '../api/receipt';
 import Navbar from '../components/layout/Navbar';
+import FailedVerificationsManager from '../components/payment/FailedVerificationsManager';
+import ManualVerificationForm from '../components/payment/ManualVerificationForm';
 
 export default function SponsorshipApplicationsReviewPage() {
   const { organizationId } = useParams();
@@ -19,13 +22,24 @@ export default function SponsorshipApplicationsReviewPage() {
   const [editableData, setEditableData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFullHistory, setShowFullHistory] = useState(false);
+  const [showConversionWarning, setShowConversionWarning] = useState(false);
+  const [pendingConversion, setPendingConversion] = useState(null);
+  const [showManualVerification, setShowManualVerification] = useState(false);
+  const [selectedIntentForManualVerification, setSelectedIntentForManualVerification] = useState(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [hasFailedVerifications, setHasFailedVerifications] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    if (organizationId) {
+      fetchData();
+      setHasFailedVerifications(false); // Reset when organization changes
+    }
   }, [organizationId]);
 
   const fetchData = async () => {
     try {
+      console.log('Fetching data for organization:', organizationId);
       setLoading(true);
       
       const [orgRes, applicationsRes] = await Promise.all([
@@ -33,9 +47,15 @@ export default function SponsorshipApplicationsReviewPage() {
         sponsorshipIntentAPI.getOrganizationIntents(organizationId)
       ]);
       
+      console.log('Organization response:', orgRes);
+      console.log('Applications response:', applicationsRes);
+      
       setOrganization(orgRes.data);
       setApplications(applicationsRes?.intents || []);
+      
+      console.log('Data updated successfully. Applications count:', applicationsRes?.intents?.length || 0);
     } catch (error) {
+      console.error('Error fetching data:', error);
       
       // If it's a 403 error, show a specific message
       if (error.response?.status === 403) {
@@ -51,48 +71,114 @@ export default function SponsorshipApplicationsReviewPage() {
   };
 
   const handleReview = async () => {
-    if (isSubmitting) return; // Prevent multiple submissions
-    
+    if (!reviewData.decision) {
+      alert('Please select a decision');
+      return;
+    }
+
+    // Check if trying to convert monetary sponsorship without payment
+    if (reviewData.decision === 'convert_to_sponsorship' && 
+        selectedApplication.sponsorship.type === 'monetary' &&
+        (!selectedApplication.payment || selectedApplication.payment.status !== 'completed')) {
+      
+      // Show warning dialog
+      setPendingConversion({
+        decision: reviewData.decision,
+        reviewNotes: reviewData.reviewNotes,
+        adminNotes: reviewData.adminNotes
+      });
+      setShowConversionWarning(true);
+      return;
+    }
+
+    await submitReview();
+  };
+
+  const submitReview = async () => {
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
+      console.log('Submitting review for application:', selectedApplication._id, 'with data:', reviewData);
       
-      // Set convertToSponsorship to true when decision is convert_to_sponsorship
-      const reviewDataWithConversion = {
-        ...reviewData,
-        convertToSponsorship: reviewData.decision === 'convert_to_sponsorship',
-        // Include editable data if it exists
-        ...(editableData && {
-          sponsorshipUpdates: {
-            description: editableData.description,
-            estimatedValue: editableData.estimatedValue === '' ? undefined : editableData.estimatedValue,
-            currency: editableData.currency
+      const response = await sponsorshipIntentAPI.reviewIntent(
+        selectedApplication._id,
+        reviewData
+      );
+
+      console.log('Review submission response:', response);
+
+      // Check if the response indicates success (backend returns message and intent)
+      if (response.message && response.intent) {
+        // Show appropriate success message based on decision
+        if (reviewData.decision === 'convert_to_sponsorship') {
+          if (selectedApplication.status === 'converted') {
+            alert('Sponsorship updated successfully! The existing sponsorship has been updated with the new details.');
+          } else if (reviewData.manualConversion) {
+            alert('Application converted to sponsorship successfully! Payment has been marked as completed (manual conversion).');
+          } else {
+            alert('Application converted to sponsorship successfully! A new active sponsorship has been created.');
           }
-        })
-      };
-      
-      const response = await sponsorshipIntentAPI.reviewIntent(selectedApplication._id, reviewDataWithConversion);
-      setShowModal(false);
-      setSelectedApplication(null);
-      setReviewData({ decision: '', reviewNotes: '', adminNotes: '' });
-      setEditableData(null);
-      fetchData(); // Refresh the list
-      
-      // Show appropriate success message
-      if (reviewData.decision === 'convert_to_sponsorship') {
-        if (selectedApplication.status === 'converted') {
-          alert('Sponsorship updated successfully! The existing sponsorship has been updated with the new details.');
+        } else if (reviewData.decision === 'delete_sponsorship') {
+          alert('Sponsorship deleted successfully! The sponsorship has been removed from the system.');
+        } else if (reviewData.decision === 'suspend_sponsorship') {
+          alert('Sponsorship suspended successfully! The sponsorship has been temporarily disabled.');
+        } else if (reviewData.decision === 'reactivate_sponsorship') {
+          alert('Sponsorship reactivated successfully! The sponsorship has been re-enabled.');
+        } else if (reviewData.decision === 'approve') {
+          alert(`Application approved successfully! Status changed from "${selectedApplication.status}" to "approved".`);
+        } else if (reviewData.decision === 'reject') {
+          alert(`Application rejected successfully! Status changed from "${selectedApplication.status}" to "rejected".`);
+        } else if (reviewData.decision === 'request_changes') {
+          alert(`Changes requested successfully! Status changed from "${selectedApplication.status}" to "changes_requested".`);
         } else {
-          alert('Application converted to sponsorship successfully! A new active sponsorship has been created.');
+          alert(`Application reviewed successfully! Status: ${response.intent.status}`);
         }
+
+        // Reset form and close modal first
+        setReviewData({ decision: '', reviewNotes: '', adminNotes: '' });
+        setSelectedApplication(null);
+        
+        // Wait a moment for the modal to close, then refresh data
+        setTimeout(async () => {
+          console.log('Refreshing data after successful review...');
+          await fetchData();
+          console.log('Data refresh completed');
+        }, 100);
       } else {
-        alert('Application reviewed successfully!');
+        throw new Error('Review submission failed: ' + (response.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error reviewing application:', error);
-      alert('Failed to review application. Please try again.');
+      console.error('Error reviewing intent:', error);
+      
+      // Handle specific error for monetary conversion without payment
+      if (error.response?.data?.message === 'Cannot convert monetary sponsorship intent without payment') {
+        const details = error.response.data.details;
+        alert(`⚠️ ${details.warning}\n\n${details.instructions}`);
+      } else {
+        alert('Error reviewing application: ' + (error.response?.data?.message || error.message));
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleConfirmConversion = async () => {
+    setShowConversionWarning(false);
+    if (pendingConversion) {
+      // Add manual conversion flag and notes
+      const manualConversionData = {
+        ...pendingConversion,
+        manualConversion: true,
+        manualConversionNotes: `Manual conversion by admin - Payment received outside the system (${new Date().toLocaleString()})`
+      };
+      setReviewData(manualConversionData);
+      setPendingConversion(null);
+      await submitReview();
+    }
+  };
+
+  const handleCancelConversion = () => {
+    setShowConversionWarning(false);
+    setPendingConversion(null);
   };
 
   const handleCleanupOrphaned = async () => {
@@ -142,18 +228,31 @@ export default function SponsorshipApplicationsReviewPage() {
     setShowFullHistory(false); // Reset to show recent only
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, type, convertedTo) => {
     const statusColors = {
       pending: 'bg-yellow-100 text-yellow-800',
       under_review: 'bg-blue-100 text-blue-800',
       approved: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
-      converted: 'bg-purple-100 text-purple-800'
+      changes_requested: 'bg-purple-100 text-purple-800',
+      converted: 'bg-green-100 text-green-800'
     };
-    
+
+    const statusLabels = {
+      pending: 'Pending Review',
+      under_review: 'Under Review',
+      approved: type === 'monetary' && !convertedTo ? 'Approved - Payment Required' : 'Approved',
+      rejected: 'Rejected',
+      changes_requested: 'Changes Requested',
+      converted: 'Converted to Sponsorship'
+    };
+
+    const color = statusColors[status] || 'bg-gray-100 text-gray-800';
+    const label = statusLabels[status] || status.replace('_', ' ').toUpperCase();
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status.replace('_', ' ').toUpperCase()}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
+        {label}
       </span>
     );
   };
@@ -191,6 +290,28 @@ export default function SponsorshipApplicationsReviewPage() {
     <div className="min-h-screen mt-10 bg-gray-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Sponsorship Applications Review</h1>
+        
+        {/* Success Message */}
+        {showSuccessMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="text-green-500 text-xl mr-3">✅</div>
+              <div>
+                <p className="text-green-800 font-medium">{successMessage}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSuccessMessage(false);
+                  setSuccessMessage('');
+                }}
+                className="ml-auto text-green-600 hover:text-green-800"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
         <div className="max-w-6xl mx-auto">
                      <div className="mb-8">
              <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -220,19 +341,34 @@ export default function SponsorshipApplicationsReviewPage() {
                  <div className="flex space-x-2 mt-2">
                    <button
                      onClick={handleCleanupOrphaned}
-                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                     className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                    >
-                     🧹 Cleanup Orphaned Intents
+                     Cleanup Orphaned Data
                    </button>
                    <button
                      onClick={handleCheckDuplicates}
-                     className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition-colors"
+                     className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
                    >
-                     🔍 Check Duplicate Sponsors
+                     Check Duplicates
                    </button>
                  </div>
                </div>
              </div>
+
+             {/* Failed Payment Verifications */}
+             {hasFailedVerifications && (
+               <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                 <h3 className="text-sm font-medium text-orange-900 mb-2">⚠️ Payment Issues</h3>
+                 <div className="text-sm text-orange-800 space-y-1">
+                   <p>Manage failed payment verifications and manual payment processing:</p>
+                   <FailedVerificationsManager 
+                     organizationId={organizationId} 
+                     onRefresh={fetchData}
+                     onFailedVerificationsChange={setHasFailedVerifications}
+                   />
+                 </div>
+               </div>
+             )}
            </div>
 
           {applications.length === 0 ? (
@@ -242,8 +378,17 @@ export default function SponsorshipApplicationsReviewPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
-              <p className="text-gray-600">No sponsorship applications have been submitted yet.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Found</h3>
+              <p className="text-gray-600 mb-4">
+                {loading ? 'Loading applications...' : 'No sponsorship applications found for this organization.'}
+              </p>
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Loading...' : 'Refresh'}
+              </button>
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -303,7 +448,31 @@ export default function SponsorshipApplicationsReviewPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(application.status)}
+                          <div className="flex items-center space-x-2">
+                            {getStatusBadge(application.status, application.sponsorship.type, application.convertedTo)}
+                            
+                            {/* Payment Status Indicator for Monetary Sponsorships */}
+                            {application.sponsorship.type === 'monetary' && (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                application.payment?.status === 'completed' 
+                                  ? application.payment?.manualVerification 
+                                    ? 'bg-purple-100 text-purple-800'  // Manual verification
+                                    : application.payment?.manualConversion 
+                                      ? 'bg-orange-100 text-orange-800'  // Manual conversion (proceed anyway)
+                                      : 'bg-green-100 text-green-800'    // Regular payment
+                                  : 'bg-gray-100 text-gray-800'    // Payment pending
+                              }`}>
+                                {application.payment?.status === 'completed' 
+                                  ? (application.payment?.manualVerification 
+                                      ? `💰 ${application.payment?.paymentType || 'Manual'}`
+                                      : application.payment?.manualConversion 
+                                        ? '💰 Manual Payment'
+                                        : '💰 Paid')
+                                  : '💳 Payment Pending'
+                                }
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(application.createdAt).toLocaleDateString()}
@@ -315,6 +484,31 @@ export default function SponsorshipApplicationsReviewPage() {
                           >
                             {application.status === 'pending' ? 'Review' : 'View & Edit'}
                           </button>
+                          
+                          {/* Receipt link for completed payments */}
+                          {(application.status === 'approved' || application.status === 'converted') && 
+                           application.sponsorship.type === 'monetary' && 
+                           application.payment?.status === 'completed' && 
+                           application.convertedTo && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const response = await getReceiptsBySponsorship(application.convertedTo);
+                                  if (response.success && response.receipts && response.receipts.length > 0) {
+                                    window.open(`/receipt/${response.receipts[0]._id}`, '_blank');
+                                  } else {
+                                    alert('No receipt found for this sponsorship.');
+                                  }
+                                } catch (error) {
+                                  console.error('Error fetching receipt:', error);
+                                  alert('Failed to load receipt.');
+                                }
+                              }}
+                              className="text-purple-600 hover:text-purple-900"
+                            >
+                              View Receipt
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -732,79 +926,67 @@ export default function SponsorshipApplicationsReviewPage() {
                   </div>
                 )}
 
-                {/* Change History */}
+                {/* Admin Review */}
+                {selectedApplication.review && (
+                  <div>
+                    <h4 className="font-medium text-gray-900 mb-2">Admin Review</h4>
+                    <div className="bg-blue-50 p-3 rounded">
+                      <p><strong>Decision:</strong> {selectedApplication.review.decision?.replace('_', ' ').toUpperCase()}</p>
+                      {selectedApplication.review.reviewNotes && (
+                        <p><strong>Review Notes:</strong> {selectedApplication.review.reviewNotes}</p>
+                      )}
+                      {selectedApplication.review.adminNotes && (
+                        <p><strong>Admin Notes:</strong> {selectedApplication.review.adminNotes}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Change History / Audit Trail */}
                 {selectedApplication.changeHistory && selectedApplication.changeHistory.length > 0 && (
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="text-md font-medium text-gray-900">📋 Change History</h4>
-                      <button
-                        onClick={() => setShowFullHistory(!showFullHistory)}
-                        className="text-xs text-blue-600 hover:text-blue-800 underline"
-                      >
-                        {showFullHistory ? 'Show Recent Only' : 'View Full History'}
-                      </button>
-                    </div>
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 max-h-60 overflow-y-auto">
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-sm text-gray-600">
-                          <strong>Changes made to this application:</strong>
-                        </p>
-                        <span className="text-xs text-gray-500">
-                          {selectedApplication.changeHistory.length} total change{selectedApplication.changeHistory.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      {(showFullHistory ? selectedApplication.changeHistory : selectedApplication.changeHistory.slice(-5)).reverse().map((change, index) => (
-                        <div key={index} className="mb-3 p-3 bg-white rounded border shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                change.changeType === 'created' ? 'bg-green-100 text-green-800' :
-                                change.changeType === 'reviewed' ? 'bg-blue-100 text-blue-800' :
-                                change.changeType === 'updated' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                    <h4 className="font-medium text-gray-900 mb-2">Change History</h4>
+                    <div className="bg-gray-50 p-3 rounded max-h-60 overflow-y-auto">
+                      {selectedApplication.changeHistory.slice(-5).reverse().map((change, index) => (
+                        <div key={index} className="mb-3 pb-3 border-b border-gray-200 last:border-b-0">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900">
                                 {change.changeType.replace('_', ' ').toUpperCase()}
-                              </span>
-                              <span className="text-xs text-gray-500">
+                              </p>
+                              <p className="text-xs text-gray-600">
                                 {new Date(change.timestamp).toLocaleString()}
-                              </span>
+                              </p>
+                              {change.notes && (
+                                <p className="text-sm text-gray-700 mt-1">{change.notes}</p>
+                              )}
                             </div>
-                            {change.changedByUser && (
-                              <div className="text-xs text-gray-600">
-                                by <span className="font-medium">{change.changedByUser.name || change.changedByUser.username}</span>
-                              </div>
-                            )}
+                            <span className="text-xs text-gray-500">
+                              {change.changedBy ? 'By Admin' : 'System'}
+                            </span>
                           </div>
                           
-                          {change.changes && Array.isArray(change.changes) && change.changes.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-xs font-medium text-gray-700">Field Changes:</p>
+                          {/* Show changes */}
+                          {change.changes && change.changes.length > 0 && (
+                            <div className="mt-2">
                               {change.changes.map((fieldChange, fieldIndex) => (
-                                <div key={fieldIndex} className="text-xs bg-gray-50 p-2 rounded border-l-2 border-blue-300">
-                                  <div className="font-medium text-gray-800 mb-1">
-                                    {fieldChange.field}:
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <span className="text-red-600 bg-red-50 px-1 rounded">
-                                      {fieldChange.oldValue === 'None' ? 'Empty' : 
-                                       fieldChange.oldValue === '' ? 'Empty' : 
-                                       fieldChange.oldValue}
-                                    </span>
-                                    <span className="text-gray-400">→</span>
-                                    <span className="text-green-600 bg-green-50 px-1 rounded">
-                                      {fieldChange.newValue === 'None' ? 'Empty' : 
-                                       fieldChange.newValue === '' ? 'Empty' : 
-                                       fieldChange.newValue}
-                                    </span>
-                                  </div>
+                                <div key={fieldIndex} className="text-xs text-gray-600">
+                                  <span className="font-medium">{fieldChange.field}:</span>
+                                  <span className="text-red-600"> {fieldChange.oldValue}</span>
+                                  <span> → </span>
+                                  <span className="text-green-600">{fieldChange.newValue}</span>
                                 </div>
                               ))}
                             </div>
                           )}
-                          
-                          {change.notes && (
-                            <div className="mt-2 p-2 bg-blue-50 rounded border-l-2 border-blue-400">
-                              <p className="text-xs text-blue-800">{change.notes}</p>
+
+                          {/* Show payment context if available */}
+                          {change.paymentContext && (
+                            <div className="mt-2 p-2 bg-yellow-50 rounded text-xs">
+                              <p><strong>Payment Status:</strong> {change.paymentContext.previousPaymentStatus} → {change.paymentContext.newPaymentStatus}</p>
+                              {change.paymentContext.adminNotes && (
+                                <p><strong>Admin Notes:</strong> {change.paymentContext.adminNotes}</p>
+                              )}
                             </div>
                           )}
                         </div>
@@ -843,16 +1025,42 @@ export default function SponsorshipApplicationsReviewPage() {
                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                          >
                            <option value="">Select decision</option>
-                           <option value="approve">✅ Approve (Accept the sponsorship application)</option>
-                           <option value="reject">❌ Reject (Decline the sponsorship application)</option>
-                           <option value="request_changes">🔄 Request Changes (Ask sponsor to modify their proposal)</option>
-                           <option value="convert_to_sponsorship">💰 Convert to Sponsorship (Automatically create active sponsorship)</option>
+                           
+                           {/* Show different options based on sponsorship status */}
+                           {selectedApplication.status === 'converted' || selectedApplication.convertedTo ? (
+                             // If sponsorship exists, show limited options
+                             <>
+                               <option value="delete_sponsorship">🗑️ Delete Sponsorship (Remove sponsorship entirely)</option>
+                               <option value="suspend_sponsorship">⏸️ Suspend Sponsorship (Temporarily disable)</option>
+                               <option value="reactivate_sponsorship">▶️ Reactivate Sponsorship (Re-enable if suspended)</option>
+                             </>
+                           ) : (
+                             // If no sponsorship exists, show full options
+                             <>
+                               <option value="approve">✅ Approve (Accept the sponsorship application)</option>
+                               <option value="reject">❌ Reject (Decline the sponsorship application)</option>
+                               <option value="request_changes">🔄 Request Changes (Ask sponsor to modify their proposal)</option>
+                               <option value="convert_to_sponsorship">💰 Convert to Sponsorship (Automatically create active sponsorship)</option>
+                             </>
+                           )}
                          </select>
                          <p className="text-sm text-gray-500 mt-1">
-                           <strong>Approve:</strong> Accept the application and contact sponsor for next steps<br/>
-                           <strong>Reject:</strong> Decline with feedback to the sponsor<br/>
-                           <strong>Request Changes:</strong> Ask sponsor to modify their proposal<br/>
-                           <strong>Convert:</strong> Automatically create an active sponsorship relationship
+                           {selectedApplication.status === 'converted' || selectedApplication.convertedTo ? (
+                             <>
+                               <strong>Delete:</strong> Remove the sponsorship entirely<br/>
+                               <strong>Suspend:</strong> Temporarily disable the sponsorship<br/>
+                               <strong>Reactivate:</strong> Re-enable a suspended sponsorship
+                             </>
+                           ) : (
+                             <>
+                               <strong>Approve:</strong> Accept the application and contact sponsor for next steps<br/>
+                               <strong>Reject:</strong> Decline with feedback to the sponsor<br/>
+                               <strong>Request Changes:</strong> Ask sponsor to modify their proposal<br/>
+                               <strong>Convert:</strong> {selectedApplication.sponsorship.type === 'monetary' ? 
+                                 'Create active sponsorship (payment required for monetary sponsorships)' : 
+                                 'Automatically create an active sponsorship relationship'}
+                             </>
+                           )}
                          </p>
                        </div>
                                              <div>
@@ -902,6 +1110,32 @@ export default function SponsorshipApplicationsReviewPage() {
                 >
                   Close
                 </button>
+                
+                {/* Receipt link for completed payments */}
+                {(selectedApplication.status === 'approved' || selectedApplication.status === 'converted') && 
+                 selectedApplication.sponsorship.type === 'monetary' && 
+                 selectedApplication.payment?.status === 'completed' && 
+                 selectedApplication.convertedTo && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await getReceiptsBySponsorship(selectedApplication.convertedTo);
+                        if (response.success && response.receipts && response.receipts.length > 0) {
+                          window.open(`/receipt/${response.receipts[0]._id}`, '_blank');
+                        } else {
+                          alert('No receipt found for this sponsorship.');
+                        }
+                      } catch (error) {
+                        console.error('Error fetching receipt:', error);
+                        alert('Failed to load receipt.');
+                      }
+                    }}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    View Receipt
+                  </button>
+                )}
+                
                 <button
                   onClick={handleReview}
                   disabled={!reviewData.decision || isSubmitting}
@@ -916,12 +1150,160 @@ export default function SponsorshipApplicationsReviewPage() {
                   <span>
                     {isSubmitting 
                       ? 'Processing...' 
-                      : (selectedApplication.status === 'pending' ? 'Submit Review' : 'Update Decision')
+                      : (selectedApplication.status === 'pending' ? 'Submit Review' : 
+                         ['delete_sponsorship', 'suspend_sponsorship', 'reactivate_sponsorship'].includes(reviewData.decision) ? 
+                         'Manage Sponsorship' : 'Update Decision')
                     }
                   </span>
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conversion Warning Dialog */}
+      {showConversionWarning && selectedApplication && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div className="flex items-center mb-4">
+              <div className="text-yellow-500 text-2xl mr-3">⚠️</div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Payment Required for Conversion
+              </h3>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 mb-3">
+                You are trying to convert a <strong>monetary sponsorship</strong> without payment verification.
+              </p>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                <p className="text-sm font-medium text-yellow-800 mb-2">
+                  Sponsorship Details:
+                </p>
+                <ul className="text-sm text-yellow-700 space-y-1">
+                  <li>• Amount: ₹{selectedApplication.sponsorship.estimatedValue}</li>
+                  <li>• Type: {selectedApplication.sponsorship.type.toUpperCase()}</li>
+                  <li>• Payment Status: {selectedApplication.payment?.status || 'No Payment'}</li>
+                </ul>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-blue-800 mb-2">
+                  What happens if you proceed:
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Sponsorship will be created as "active"</li>
+                  <li>• Payment status will be marked as "completed"</li>
+                  <li>• Payment will be recorded as received outside the system</li>
+                  <li>• This action will be logged in the audit trail</li>
+                  <li>• Sponsor will not be prompted for online payment</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-sm font-medium text-red-800">
+                ⚠️ Warning: This will mark the payment as completed without online verification. 
+                Only proceed if you have confirmed payment was received (cash, bank transfer, etc.).
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={handleCancelConversion}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmConversion}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Proceed Anyway
+              </button>
+            </div>
+            
+            <div className="mt-3 text-center">
+              <button
+                onClick={() => {
+                  setShowConversionWarning(false);
+                  setPendingConversion(null);
+                  setShowManualVerification(true);
+                  setSelectedIntentForManualVerification(selectedApplication);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                Use Manual Payment Verification Instead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Payment Verification Modal */}
+      {showManualVerification && selectedIntentForManualVerification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Manual Payment Verification
+              </h3>
+              <button
+                onClick={() => {
+                  setShowManualVerification(false);
+                  setSelectedIntentForManualVerification(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-blue-800 mb-2">
+                  Sponsorship Intent Details:
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Sponsor: {selectedIntentForManualVerification.sponsor?.name}</li>
+                  <li>• Amount: ₹{selectedIntentForManualVerification.sponsorship.estimatedValue}</li>
+                  <li>• Type: {selectedIntentForManualVerification.sponsorship.type.toUpperCase()}</li>
+                  <li>• Description: {selectedIntentForManualVerification.sponsorship.description}</li>
+                </ul>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-yellow-800">
+                  ⚠️ Instructions: Enter the payment details from Razorpay dashboard or payment confirmation.
+                </p>
+              </div>
+            </div>
+            
+            <ManualVerificationForm 
+              intent={selectedIntentForManualVerification}
+              onSuccess={() => {
+                setShowManualVerification(false);
+                setSelectedIntentForManualVerification(null);
+                // Close the review modal as well
+                setSelectedApplication(null);
+                setReviewData({ decision: '', reviewNotes: '', adminNotes: '' });
+                fetchData(); // Refresh the list
+                // Show success message
+                setSuccessMessage('Payment verified successfully! Sponsorship has been created.');
+                setShowSuccessMessage(true);
+                // Auto-hide success message after 3 seconds
+                setTimeout(() => {
+                  setShowSuccessMessage(false);
+                  setSuccessMessage('');
+                }, 3000);
+              }}
+              onCancel={() => {
+                setShowManualVerification(false);
+                setSelectedIntentForManualVerification(null);
+              }}
+            />
           </div>
         </div>
       )}

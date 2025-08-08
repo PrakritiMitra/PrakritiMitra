@@ -23,6 +23,9 @@ const recurringEventRoutes = require('./routes/recurringEventRoutes');
 const sponsorRoutes = require('./routes/sponsorRoutes');
 const sponsorshipRoutes = require('./routes/sponsorshipRoutes');
 const sponsorshipIntentRoutes = require('./routes/sponsorshipIntentRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const sponsorshipIntentPaymentRoutes = require('./routes/sponsorshipIntentPaymentRoutes');
+const receiptRoutes = require('./routes/receiptRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -82,6 +85,11 @@ app.use('/api/recurring-events', recurringEventRoutes);
 app.use('/api/sponsors', sponsorRoutes);
 app.use('/api/sponsorships', sponsorshipRoutes);
 app.use('/api/sponsorship-intents', sponsorshipIntentRoutes);
+
+// Payment routes
+app.use('/api/payments', paymentRoutes);
+app.use('/api/intent-payments', sponsorshipIntentPaymentRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);

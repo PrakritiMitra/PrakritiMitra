@@ -675,36 +675,159 @@ exports.reviewIntent = async (req, res) => {
     // Handle previous conversion if changing from converted status
     const wasConverted = intent.status === 'converted';
     
-    // Update status based on decision
+    // Handle different decision types
     switch (decision) {
       case 'approve':
         intent.status = 'approved';
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
         break;
+        
       case 'reject':
         intent.status = 'rejected';
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
         break;
+        
       case 'request_changes':
         intent.status = 'changes_requested';
-        // Track admin suggestions for changes
-        if (reviewNotes) {
-          const suggestions = reviewNotes.split('\n').filter(line => line.trim().startsWith('-') || line.trim().startsWith('•'));
-          suggestions.forEach(suggestion => {
-            const cleanSuggestion = suggestion.replace(/^[-•]\s*/, '').trim();
-            if (cleanSuggestion) {
-              intent.adminSuggestions.requested.push({
-                field: 'general',
-                suggestion: cleanSuggestion,
-                requestedAt: new Date(),
-                requestedBy: adminId,
-                implemented: false
-              });
-            }
-          });
-          intent.adminSuggestions.lastUpdated = new Date();
-        }
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
         break;
+        
       case 'convert_to_sponsorship':
+        // Check if this is a monetary sponsorship intent without payment
+        if (intent.sponsorship.type === 'monetary' && 
+            (!intent.payment || intent.payment.status !== 'completed')) {
+          
+          // Check if admin is manually confirming the conversion (bypassing payment)
+          const isManualConversion = req.body.manualConversion === true;
+          
+          if (!isManualConversion) {
+            return res.status(400).json({
+              message: 'Cannot convert monetary sponsorship intent without payment',
+              details: {
+                sponsorshipType: intent.sponsorship.type,
+                paymentStatus: intent.payment?.status || 'no_payment',
+                estimatedValue: intent.sponsorship.estimatedValue,
+                warning: `This is a monetary sponsorship of ₹${intent.sponsorship.estimatedValue}. Payment must be completed before conversion.`,
+                instructions: 'Please ask the sponsor to complete the payment first, or use manual verification if payment was received outside the system.',
+                requiresManualConfirmation: true
+              }
+            });
+          } else {
+            // Admin has confirmed manual conversion - mark payment as completed
+            console.log(`Manual conversion confirmed for intent ${intent._id} - marking payment as completed`);
+            
+            // Initialize payment object if it doesn't exist
+            if (!intent.payment) {
+              intent.payment = {};
+            }
+            
+            // Mark payment as completed for manual conversion
+            intent.payment.status = 'completed';
+            intent.payment.paidAmount = intent.sponsorship.estimatedValue;
+            intent.payment.paymentDate = new Date();
+            intent.payment.verified = true;
+            intent.payment.verifiedAt = new Date();
+            intent.payment.verifiedBy = req.user._id;
+            intent.payment.manualConversion = true;
+            intent.payment.manualConversionNotes = req.body.manualConversionNotes || 'Payment received outside the system';
+            
+            // Add audit trail for manual conversion
+            intent.changeHistory.push({
+              timestamp: new Date(),
+              changedBy: req.user._id,
+              changeType: 'payment_status_changed',
+              changes: [{
+                field: 'Payment Status',
+                oldValue: 'no_payment',
+                newValue: 'completed (manual)'
+              }],
+              notes: 'Payment marked as completed through manual admin conversion',
+              paymentContext: {
+                previousPaymentStatus: 'no_payment',
+                newPaymentStatus: 'completed',
+                decisionBefore: intent.status,
+                decisionAfter: 'convert_to_sponsorship',
+                adminNotes: req.body.manualConversionNotes || 'Payment received outside the system'
+              }
+            });
+          }
+        }
+        
         intent.status = 'converted';
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
+        break;
+
+      // New decision types for existing sponsorships
+      case 'delete_sponsorship':
+        if (!intent.convertedTo) {
+          return res.status(400).json({ 
+            message: 'Cannot delete sponsorship: No sponsorship exists for this intent' 
+          });
+        }
+        // Keep the same status but mark for deletion
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
+        break;
+        
+      case 'suspend_sponsorship':
+        if (!intent.convertedTo) {
+          return res.status(400).json({ 
+            message: 'Cannot suspend sponsorship: No sponsorship exists for this intent' 
+          });
+        }
+        // Keep the same status but mark for suspension
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
+        break;
+        
+      case 'reactivate_sponsorship':
+        if (!intent.convertedTo) {
+          return res.status(400).json({ 
+            message: 'Cannot reactivate sponsorship: No sponsorship exists for this intent' 
+          });
+        }
+        // Keep the same status but mark for reactivation
+        intent.review = {
+          decision: decision,
+          reviewNotes: reviewNotes,
+          adminNotes: adminNotes,
+          reviewedBy: adminId,
+          reviewedAt: new Date()
+        };
         break;
     }
 
@@ -762,6 +885,84 @@ exports.reviewIntent = async (req, res) => {
         await updateExistingSponsorship(intent);
       } catch (error) {
         console.error('Error updating existing sponsorship:', error);
+      }
+    }
+
+    // Handle new sponsorship management decisions
+    if (intent.convertedTo && ['delete_sponsorship', 'suspend_sponsorship', 'reactivate_sponsorship'].includes(decision)) {
+      try {
+        const existingSponsorship = await Sponsorship.findById(intent.convertedTo);
+        
+        if (!existingSponsorship) {
+          return res.status(404).json({ 
+            message: 'Sponsorship not found. It may have been already deleted.' 
+          });
+        }
+
+        switch (decision) {
+          case 'delete_sponsorship':
+            console.log(`Deleting sponsorship ${intent.convertedTo} for intent ${intent._id}`);
+            
+            // Delete the sponsorship
+            const deleteResult = await Sponsorship.findByIdAndDelete(intent.convertedTo);
+            console.log(`Delete result:`, deleteResult);
+            
+            // Update organization's sponsorship list
+            await Organization.findByIdAndUpdate(intent.organization, {
+              $pull: { sponsorships: intent.convertedTo }
+            });
+            
+            // Update event's sponsorship list if applicable
+            if (intent.event) {
+              await Event.findByIdAndUpdate(intent.event, {
+                $pull: { 'sponsorship.sponsorships': intent.convertedTo },
+                $inc: { 
+                  'sponsorship.totalSponsorshipValue': -(existingSponsorship.contribution.value || 0),
+                  'sponsorship.sponsorCount': -1
+                }
+              });
+            }
+            
+            // Clear the convertedTo reference and mark as deleted
+            intent.convertedTo = undefined;
+            intent.sponsorshipDeleted = true;
+            intent.status = 'rejected'; // Change status to rejected after deletion
+            console.log(`Marked intent ${intent._id} as having deleted sponsorship`);
+            break;
+            
+          case 'suspend_sponsorship':
+            console.log(`Suspending sponsorship ${intent.convertedTo} for intent ${intent._id}`);
+            
+            await Sponsorship.findByIdAndUpdate(intent.convertedTo, {
+              status: 'suspended',
+              'suspension.suspendedAt': new Date(),
+              'suspension.suspendedBy': adminId,
+              'suspension.suspensionReason': reviewNotes || 'Suspended by admin'
+            });
+            break;
+            
+          case 'reactivate_sponsorship':
+            console.log(`Reactivating sponsorship ${intent.convertedTo} for intent ${intent._id}`);
+            
+            await Sponsorship.findByIdAndUpdate(intent.convertedTo, {
+              status: 'active',
+              'suspension.reactivatedAt': new Date(),
+              'suspension.reactivatedBy': adminId
+            });
+            break;
+        }
+        
+        // Update sponsor statistics after sponsorship changes
+        if (existingSponsorship.sponsor) {
+          await updateSponsorStatsOnSponsorshipChange(existingSponsorship.sponsor);
+        }
+        
+      } catch (error) {
+        console.error('Error handling sponsorship management decision:', error);
+        return res.status(500).json({ 
+          message: 'Failed to process sponsorship management decision',
+          error: error.message 
+        });
       }
     }
 
@@ -842,6 +1043,70 @@ exports.reviewIntent = async (req, res) => {
         // If there's an error, at least clear the convertedTo reference
         intent.convertedTo = undefined;
       }
+    }
+
+    // Handle payment status preservation when changing decisions
+    if (intent.payment && intent.payment.status === 'completed') {
+      // If payment was already completed, preserve the payment status
+      // and ensure the intent doesn't get reset to require payment again
+      console.log(`Preserving completed payment status for intent ${intent._id}`);
+      
+      // If changing from approved to something else and back to approved,
+      // the payment should still be considered valid
+      if (decision === 'approve' && intent.payment.status === 'completed') {
+        // Keep the payment status as completed
+        intent.payment.status = 'completed';
+        console.log(`Maintaining completed payment status for re-approved intent ${intent._id}`);
+        
+        // Add audit trail for payment status preservation
+        intent.changeHistory.push({
+          timestamp: new Date(),
+          changedBy: adminId,
+          changeType: 'payment_status_changed',
+          changes: [{
+            field: 'Payment Status',
+            oldValue: 'completed',
+            newValue: 'completed (preserved)'
+          }],
+          notes: 'Payment status preserved during decision change',
+          paymentContext: {
+            previousPaymentStatus: 'completed',
+            newPaymentStatus: 'completed',
+            decisionBefore: previousStatus,
+            decisionAfter: decision,
+            adminNotes: 'Payment status maintained during admin decision change'
+          }
+        });
+      }
+    }
+
+    // Add audit trail for decision changes
+    if (previousStatus !== intent.status || intent.review?.decision !== decision) {
+      intent.changeHistory.push({
+        timestamp: new Date(),
+        changedBy: adminId,
+        changeType: 'decision_changed',
+        changes: [
+          {
+            field: 'Application Status',
+            oldValue: previousStatus.replace('_', ' ').toUpperCase(),
+            newValue: intent.status.replace('_', ' ').toUpperCase()
+          },
+          {
+            field: 'Admin Decision',
+            oldValue: intent.review?.decision?.replace('_', ' ').toUpperCase() || 'None',
+            newValue: decision.replace('_', ' ').toUpperCase()
+          }
+        ],
+        notes: `Admin decision changed from ${previousStatus} to ${decision}`,
+        paymentContext: {
+          previousPaymentStatus: intent.payment?.status || 'none',
+          newPaymentStatus: intent.payment?.status || 'none',
+          decisionBefore: previousStatus,
+          decisionAfter: decision,
+          adminNotes: adminNotes || reviewNotes
+        }
+      });
     }
 
     // Save the intent after all sponsorship handling is complete
@@ -1175,7 +1440,12 @@ const convertIntentToSponsorship = async (intent) => {
         calculatedAt: new Date(),
         calculatedValue: intent.sponsorship.estimatedValue
       },
-      status: 'active', // Changed from 'approved' to 'active' for immediate visibility
+      status: 'active', // Payment is already completed, so set to active
+      payment: {
+        status: intent.sponsorship.type === 'monetary' ? 'completed' : 'completed',
+        amount: intent.sponsorship.type === 'monetary' ? intent.sponsorship.estimatedValue : 0,
+        paidAmount: intent.sponsorship.type === 'monetary' ? intent.sponsorship.estimatedValue : intent.sponsorship.estimatedValue
+      },
       recognition: intent.recognition,
       period: {
         startDate: new Date(),
@@ -1354,4 +1624,7 @@ const checkIfAdmin = async (userId, organizationId) => {
     console.error('Error checking admin status:', error);
     return false;
   }
-}; 
+};
+
+// Export the convertIntentToSponsorship function for use in other controllers
+exports.convertIntentToSponsorship = convertIntentToSponsorship; 
