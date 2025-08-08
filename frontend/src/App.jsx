@@ -34,6 +34,9 @@ import OrganizationSettingsPage from "./pages/OrganizationSettingsPage";
 import MyApplicationsPage from "./pages/MyApplicationsPage";
 import EditApplicationPage from "./pages/EditApplicationPage";
 import SponsorProfilePage from "./pages/SponsorProfilePage";
+import PaymentStatusPage from "./pages/PaymentStatusPage";
+import IntentPaymentPage from "./pages/IntentPaymentPage";
+import ReceiptPage from "./pages/ReceiptPage";
 import React, { useState } from "react";
 import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
@@ -378,6 +381,33 @@ function App() {
             element={
               <PrivateRoute>
                 <EditApplicationPage />
+              </PrivateRoute>
+            }
+          />
+          
+          {/* Payment Routes */}
+          <Route
+            path="/payment-status/:sponsorshipId"
+            element={
+              <PrivateRoute>
+                <PaymentStatusPage />
+              </PrivateRoute>
+            }
+          />
+          
+          <Route
+            path="/intent-payment/:intentId"
+            element={
+              <PrivateRoute>
+                <IntentPaymentPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/receipt/:receiptId"
+            element={
+              <PrivateRoute>
+                <ReceiptPage />
               </PrivateRoute>
             }
           />

@@ -209,11 +209,11 @@ const sponsorshipSchema = new mongoose.Schema({
     }
   }],
 
-  // Payment tracking (for future payment integration)
+  // Payment tracking
   payment: {
     status: {
       type: String,
-      enum: ['pending', 'partial', 'completed', 'failed'],
+      enum: ['pending', 'partial', 'completed', 'failed', 'refunded'],
       default: 'pending'
     },
     amount: Number,
@@ -224,7 +224,32 @@ const sponsorshipSchema = new mongoose.Schema({
     paymentMethod: String,
     transactionId: String,
     paymentDate: Date,
-    notes: String
+    notes: String,
+    // Razorpay specific fields
+    razorpayOrderId: String,
+    razorpayPaymentId: String,
+    razorpaySignature: String,
+    // Payment gateway details
+    gateway: {
+      name: {
+        type: String,
+        default: 'razorpay'
+      },
+      orderId: String,
+      paymentId: String,
+      signature: String,
+      refundId: String
+    },
+    // Payment verification
+    verified: {
+      type: Boolean,
+      default: false
+    },
+    verifiedAt: Date,
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
   }
 
 }, { 
