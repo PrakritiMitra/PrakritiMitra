@@ -49,20 +49,35 @@ exports.signupVolunteer = async (req, res) => {
       ? [interests]
       : [];
 
-    const user = await User.create({
+    const userData = {
       name,
       username: username.toLowerCase(),
       email,
       phone,
       password: hashedPassword,
-      dateOfBirth,
+      dateOfBirth: new Date(dateOfBirth),
       gender,
-      interests: interestsArray,
       city,
       role: "volunteer",
-      profileImage: req.file ? req.file.filename : null,
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      // Explicitly set OAuth fields to undefined to avoid null issues with the index
+      oauthProvider: undefined,
+      oauthId: undefined
+    };
+
+    console.log('🔧 Creating new user with data:', {
+      ...userData,
+      password: '***hashed***',
+      dateOfBirth: userData.dateOfBirth.toISOString()
     });
 
+    const user = new User(userData);
+
+    const profileImage = req.files?.profileImage?.[0]?.filename || null;
+    user.profileImage = profileImage;
+
+    await user.save();
 
     res.status(201).json({ token: generateToken(user._id), user });
   } catch (err) {
@@ -93,10 +108,26 @@ exports.signupOrganizer = async (req, res) => {
     }
 
     // Check if email already exists
+    console.log('🔍 Checking if email exists:', email);
     const existingEmail = await User.findOne({ email });
+    console.log('🔎 Email check result:', existingEmail ? 'Exists' : 'Not found');
+    
     if (existingEmail) {
-      console.warn("⚠️ Email already exists:", email);
-      return res.status(400).json({ message: "Email already exists" });
+      console.warn(`⚠️ Email already exists: ${email}`, {
+        existingUserId: existingEmail._id,
+        existingUserRole: existingEmail.role,
+        oauthProvider: existingEmail.oauthProvider,
+        oauthId: existingEmail.oauthId
+      });
+      return res.status(400).json({ 
+        message: "Email already exists",
+        errorType: 'EMAIL_EXISTS',
+        existingUser: {
+          id: existingEmail._id,
+          role: existingEmail.role,
+          oauthProvider: existingEmail.oauthProvider
+        }
+      });
     }
 
     // Check if username already exists
@@ -110,31 +141,93 @@ exports.signupOrganizer = async (req, res) => {
     const profileImage = req.files?.profileImage?.[0]?.filename || null;
     const govtIdProof = req.files?.govtIdProof?.[0]?.filename || null;
 
+    // Create user data object with explicit undefined for OAuth fields
     const userData = {
       name,
       username: username.toLowerCase(),
       email,
       phone,
       password: hashedPassword,
-      dateOfBirth,
+      dateOfBirth: new Date(dateOfBirth),
       gender,
       city,
-      profileImage,
-      govtIdProofUrl: govtIdProof,
+      organization,
+      position,
       role: "organizer",
+      isEmailVerified: false,
+      isPhoneVerified: false,
+      pendingApproval: true,
+      oauthProvider: undefined,
+      oauthId: undefined
     };
 
+    console.log('🔧 Creating new organizer with data:', {
+      ...userData,
+      password: '***hashed***',
+      dateOfBirth: userData.dateOfBirth.toISOString()
+    });
+
+    // Create and save the organizer
+    const user = new User(userData);
+    user.oauthProvider = undefined;
+    user.oauthId = undefined;
+    
+    // Handle file uploads if any
+    if (req.files) {
+      if (req.files.profileImage?.[0]?.filename) {
+        user.profileImage = req.files.profileImage[0].filename;
+      }
+      if (req.files.govtIdProof?.[0]?.filename) {
+        user.govtIdProofUrl = req.files.govtIdProof[0].filename;
+      }
+    }
+    
+    await user.save();
+    
+    // If organization was provided, update the user
     if (organization) {
-      userData.organization = organization;
+      user.organization = organization;
+      await user.save();
     }
 
-    const user = await User.create(userData);
-
-
-    res.status(201).json({ token: generateToken(user._id), user });
+    res.status(201).json({ 
+      token: generateToken(user._id), 
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        username: user.username,
+        organization: user.organization
+      } 
+    });
   } catch (err) {
-    console.error("❌ Organizer Signup Error:", err);
-    res.status(500).json({ message: err.message });
+    console.error("❌ Organizer Signup Error:", {
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+      keyPattern: err.keyPattern,
+      keyValue: err.keyValue,
+      response: err.response?.data
+    });
+    
+    // Handle duplicate key errors specifically
+    if (err.code === 11000) {
+      console.error('🔑 Duplicate key error details:', {
+        keyPattern: err.keyPattern,
+        keyValue: err.keyValue
+      });
+      return res.status(400).json({ 
+        message: 'This account already exists. Please try logging in instead.',
+        errorType: 'DUPLICATE_ACCOUNT',
+        duplicateFields: err.keyValue
+      });
+    }
+    
+    res.status(500).json({ 
+      message: err.message,
+      errorType: 'SERVER_ERROR'
+    });
   }
 };
 

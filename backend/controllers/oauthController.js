@@ -96,14 +96,27 @@ exports.googleCallback = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
-          username: user.username
+          username: user.username,
+          createdAt: user.createdAt
         },
         oauthData: {
           oauthId,
           name,
           email,
-          picture: validPicture
+          picture: validPicture,
+          provider: 'google'
         }
+      });
+    }
+    
+    // If we get here, it means the email doesn't exist in our system
+    // but we'll prevent creating a new account with OAuth if there's an existing email/password account
+    // This is a safety check in case the email check above fails for some reason
+    const existingEmailUser = await User.findOne({ email });
+    if (existingEmailUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'An account with this email already exists. Please log in with your password and link your Google account from the profile settings.'
       });
     }
 

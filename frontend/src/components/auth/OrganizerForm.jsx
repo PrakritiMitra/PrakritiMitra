@@ -12,15 +12,14 @@ import {
   Box,
   Divider,
   Alert,
+  Snackbar,
+  IconButton,
+  InputAdornment
 } from "@mui/material";
-import GoogleOAuthButton from './GoogleOAuthButton';
-import RoleSelectionModal from './RoleSelectionModal';
-import OAuthRegistrationForm from './OAuthRegistrationForm';
-import AccountLinkingModal from './AccountLinkingModal';
-import { googleOAuthCallback, completeOAuthRegistration, linkOAuthAccount } from '../../api/oauth';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
 export default function OrganizerForm() {
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     name: "",
     username: "",
     email: "",
@@ -34,7 +33,36 @@ export default function OrganizerForm() {
     profileImage: null,
     govtIdProof: null,
     organization: "",
-  });
+  };
+
+  const resetForm = () => {
+    console.log('🔄 Resetting form to initial state');
+    const initialState = {
+      name: "",
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      phone: "",
+      dateOfBirth: "",
+      gender: "",
+      city: "",
+      organization: "",
+      position: "",
+      govtIdProof: null,
+      profileImage: null,
+    };
+    setFormData(initialState);
+    setError('');
+    setUsernameStatus({
+      checking: false,
+      available: null,
+      message: ''
+    });
+    return initialState;
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   const [usernameStatus, setUsernameStatus] = useState({
     checking: false,
@@ -46,19 +74,37 @@ export default function OrganizerForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  // OAuth states
-  const [oauthData, setOauthData] = useState(null);
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-  const [showLinkingModal, setShowLinkingModal] = useState(false);
-  const [existingUser, setExistingUser] = useState(null);
-  const [selectedRole, setSelectedRole] = useState('organizer'); // Default to organizer for this form
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' // 'success', 'error', 'warning', 'info'
+  });
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
   const navigate = useNavigate();
   const cityOptions = ["Mumbai", "Pune", "Delhi", "Bangalore", "Hyderabad", "Chennai"];
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
+    
+    console.log(`🖊️ Field changed: ${name} = ${value}`, { 
+      type,
+      hasFiles: !!files,
+      currentError: error
+    });
+    
+    // Clear any existing error when user starts typing
+    if (name === 'email' && error) {
+      console.log('🧹 Clearing email error as user types');
+      setError('');
+    }
+
     if (type === "file") {
       setFormData((prev) => ({ ...prev, [name]: files[0] }));
     } else {
@@ -66,6 +112,9 @@ export default function OrganizerForm() {
       
       // Check username availability when username field changes
       if (name === 'username') {
+        // Clear any username-related errors
+        setUsernameError('');
+        
         // Validate username format
         const usernameRegex = /^[a-zA-Z0-9_]+$/;
         if (value.length > 0 && !usernameRegex.test(value)) {
@@ -124,106 +173,26 @@ export default function OrganizerForm() {
     }
   };
 
-  const handleGoogleOAuth = async (token) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    console.log('📝 Form submission started', { 
+      email: formData.email,
+      username: formData.username,
+      hasPassword: !!formData.password,
+      hasConfirmPassword: !!formData.confirmPassword
+    });
+    
     setLoading(true);
     setError('');
     
-    try {
-      const response = await googleOAuthCallback(token);
-      
-      if (response.action === 'login') {
-        // User exists with OAuth - login directly
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        
-        // Dispatch custom event to notify other components about user data update
-        window.dispatchEvent(new CustomEvent('userDataUpdated', {
-          detail: { user: response.user }
-        }));
-        
-        if (response.user.role === 'organizer') {
-          navigate('/organizer/dashboard');
-        } else {
-          navigate('/volunteer/dashboard');
-        }
-      } else if (response.action === 'link_account') {
-        // User exists with email but no OAuth - show linking modal
-        setOauthData(response.oauthData);
-        setExistingUser(response.existingUser);
-        setShowLinkingModal(true);
-      } else if (response.action === 'register') {
-        // New user - set role to organizer and proceed to registration
-        setOauthData(response.oauthData);
-        handleRoleSelect('organizer');
-      }
-    } catch (error) {
-      setError(error.message || 'OAuth authentication failed');
-    } finally {
+    // Validate form data
+    if (!formData.email || !formData.password) {
+      const errorMsg = !formData.email ? 'Email is required' : 'Password is required';
+      console.warn('⚠️ Validation error:', errorMsg);
+      setError(errorMsg);
       setLoading(false);
+      return;
     }
-  };
-
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role);
-    setShowRoleModal(false);
-    setShowRegistrationForm(true);
-  };
-
-  const handleOAuthRegistration = async (userData) => {
-    try {
-      setLoading(true);
-      const response = await completeOAuthRegistration({
-        ...userData,
-        role: 'organizer', // Force organizer role for this form
-        oauthData
-      });
-
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Dispatch custom event to notify other components about user data update
-      window.dispatchEvent(new CustomEvent('userDataUpdated', {
-        detail: { user: response.user }
-      }));
-      
-      navigate('/organizer/dashboard');
-    } catch (error) {
-      setError(error.message || 'Registration failed. Please try again.');
-      setShowRegistrationForm(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLinkAccount = async (password) => {
-    try {
-      setLoading(true);
-      const response = await linkOAuthAccount({
-        email: existingUser.email,
-        password,
-        oauthData
-      });
-
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
-      // Dispatch custom event to notify other components about user data update
-      window.dispatchEvent(new CustomEvent('userDataUpdated', {
-        detail: { user: response.user }
-      }));
-      
-      navigate('/organizer/dashboard');
-    } catch (error) {
-      setError(error.message || 'Account linking failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match!");
@@ -260,11 +229,83 @@ export default function OrganizerForm() {
         }
       );
 
-      alert("Signup successful! Please login with your credentials.");
-      navigate("/login");
+      // Show success message and redirect to login
+      setError('');
+      setSnackbar({
+        open: true,
+        message: 'Signup successful! Please login with your credentials.',
+        severity: 'success'
+      });
+      
+      // Redirect to login after a short delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+      
     } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed. Please try again.');
-      console.error(err);
+      console.error('❌ Signup error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        config: {
+          url: err.config?.url,
+          method: err.config?.method,
+          data: err.config?.data
+        }
+      });
+      
+      // Handle different types of errors
+      if (err.response) {
+        console.log('📡 Server responded with:', {
+          status: err.response.status,
+          data: err.response.data,
+          errorType: err.response.data?.errorType
+        });
+        
+        // Server responded with an error status code
+        if (err.response.status === 400) {
+          if (err.response.data.errorType === 'EMAIL_EXISTS' || 
+              (err.response.data.message && err.response.data.message.includes('already exists'))) {
+            
+            console.log('⚠️ Duplicate email detected, updating form state');
+            
+            // For duplicate email, keep the form data but show error
+            setError('An account with this email already exists. Please use a different email or try logging in.');
+            
+            // Clear just the email and password fields to make it easy to retry
+            setFormData(prev => {
+              const newState = {
+                ...prev,
+                email: '',
+                password: '',
+                confirmPassword: ''
+              };
+              console.log('🔄 Updated form state after duplicate email:', newState);
+              return newState;
+            });
+          } else {
+            // For other validation errors, show error but keep form data
+            console.log('⚠️ Validation error:', err.response.data.message);
+            setError(err.response.data.message || 'Validation error. Please check your input and try again.');
+          }
+        } else if (err.response.status === 500) {
+          // Only reset form for server errors
+          resetForm();
+          setError('Server error. Please try again with a different email or username.');
+        } else {
+          setError(err.response.data?.message || 'An error occurred. Please try again.');
+        }
+      } else if (err.request) {
+        // Request was made but no response was received
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        // Something else happened
+        setError('An unexpected error occurred. Please try again.');
+      }
+      
+      // Show error in console for debugging
+      console.error('Signup error details:', err);
+      
     } finally {
       setLoading(false);
     }
@@ -352,14 +393,7 @@ export default function OrganizerForm() {
         {loading ? 'Signing up...' : 'Sign Up as Organizer'}
       </Button>
 
-      <Box sx={{ my: 2, textAlign: 'center' }}>
-        <Divider sx={{ mb: 2 }}>OR</Divider>
-        <GoogleOAuthButton 
-          onSuccess={handleGoogleOAuth} 
-          onError={(error) => setError(error.message || 'Google sign in failed')}
-          disabled={loading}
-        />
-      </Box>
+
       
       <Box sx={{ textAlign: 'center', mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
@@ -375,30 +409,17 @@ export default function OrganizerForm() {
         </Typography>
       </Box>
 
-      {/* OAuth Modals */}
-      <RoleSelectionModal
-        open={showRoleModal}
-        onClose={() => setShowRoleModal(false)}
-        onSelectRole={handleRoleSelect}
-        defaultRole="organizer"
-      />
-
-      <OAuthRegistrationForm
-        open={showRegistrationForm}
-        onClose={() => setShowRegistrationForm(false)}
-        onSubmit={handleOAuthRegistration}
-        oauthData={oauthData}
-        role="organizer"
-        loading={loading}
-      />
-
-      <AccountLinkingModal
-        open={showLinkingModal}
-        onClose={() => setShowLinkingModal(false)}
-        onSubmit={handleLinkAccount}
-        email={existingUser?.email}
-        loading={loading}
-      />
+      {/* Snackbar for success/error messages */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
