@@ -175,10 +175,46 @@ const userSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Compound index for OAuth uniqueness
-userSchema.index({ oauthProvider: 1, oauthId: 1 }, { 
-  unique: true, 
-  sparse: true 
+// Create a partial compound index for OAuth provider and ID
+// This index is only applied when oauthProvider exists
+userSchema.index(
+  { oauthProvider: 1, oauthId: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      oauthProvider: { $exists: true },
+      oauthId: { $exists: true }
+    } 
+  }
+);
+
+// Pre-save hook to handle OAuth fields
+userSchema.pre('save', function(next) {
+  // If this is not an OAuth user, ensure oauth fields are undefined
+  if (!this.oauthProvider) {
+    this.oauthProvider = undefined;
+    this.oauthId = undefined;
+  }
+  next();
 });
+
+// Post-save hook for better error logging
+userSchema.post('save', function(error, doc, next) {
+  if (error.name === 'MongoServerError' && error.code === 11000) {
+    console.error('💥 Duplicate key error on save:', {
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue,
+      doc: {
+        _id: doc?._id,
+        email: doc?.email,
+        oauthProvider: doc?.oauthProvider,
+        oauthId: doc?.oauthId
+      }
+    });
+  }
+  next(error);
+});
+
+console.log('📌 OAuth index created with partial filter for non-null oauthProvider and oauthId');
 
 module.exports = mongoose.model('User', userSchema);

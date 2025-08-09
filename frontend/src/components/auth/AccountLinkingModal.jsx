@@ -13,16 +13,20 @@ import {
   Divider,
   Alert,
   CircularProgress,
+  Container,
+  Paper,
 } from '@mui/material';
 import LinkIcon from '@mui/icons-material/Link';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import LockIcon from '@mui/icons-material/Lock';
+import SecurityIcon from '@mui/icons-material/Security';
 
 const AccountLinkingModal = ({ 
   open, 
   onClose, 
   existingUser, 
   oauthData, 
-  onLinkAccount, 
+  onLinkAccount,
+  // Keep the prop for backward compatibility but don't use it
   onCreateNewAccount 
 }) => {
   const [loading, setLoading] = useState(false);
@@ -38,11 +42,6 @@ const AccountLinkingModal = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCreateNewAccount = () => {
-    setAction('create');
-    onCreateNewAccount();
   };
 
   const handleClose = () => {
@@ -64,85 +63,65 @@ const AccountLinkingModal = ({
         }
       }}
     >
-      <DialogTitle sx={{ textAlign: 'center', pb: 1 }}>
-        <Typography variant="h5" fontWeight="bold" color="primary">
-          Account Found
-        </Typography>
-        <Typography variant="body2" color="text.secondary" mt={1}>
-          We found an existing account with the email {oauthData?.email}
-        </Typography>
+      <DialogTitle sx={{ textAlign: 'center', pb: 1, pt: 3 }}>
+        <Box display="flex" flexDirection="column" alignItems="center" mb={2}>
+          <SecurityIcon color="primary" sx={{ fontSize: 50, mb: 2 }} />
+          <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+            Account Found
+          </Typography>
+          <Typography variant="body1" textAlign="center" color="text.secondary" maxWidth="80%" mb={1}>
+            We found an existing account with the email:
+          </Typography>
+          <Typography variant="body1" fontWeight="bold" color="primary" mb={2}>
+            {oauthData?.email}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth="90%">
+            For security, please link your {oauthData?.provider || 'social'} account to your existing account.
+          </Typography>
+        </Box>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 2 }}>
-        <Box display="flex" gap={3} flexDirection={{ xs: 'column', md: 'row' }}>
-          {/* Existing Account Card */}
-          <Card 
-            variant="outlined" 
-            sx={{ 
-              flex: 1,
-              border: '2px solid #1976d2',
-              backgroundColor: '#f3f8ff'
-            }}
-          >
-            <CardContent sx={{ p: 3, textAlign: 'center' }}>
-              <Avatar 
-                src={existingUser?.profileImage} 
-                alt={existingUser?.name}
-                sx={{ width: 80, height: 80, mx: 'auto', mb: 2 }}
-              />
-              <Typography variant="h6" fontWeight="bold" mb={1}>
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 3, 
+            mb: 3, 
+            backgroundColor: 'rgba(25, 118, 210, 0.05)',
+            border: '1px solid rgba(25, 118, 210, 0.2)',
+            borderRadius: 2
+          }}
+        >
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} alignItems="center" gap={3}>
+            <Avatar 
+              src={existingUser?.profileImage} 
+              alt={existingUser?.name}
+              sx={{ width: 80, height: 80, border: '2px solid #1976d2' }}
+            />
+            <Box textAlign={{ xs: 'center', sm: 'left' }}>
+              <Typography variant="h6" fontWeight="bold" mb={0.5}>
                 {existingUser?.name}
               </Typography>
               <Typography variant="body2" color="text.secondary" mb={2}>
                 {existingUser?.email}
               </Typography>
-              <Box display="flex" alignItems="center" justifyContent="center" gap={1} mb={2}>
+              <Box display="flex" alignItems="center" justifyContent={{ xs: 'center', sm: 'flex-start' }} gap={1} mb={1}>
                 <Typography variant="body2" color="primary" fontWeight="bold">
                   {existingUser?.role}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  • @{existingUser?.username}
-                </Typography>
               </Box>
-              <Typography variant="body2" color="text.secondary">
-                This is your existing account. You can link your Google account to enable faster login.
+              <Typography variant="body2" color="text.secondary" mt={1}>
+                Account created on: {new Date(existingUser?.createdAt).toLocaleDateString()}
               </Typography>
-            </CardContent>
-          </Card>
-
-          {/* Google Account Card */}
-          <Card 
-            variant="outlined" 
-            sx={{ 
-              flex: 1,
-              border: '2px solid #4285f4',
-              backgroundColor: '#f8f9ff'
-            }}
-          >
-            <CardContent sx={{ p: 3, textAlign: 'center' }}>
-              <Avatar 
-                src={oauthData?.picture || null} 
-                alt={oauthData?.name}
-                sx={{ width: 80, height: 80, mx: 'auto', mb: 2 }}
-              >
-                {oauthData?.name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="h6" fontWeight="bold" mb={1}>
-                {oauthData?.name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {oauthData?.email}
-              </Typography>
-              <Box display="flex" alignItems="center" justifyContent="center" gap={1} mb={2}>
-                <Typography variant="body2" color="#4285f4" fontWeight="bold">
-                  Google Account
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                This is your Google account. You can link it to your existing account or create a new one.
-              </Typography>
-            </CardContent>
-          </Card>
+            </Box>
+          </Box>
+        </Paper>
+        
+        <Box textAlign="center" mt={3} mb={2}>
+          <LockIcon color="action" fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
+          <Typography variant="body2" color="text.secondary" display="inline">
+            Your information is secure and will not be shared
+          </Typography>
         </Box>
 
         <Divider sx={{ my: 3 }} />
@@ -156,44 +135,26 @@ const AccountLinkingModal = ({
           </Typography>
         </Alert>
 
-        <Box display="flex" gap={2} flexDirection={{ xs: 'column', sm: 'row' }}>
-          <Button
-            onClick={handleLinkAccount}
-            variant="contained"
-            startIcon={loading && action === 'link' ? <CircularProgress size={20} /> : <LinkIcon />}
-            disabled={loading}
-            fullWidth
-            sx={{ 
-              backgroundColor: '#1976d2',
-              '&:hover': { backgroundColor: '#1565c0' }
-            }}
-          >
-            {loading && action === 'link' ? 'Linking...' : 'Link Accounts'}
-          </Button>
-
-          <Button
-            onClick={handleCreateNewAccount}
-            variant="outlined"
-            startIcon={<PersonAddIcon />}
-            disabled={loading}
-            fullWidth
-            sx={{ 
-              borderColor: '#4285f4',
-              color: '#4285f4',
-              '&:hover': { 
-                borderColor: '#1976d2',
-                backgroundColor: '#f3f8ff'
-              }
-            }}
-          >
-            Create New Account
-          </Button>
-        </Box>
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, pt: 1 }}>
-        <Button onClick={handleClose} color="inherit" disabled={loading}>
+      <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'center' }}>
+        <Button 
+          variant="outlined" 
+          onClick={handleClose} 
+          disabled={loading}
+          sx={{ mr: 2 }}
+        >
           Cancel
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleLinkAccount}
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LinkIcon />}
+          size="large"
+        >
+          {loading ? 'Linking...' : 'Link Accounts'}
         </Button>
       </DialogActions>
     </Dialog>

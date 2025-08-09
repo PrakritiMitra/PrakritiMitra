@@ -13,7 +13,7 @@ import GoogleOAuthButton from './GoogleOAuthButton';
 import RoleSelectionModal from './RoleSelectionModal';
 import OAuthRegistrationForm from './OAuthRegistrationForm';
 import AccountLinkingModal from './AccountLinkingModal';
-import { googleOAuthCallback, completeOAuthRegistration, linkOAuthAccount } from '../../api/oauth';
+import { googleOAuthCallback, linkOAuthAccount, completeOAuthRegistration } from '../../api/oauth';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -261,15 +261,15 @@ export default function LoginForm() {
         oauthData={oauthData}
       />
 
-             {/* OAuth Registration Form */}
-       <OAuthRegistrationForm
-         open={showRegistrationForm}
-         onClose={() => setShowRegistrationForm(false)}
-         oauthData={oauthData}
-         role={selectedRole}
-         onSubmit={handleRegistrationComplete}
-         onBack={handleBackToRoleSelection}
-       />
+      {/* OAuth Registration Form */}
+      <OAuthRegistrationForm
+        open={showRegistrationForm}
+        onClose={() => setShowRegistrationForm(false)}
+        oauthData={oauthData}
+        role={selectedRole}
+        onSubmit={handleRegistrationComplete}
+        onBack={handleBackToRoleSelection}
+      />
 
       {/* Account Linking Modal */}
       <AccountLinkingModal
@@ -278,7 +278,6 @@ export default function LoginForm() {
         existingUser={existingUser}
         oauthData={oauthData}
         onLinkAccount={handleLinkAccount}
-        onCreateNewAccount={handleCreateNewAccount}
       />
     </>
   );
