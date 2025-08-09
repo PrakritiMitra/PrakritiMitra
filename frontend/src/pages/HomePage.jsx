@@ -92,11 +92,10 @@ export default function HomePage() {
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                 PrakritiMitra
               </span>
-              <span className="text-4xl sm:text-5xl lg:text-6xl ml-3">🌊</span>
             </h1>
 
             <p className="text-xl sm:text-2xl text-gray-600 max-w-4xl mx-auto mb-10 leading-relaxed">
-              Join the movement to clean and preserve Mumbai's iconic beaches. Volunteer for upcoming events or organize your own initiatives using our AI-powered civic-tech platform.
+              Join hands with environmentalists across the globe to protect and preserve our planet. Volunteer for impactful initiatives or organize your own events using our comprehensive environmental conservation platform.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
@@ -139,9 +138,9 @@ export default function HomePage() {
       <section className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose MumbaiMitra?</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose PrakritiMitra?</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Our platform connects passionate individuals with environmental organizations to create lasting impact
+              Our platform unites environmental enthusiasts, volunteers, and organizations to create sustainable impact worldwide
             </p>
           </div>
 

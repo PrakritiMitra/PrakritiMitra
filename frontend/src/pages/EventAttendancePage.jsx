@@ -8,6 +8,7 @@ import AttendanceDashboard from "../components/attendance/AttendanceDashboard";
 import axiosInstance from "../api/axiosInstance"; // <-- Use axiosInstance
 import { useRef } from 'react';
 import { FaPencilAlt } from 'react-icons/fa';
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 
 export default function EventAttendancePage() {
   const { eventId } = useParams();
@@ -278,11 +279,17 @@ export default function EventAttendancePage() {
                       {organizers.map((obj) => (
                         <tr key={obj.user?._id || obj._id} className="text-center">
                           <td className="p-2 border">
-                            <img
-                              src={obj.user && obj.user.profileImage ? `${imageBaseUrl}${obj.user.profileImage}` : '/images/default-profile.jpg'}
-                              alt={obj.user ? obj.user.username : 'Organizer'}
-                              className="w-10 h-10 rounded-full object-cover mx-auto"
-                            />
+                            {getProfileImageUrl(obj.user) ? (
+                              <img
+                                src={getProfileImageUrl(obj.user)}
+                                alt={obj.user ? obj.user.username : 'Organizer'}
+                                className="w-10 h-10 rounded-full object-cover mx-auto"
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors('organizer')}`}>
+                                <span className="text-sm font-bold">{getAvatarInitial(obj.user)}</span>
+                              </div>
+                            )}
                           </td>
                           <td className="p-2 border">{obj.user ? (obj.user.username ? `@${obj.user.username}` : obj.user.name) : '-'}</td>
                           <td className="p-2 border">{obj.user ? obj.user.email : '-'}</td>
@@ -330,11 +337,17 @@ export default function EventAttendancePage() {
                     return (
                       <tr key={v._id} className="text-center">
                         <td className="p-2 border">
-                          <img
-                            src={v.profileImage ? `${imageBaseUrl}${v.profileImage}` : '/images/default-profile.jpg'}
-                            alt={v.username}
-                            className="w-10 h-10 rounded-full object-cover mx-auto"
-                          />
+                          {getProfileImageUrl(v) ? (
+                            <img
+                              src={getProfileImageUrl(v)}
+                              alt={v.username}
+                              className="w-10 h-10 rounded-full object-cover mx-auto"
+                            />
+                          ) : (
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors('volunteer')}`}>
+                              <span className="text-sm font-bold">{getAvatarInitial(v)}</span>
+                            </div>
+                          )}
                         </td>
                         <td className="p-2 border">{v.username ? `@${v.username}` : v.name}</td>
                         <td className="p-2 border">{v.email}</td>

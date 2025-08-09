@@ -8,6 +8,7 @@ import { IoMdClose } from 'react-icons/io';
 import { FiEdit2 } from 'react-icons/fi';
 import { MdDelete } from 'react-icons/md';
 import EmojiPicker from 'emoji-picker-react';
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
 
 
 const socket = io('http://localhost:5000', {
@@ -632,11 +633,17 @@ export default function EventChatbox({ eventId, currentUser }) {
                     ref={idx === 0 ? firstMsgRef : null}
                     className={`group flex items-start gap-3 my-2 ${isMe ? 'flex-row-reverse' : ''}`}
                   >
-                    <img
-                      src={msg.userId?.profileImage ? `http://localhost:5000/uploads/Profiles/${msg.userId.profileImage}` : '/images/default-profile.jpg'}
-                      alt={msg.userId?.username || msg.userId?.name}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
+                    {getProfileImageUrl(msg.userId) ? (
+                      <img
+                        src={getProfileImageUrl(msg.userId)}
+                        alt={msg.userId?.username || msg.userId?.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(msg.userId?.role || 'user')}`}>
+                        <span className="text-xs font-bold">{getAvatarInitial(msg.userId)}</span>
+                      </div>
+                    )}
                     <div className={`relative p-3 rounded-lg max-w-[70%] ${bubbleColor} ${isPinned ? 'border-2 border-yellow-400' : ''}`}>
                       {/* Reply preview in chat bubble */}
                                               {reply && (

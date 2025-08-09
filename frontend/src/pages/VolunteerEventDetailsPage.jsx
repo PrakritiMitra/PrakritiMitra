@@ -20,6 +20,8 @@ import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterMod
 import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuestionnaireModal';
 import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap';
+import Avatar from "../components/common/Avatar";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
@@ -36,11 +38,17 @@ const CommentAvatarAndName = ({ comment }) => {
       className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
       onClick={handleClick}
     >
-      <img 
-        src={comment.volunteer?.profileImage ? `http://localhost:5000/uploads/Profiles/${comment.volunteer.profileImage}` : '/images/default-profile.jpg'} 
-        alt={comment.volunteer?.name} 
-        className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
-      />
+      {getProfileImageUrl(comment.volunteer) ? (
+        <img 
+          src={getProfileImageUrl(comment.volunteer)} 
+          alt={comment.volunteer?.name} 
+          className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
+        />
+      ) : (
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 ${getRoleColors('volunteer')}`}>
+          <span className="text-sm font-bold">{getAvatarInitial(comment.volunteer)}</span>
+        </div>
+      )}
       <span className="font-medium text-green-800">{comment.volunteer?.username ? `@${comment.volunteer.username}` : comment.volunteer?.name}</span>
     </div>
   );
@@ -561,7 +569,7 @@ export default function VolunteerEventDetailsPage() {
                   const displayText = orgUser.username ? `@${orgUser.username}` : displayName;
                   return (
                     <div key={orgUser._id} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${orgUser._id}`)}>
-                      <img src={orgUser.profileImage ? `http://localhost:5000/uploads/Profiles/${orgUser.profileImage}` : '/images/default-profile.jpg'} alt={displayName} className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4" />
+                      <Avatar user={orgUser} size="lg" role="organizer" className="mr-4" />
                       <div className="flex flex-col">
                         <span className="font-medium text-blue-800 text-lg">{displayText}</span>
                         {orgUser.username && orgUser.name && (
@@ -627,7 +635,7 @@ export default function VolunteerEventDetailsPage() {
                 const displayText = vol.username ? `@${vol.username}` : displayName;
                 return (
                   <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
-                    <img src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'} alt={displayName} className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4" />
+                    <Avatar user={vol} size="lg" role="volunteer" className="mr-4" />
                     <div className="flex flex-col">
                       <span className="font-medium text-green-800 text-lg">{displayText}</span>
                       {vol.username && vol.name && (

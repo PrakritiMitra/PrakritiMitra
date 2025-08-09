@@ -8,6 +8,7 @@ const USER_API = 'http://localhost:5000/api/users';
 export const signupVolunteer = (data) => axios.post(`${API_BASE}/signup-volunteer`, data);
 export const signupOrganizer = (data) => axios.post(`${API_BASE}/signup-organizer`, data);
 export const loginUser = (data) => axios.post(`${API_BASE}/login`, data);
+export const setPassword = (data) => axios.post(`${API_BASE}/set-password`, data);
 
 export const updateProfile = (data) => {
   const token = localStorage.getItem('token');

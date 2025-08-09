@@ -150,16 +150,76 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    // Check if user is OAuth-only (no password set)
+    if (!user.password) {
+      console.warn("⚠️ Login failed — OAuth user trying to login with password:", email);
+      return res.status(400).json({ 
+        message: "This account was created with Google. Please use 'Sign in with Google' to login." 
+      });
+    }
+
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       console.warn("⚠️ Login failed — incorrect password for:", email);
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-
     res.status(200).json({ token: generateToken(user._id), user });
   } catch (err) {
     console.error("❌ Login Error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Set password for OAuth users
+exports.setPassword = async (req, res) => {
+  try {
+    const { userId, password, confirmPassword } = req.body;
+
+    if (!userId || !password || !confirmPassword) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if user already has a password
+    if (user.password) {
+      return res.status(400).json({ message: "Password is already set for this account" });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update user with password
+    user.password = hashedPassword;
+    await user.save();
+
+    console.log("✅ Password set successfully for OAuth user:", user.email);
+
+    res.status(200).json({ 
+      message: "Password set successfully. You can now login with email and password.",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        username: user.username
+      }
+    });
+
+  } catch (err) {
+    console.error("❌ Set Password Error:", err);
     res.status(500).json({ message: err.message });
   }
 };

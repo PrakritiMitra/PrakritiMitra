@@ -26,6 +26,7 @@ const sponsorshipIntentRoutes = require('./routes/sponsorshipIntentRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const sponsorshipIntentPaymentRoutes = require('./routes/sponsorshipIntentPaymentRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
+const oauthRoutes = require('./routes/oauthRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -90,6 +91,9 @@ app.use('/api/sponsorship-intents', sponsorshipIntentRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/intent-payments', sponsorshipIntentPaymentRoutes);
 app.use('/api/receipts', receiptRoutes);
+
+// OAuth routes
+app.use('/api/oauth', oauthRoutes);
 
 // Initialize Socket.IO
 initializeSocket(io);

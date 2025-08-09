@@ -33,7 +33,26 @@ const userSchema = new mongoose.Schema({
 
   password: {
     type: String,
-    required: true,
+    required: function() {
+      // Password is required only if not using OAuth
+      return !this.oauthProvider;
+    },
+  },
+
+  // OAuth fields
+  oauthProvider: {
+    type: String,
+    enum: ['google', 'facebook', 'github', null],
+    default: null,
+  },
+
+  oauthId: {
+    type: String,
+    sparse: true, // Allows multiple nulls but unique for non-null values
+  },
+
+  oauthPicture: {
+    type: String, // URL from OAuth provider
   },
 
   role: {
@@ -44,7 +63,10 @@ const userSchema = new mongoose.Schema({
 
   dateOfBirth: {
     type: Date,
-    required: true
+    required: function() {
+      // Date of birth is optional for OAuth users
+      return !this.oauthProvider;
+    }
   },
 
   city: {
@@ -57,7 +79,10 @@ const userSchema = new mongoose.Schema({
 
   isEmailVerified: {
     type: Boolean,
-    default: false,
+    default: function() {
+      // Auto-verify email if using OAuth
+      return this.oauthProvider ? true : false;
+    },
   },
 
   isPhoneVerified: {
@@ -149,5 +174,11 @@ const userSchema = new mongoose.Schema({
   }],
 
 }, { timestamps: true });
+
+// Compound index for OAuth uniqueness
+userSchema.index({ oauthProvider: 1, oauthId: 1 }, { 
+  unique: true, 
+  sparse: true 
+});
 
 module.exports = mongoose.model('User', userSchema);

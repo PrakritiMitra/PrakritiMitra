@@ -201,6 +201,11 @@ export default function ProfilePage() {
           govtIdProof: undefined,
         }));
         
+        // Dispatch custom event to notify other components about user data update
+        window.dispatchEvent(new CustomEvent('userDataUpdated', {
+          detail: { user: response.data.user }
+        }));
+        
         alert('Profile updated successfully!');
       }
     } catch (error) {
