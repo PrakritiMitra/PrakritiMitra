@@ -238,8 +238,11 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
       updateData.govtIdProofUrl = null;
     }
 
-    // Remove password from update data if it's not being changed
-    if (!updateData.password) {
+    // Handle password update with hashing
+    if (updateData.password) {
+      const bcrypt = require('bcryptjs');
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    } else {
       delete updateData.password;
     }
 

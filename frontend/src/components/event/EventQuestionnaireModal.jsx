@@ -3,6 +3,7 @@ import { Modal, Box, Typography, Button, TextField, Slider, Checkbox, FormContro
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CircularProgress from '@mui/material/CircularProgress';
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
 
 // Helper: Emoji/Face rating
 const EmojiRating = ({ value, onChange, options }) => (
@@ -396,11 +397,31 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                 renderInput={params => <TextField {...params} label="Best Volunteer(s)" margin="normal" />}
                 renderOption={(props, option) => (
                   <Box component="li" {...props} display="flex" alignItems="center">
-                    <img
-                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                      alt={option.name}
-                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
-                    />
+                    {getProfileImageUrl(option) ? (
+                      <img
+                        src={getProfileImageUrl(option)}
+                        alt={option.name}
+                        style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          marginRight: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#dcfce7',
+                          color: '#16a34a',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {getAvatarInitial(option)}
+                      </Box>
+                    )}
                     <span>{option.name || option.email || option._id}</span>
                   </Box>
                 )}
@@ -415,11 +436,31 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                 renderInput={params => <TextField {...params} label="Most Punctual" margin="normal" />}
                 renderOption={(props, option) => (
                   <Box component="li" {...props} display="flex" alignItems="center">
-                    <img
-                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                      alt={option.name}
-                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
-                    />
+                    {getProfileImageUrl(option) ? (
+                      <img
+                        src={getProfileImageUrl(option)}
+                        alt={option.name}
+                        style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          marginRight: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#dcfce7',
+                          color: '#16a34a',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {getAvatarInitial(option)}
+                      </Box>
+                    )}
                     <span>{option.name || option.email || option._id}</span>
                   </Box>
                 )}
@@ -444,11 +485,31 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                   sx={{ display: 'inline-block', mr: 1 }}
                   renderOption={(props, option) => (
                     <Box component="li" {...props} display="flex" alignItems="center">
-                      <img
-                        src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                        alt={option.name}
-                        style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
-                      />
+                      {getProfileImageUrl(option) ? (
+                        <img
+                          src={getProfileImageUrl(option)}
+                          alt={option.name}
+                          style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            marginRight: 8,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#dcfce7',
+                            color: '#16a34a',
+                            fontWeight: 'bold',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {getAvatarInitial(option)}
+                        </Box>
+                      )}
                       <span>{option.name || option.email || option._id}</span>
                     </Box>
                   )}
@@ -483,11 +544,31 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                 renderInput={params => <TextField {...params} label="Best Organizer(s)" margin="normal" />}
                 renderOption={(props, option) => (
                   <Box component="li" {...props} display="flex" alignItems="center">
-                    <img
-                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                      alt={option.name}
-                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
-                    />
+                    {getProfileImageUrl(option) ? (
+                      <img
+                        src={getProfileImageUrl(option)}
+                        alt={option.name}
+                        style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          marginRight: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#dbeafe',
+                          color: '#2563eb',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {getAvatarInitial(option)}
+                      </Box>
+                    )}
                     <span>{option.name || option.email || option._id}</span>
                   </Box>
                 )}
@@ -502,11 +583,31 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                 renderInput={params => <TextField {...params} label="Most Dedicated" margin="normal" />}
                 renderOption={(props, option) => (
                   <Box component="li" {...props} display="flex" alignItems="center">
-                    <img
-                      src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                      alt={option.name}
-                      style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
-                    />
+                    {getProfileImageUrl(option) ? (
+                      <img
+                        src={getProfileImageUrl(option)}
+                        alt={option.name}
+                        style={{ width: 32, height: 32, borderRadius: '50%', marginRight: 8 }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          marginRight: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: '#dbeafe',
+                          color: '#2563eb',
+                          fontWeight: 'bold',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {getAvatarInitial(option)}
+                      </Box>
+                    )}
                     <span>{option.name || option.email || option._id}</span>
                   </Box>
                 )}
@@ -531,11 +632,31 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                   sx={{ display: 'inline-block', mr: 1 }}
                   renderOption={(props, option) => (
                     <Box component="li" {...props} display="flex" alignItems="center">
-                      <img
-                        src={option.profileImage ? `http://localhost:5000/uploads/Profiles/${option.profileImage}` : '/images/default-profile.jpg'}
-                        alt={option.name}
-                        style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
-                      />
+                      {getProfileImageUrl(option) ? (
+                        <img
+                          src={getProfileImageUrl(option)}
+                          alt={option.name}
+                          style={{ width: 28, height: 28, borderRadius: '50%', marginRight: 8 }}
+                        />
+                      ) : (
+                        <Box
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            marginRight: 8,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#dbeafe',
+                            color: '#2563eb',
+                            fontWeight: 'bold',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {getAvatarInitial(option)}
+                        </Box>
+                      )}
                       <span>{option.name || option.email || option._id}</span>
                     </Box>
                   )}

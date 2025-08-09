@@ -13,7 +13,13 @@ import {
   FormGroup,
   FormControlLabel,
   Typography,
+  Divider,
 } from '@mui/material';
+import GoogleOAuthButton from './GoogleOAuthButton';
+import RoleSelectionModal from './RoleSelectionModal';
+import OAuthRegistrationForm from './OAuthRegistrationForm';
+import AccountLinkingModal from './AccountLinkingModal';
+import { googleOAuthCallback, completeOAuthRegistration, linkOAuthAccount } from '../../api/oauth';
 
 export default function VolunteerForm() {
   const [formData, setFormData] = useState({
@@ -38,10 +44,124 @@ export default function VolunteerForm() {
   });
 
   const [usernameError, setUsernameError] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  // OAuth states
+  const [oauthData, setOauthData] = useState(null);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [showLinkingModal, setShowLinkingModal] = useState(false);
+  const [existingUser, setExistingUser] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('');
 
   const navigate = useNavigate();
   const interestsOptions = ['Beach Cleanup', 'Waste Segregation', 'Plastic Collection', 'Awareness Drives'];
   const cityOptions = ['Mumbai', 'Pune', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai'];
+
+  const handleGoogleOAuth = async (token) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await googleOAuthCallback(token);
+      
+      if (response.action === 'login') {
+        // User exists with OAuth - login directly
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+        
+        // Dispatch custom event to notify other components about user data update
+        window.dispatchEvent(new CustomEvent('userDataUpdated', {
+          detail: { user: response.user }
+        }));
+        
+        if (response.user.role === 'organizer') {
+          navigate('/organizer/dashboard');
+        } else {
+          navigate('/volunteer/dashboard');
+        }
+      } else if (response.action === 'link_account') {
+        // User exists with email but no OAuth - show linking modal
+        setOauthData(response.oauthData);
+        setExistingUser(response.existingUser);
+        setShowLinkingModal(true);
+      } else if (response.action === 'register') {
+        // New user - show role selection
+        setOauthData(response.oauthData);
+        setShowRoleModal(true);
+      }
+    } catch (error) {
+      setError(error.message || 'OAuth authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRoleSelect = (role) => {
+    setSelectedRole(role);
+    setShowRoleModal(false);
+    setShowRegistrationForm(true);
+  };
+
+  const handleOAuthRegistration = async (userData) => {
+    try {
+      setLoading(true);
+      const response = await completeOAuthRegistration({
+        ...userData,
+        role: selectedRole,
+        oauthData
+      });
+
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Dispatch custom event to notify other components about user data update
+      window.dispatchEvent(new CustomEvent('userDataUpdated', {
+        detail: { user: response.user }
+      }));
+      
+      if (response.user.role === 'organizer') {
+        navigate('/organizer/dashboard');
+      } else {
+        navigate('/volunteer/dashboard');
+      }
+    } catch (error) {
+      setError(error.message || 'Registration failed. Please try again.');
+      setShowRegistrationForm(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLinkAccount = async (password) => {
+    try {
+      setLoading(true);
+      const response = await linkOAuthAccount({
+        email: existingUser.email,
+        password,
+        oauthData
+      });
+
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
+      // Dispatch custom event to notify other components about user data update
+      window.dispatchEvent(new CustomEvent('userDataUpdated', {
+        detail: { user: response.user }
+      }));
+      
+      if (response.user.role === 'organizer') {
+        navigate('/organizer/dashboard');
+      } else {
+        navigate('/volunteer/dashboard');
+      }
+    } catch (error) {
+      setError(error.message || 'Account linking failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
@@ -120,20 +240,25 @@ export default function VolunteerForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
+      setLoading(false);
       return;
     }
 
     // Validate username before submission
     if (usernameError) {
-      alert("Please fix the username errors before submitting.");
+      setError("Please fix the username errors before submitting.");
+      setLoading(false);
       return;
     }
 
     if (!formData.username || formData.username.length < 3) {
-      alert("Username must be at least 3 characters long.");
+      setError("Username must be at least 3 characters long.");
+      setLoading(false);
       return;
     }
 
@@ -157,12 +282,13 @@ export default function VolunteerForm() {
         }
       );
 
-      alert('Signup successful!');
-      console.log(response.data);
+      alert('Signup successful! Please login with your credentials.');
       navigate('/login');
     } catch (err) {
-      alert('Signup failed.');
+      setError(err.response?.data?.message || 'Signup failed. Please try again.');
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -261,9 +387,69 @@ export default function VolunteerForm() {
         />
       </Box>
 
-      <Button variant="contained" color="success" type="submit" fullWidth sx={{ mt: 3 }}>
-        Sign Up
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Button 
+        variant="contained" 
+        color="success" 
+        type="submit" 
+        fullWidth 
+        sx={{ mt: 2 }}
+        disabled={loading}
+      >
+        {loading ? 'Signing up...' : 'Sign Up'}
       </Button>
+
+      <Box sx={{ my: 2, textAlign: 'center' }}>
+        <Divider sx={{ mb: 2 }}>OR</Divider>
+        <GoogleOAuthButton 
+          onSuccess={handleGoogleOAuth} 
+          onError={(error) => setError(error.message || 'Google sign in failed')}
+          disabled={loading}
+        />
+      </Box>
+        
+      <Box sx={{ textAlign: 'center', mt: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          Already a user?{' '}
+          <Button 
+            variant="text" 
+            size="small" 
+            onClick={() => navigate('/login')}
+            sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+          >
+            Login
+          </Button>
+        </Typography>
+      </Box>
+
+      {/* OAuth Modals */}
+      <RoleSelectionModal
+        open={showRoleModal}
+        onClose={() => setShowRoleModal(false)}
+        onSelectRole={handleRoleSelect}
+      />
+
+      <OAuthRegistrationForm
+        open={showRegistrationForm}
+        onClose={() => setShowRegistrationForm(false)}
+        onSubmit={handleOAuthRegistration}
+        oauthData={oauthData}
+        role={selectedRole}
+        loading={loading}
+      />
+
+      <AccountLinkingModal
+        open={showLinkingModal}
+        onClose={() => setShowLinkingModal(false)}
+        onSubmit={handleLinkAccount}
+        email={existingUser?.email}
+        loading={loading}
+      />
     </Box>
   );
 }

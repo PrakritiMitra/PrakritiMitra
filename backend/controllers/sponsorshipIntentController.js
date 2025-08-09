@@ -179,50 +179,15 @@ exports.getOrganizationIntents = async (req, res) => {
   }
 };
 
-// Get user's own intents
-exports.getUserIntents = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
 
-    // Build query
-    const query = { 'sponsor.user': userId };
-    if (status && status !== 'all') {
-      query.status = status;
-    }
-
-    // Pagination
-    const skip = (page - 1) * limit;
-    const intents = await SponsorshipIntent.find(query)
-      .populate('organization', 'name')
-      .populate('event', 'title')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await SponsorshipIntent.countDocuments(query);
-
-    res.json({
-      intents,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching user intents:', error);
-    res.status(500).json({
-      message: 'Failed to fetch user intents',
-      error: error.message
-    });
-  }
-};
 
 // Get intent by ID (with populated references)
 exports.getIntentById = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const userId = req.user._id;
 
@@ -280,6 +245,10 @@ exports.getIntentById = async (req, res) => {
 // Update intent
 exports.updateIntent = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const userId = req.user._id;
     const updateData = req.body;
@@ -1132,6 +1101,10 @@ exports.reviewIntent = async (req, res) => {
 // Get intents by user (for sponsors to track their applications)
 exports.getUserIntents = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const userId = req.user._id;
     const { 
       page = 1, 
@@ -1181,6 +1154,10 @@ exports.getUserIntents = async (req, res) => {
 // Add communication record
 exports.addCommunication = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const { type, summary, nextAction } = req.body;
     const adminId = req.user._id;
@@ -1217,6 +1194,10 @@ exports.addCommunication = async (req, res) => {
 // Delete sponsorship intent
 exports.deleteIntent = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const userId = req.user._id;
 

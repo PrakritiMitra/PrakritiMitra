@@ -200,6 +200,16 @@ const isEventPast = (eventDate) => {
 exports.addToCalendar = async (req, res) => {
   try {
     const { eventId } = req.params;
+    
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in addToCalendar');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const userId = req.user._id;
 
     // Check if event exists
@@ -265,6 +275,16 @@ exports.addToCalendar = async (req, res) => {
 exports.removeFromCalendar = async (req, res) => {
   try {
     const { eventId } = req.params;
+    
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in removeFromCalendar');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const userId = req.user._id;
 
     // Check if event exists
@@ -323,6 +343,16 @@ exports.removeFromCalendar = async (req, res) => {
 exports.checkCalendarStatus = async (req, res) => {
   try {
     const { eventId } = req.params;
+    
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in checkCalendarStatus');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const userId = req.user._id;
 
     // Check if user is registered for this event (for volunteers)
@@ -370,6 +400,15 @@ exports.checkCalendarStatus = async (req, res) => {
 // Get user's calendar events
 exports.getUserCalendarEvents = async (req, res) => {
   try {
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in getUserCalendarEvents');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const userId = req.user._id;
     const { start, end } = req.query;
 
@@ -447,6 +486,16 @@ exports.getUserCalendarEvents = async (req, res) => {
 exports.getCalendarEvents = async (req, res) => {
   try {
     const { start, end, role } = req.query;
+    
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in getCalendarEvents');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const currentUser = req.user._id;
 
     if (!start || !end) {
@@ -632,6 +681,16 @@ exports.getCalendarEvents = async (req, res) => {
 exports.getCalendarEventDetails = async (req, res) => {
   try {
     const { eventId } = req.params;
+    
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in getCalendarEventDetails');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const currentUser = req.user._id;
 
     const event = await Event.findById(eventId)
@@ -673,6 +732,16 @@ exports.getCalendarEventDetails = async (req, res) => {
 exports.getCalendarStats = async (req, res) => {
   try {
     const { start, end, role } = req.query;
+    
+    // Check if user exists and has valid _id
+    if (!req.user || !req.user._id) {
+      console.error('User not found or invalid in getCalendarStats');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+    
     const currentUser = req.user._id;
 
     const startDate = new Date(start);
