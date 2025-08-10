@@ -36,7 +36,6 @@ export default function OrganizerForm() {
   };
 
   const resetForm = () => {
-    console.log('🔄 Resetting form to initial state');
     const initialState = {
       name: "",
       username: "",
@@ -188,14 +187,13 @@ export default function OrganizerForm() {
     // Validate form data
     if (!formData.email || !formData.password) {
       const errorMsg = !formData.email ? 'Email is required' : 'Password is required';
-      console.warn('⚠️ Validation error:', errorMsg);
       setError(errorMsg);
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match!");
+      setError("Passwords do not match");
       setLoading(false);
       return;
     }
@@ -243,33 +241,13 @@ export default function OrganizerForm() {
       }, 2000);
       
     } catch (err) {
-      console.error('❌ Signup error:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        config: {
-          url: err.config?.url,
-          method: err.config?.method,
-          data: err.config?.data
-        }
-      });
-      
       // Handle different types of errors
       if (err.response) {
-        console.log('📡 Server responded with:', {
-          status: err.response.status,
-          data: err.response.data,
-          errorType: err.response.data?.errorType
-        });
-        
         // Server responded with an error status code
         if (err.response.status === 400) {
           if (err.response.data.errorType === 'EMAIL_EXISTS' || 
               (err.response.data.message && err.response.data.message.includes('already exists'))) {
             
-            console.log('⚠️ Duplicate email detected, updating form state');
-            
-            // For duplicate email, keep the form data but show error
             setError('An account with this email already exists. Please use a different email or try logging in.');
             
             // Clear just the email and password fields to make it easy to retry
@@ -280,7 +258,6 @@ export default function OrganizerForm() {
                 password: '',
                 confirmPassword: ''
               };
-              console.log('🔄 Updated form state after duplicate email:', newState);
               return newState;
             });
           } else {

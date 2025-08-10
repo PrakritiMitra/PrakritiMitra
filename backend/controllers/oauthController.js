@@ -133,7 +133,6 @@ exports.googleCallback = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Google OAuth Error:', error);
     res.status(500).json({ message: 'OAuth authentication failed' });
   }
 };
@@ -214,7 +213,6 @@ exports.completeOAuthRegistration = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('OAuth Registration Error:', error);
     res.status(500).json({ message: 'Registration failed' });
   }
 };
@@ -233,15 +231,6 @@ exports.linkOAuthAccount = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    console.log('🔗 Linking OAuth account for user:', {
-      userId: user._id,
-      existingName: user.name,
-      existingEmail: user.email,
-      existingRole: user.role,
-      oauthName: name,
-      oauthEmail: email
-    });
 
     // Check if OAuth ID is already linked to another account
     const existingOAuth = await User.findOne({ oauthProvider: 'google', oauthId });
@@ -288,15 +277,6 @@ exports.linkOAuthAccount = async (req, res) => {
 
     await user.save();
 
-    console.log('✅ OAuth account linked successfully. Updated user:', {
-      userId: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      oauthProvider: user.oauthProvider,
-      oauthId: user.oauthId
-    });
-
     // Generate token
     const token = generateToken(user._id);
 
@@ -315,7 +295,6 @@ exports.linkOAuthAccount = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('OAuth Linking Error:', error);
     res.status(500).json({ message: 'Account linking failed' });
   }
 };
@@ -350,7 +329,6 @@ exports.unlinkOAuthAccount = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('OAuth Unlinking Error:', error);
     res.status(500).json({ message: 'Account unlinking failed' });
   }
 };

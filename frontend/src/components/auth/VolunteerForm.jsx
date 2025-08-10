@@ -35,7 +35,6 @@ export default function VolunteerForm() {
   };
 
   const resetForm = () => {
-    console.log('🔄 Resetting form to initial state');
     const initialState = {
       name: "",
       username: "",
@@ -94,19 +93,6 @@ export default function VolunteerForm() {
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
     
-    console.log(`🖊️ Field changed: ${name} = ${value}`, { 
-      type,
-      checked: type === 'checkbox' ? checked : undefined,
-      hasFiles: !!files,
-      currentError: error
-    });
-
-    // Clear any existing error when user starts typing
-    if (name === 'email' && error) {
-      console.log('🧹 Clearing email error as user types');
-      setError('');
-    }
-
     if (type === 'checkbox' && name === 'interests') {
       setFormData((prev) => ({
         ...prev,
@@ -184,27 +170,19 @@ export default function VolunteerForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('📝 Form submission started', { 
-      email: formData.email,
-      username: formData.username,
-      hasPassword: !!formData.password,
-      hasConfirmPassword: !!formData.confirmPassword
-    });
-    
     setLoading(true);
     setError('');
     
     // Validate form data
     if (!formData.email || !formData.password) {
       const errorMsg = !formData.email ? 'Email is required' : 'Password is required';
-      console.warn('⚠️ Validation error:', errorMsg);
       setError(errorMsg);
       setLoading(false);
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match!");
+      setError("Passwords don't match");
       setLoading(false);
       return;
     }
@@ -256,49 +234,25 @@ export default function VolunteerForm() {
       }, 2000);
       
     } catch (err) {
-      console.error('❌ Signup error:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        config: {
-          url: err.config?.url,
-          method: err.config?.method,
-          data: err.config?.data
-        }
-      });
-      
       // Handle different types of errors
       if (err.response) {
-        console.log('📡 Server responded with:', {
-          status: err.response.status,
-          data: err.response.data,
-          errorType: err.response.data?.errorType
-        });
-        
         // Server responded with an error status code
         if (err.response.status === 400) {
           if (err.response.data.errorType === 'EMAIL_EXISTS' || 
               (err.response.data.message && err.response.data.message.includes('already exists'))) {
             
-            console.log('⚠️ Duplicate email detected, updating form state');
-            
             // For duplicate email, keep the form data but show error
             setError('An account with this email already exists. Please use a different email or try logging in.');
             
             // Clear just the email and password fields to make it easy to retry
-            setFormData(prev => {
-              const newState = {
-                ...prev,
-                email: '',
-                password: '',
-                confirmPassword: ''
-              };
-              console.log('🔄 Updated form state after duplicate email:', newState);
-              return newState;
-            });
+            setFormData(prev => ({
+              ...prev,
+              email: '',
+              password: '',
+              confirmPassword: ''
+            }));
           } else {
             // For other validation errors, show error but keep form data
-            console.log('⚠️ Validation error:', err.response.data.message);
             setError(err.response.data.message || 'Validation error. Please check your input and try again.');
           }
         } else if (err.response.status === 500) {
@@ -315,9 +269,6 @@ export default function VolunteerForm() {
         // Something else happened
         setError('An unexpected error occurred. Please try again.');
       }
-      
-      // Show error in console for debugging
-      console.error('Signup error details:', err);
       
     } finally {
       setLoading(false);
