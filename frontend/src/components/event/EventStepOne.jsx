@@ -74,30 +74,16 @@ export default function EventStepOne({
     const remaining = calculateRemainingVolunteers(editingCategory);
     setRemainingVolunteers(remaining);
 
-    // Debug logging
-    console.log('🔍 Volunteer Allocation Debug:');
-    console.log('  - Event max volunteers:', formData.maxVolunteers);
-    console.log('  - Unlimited volunteers:', formData.unlimitedVolunteers);
-    console.log('  - Time slots:', formData.timeSlots);
-    console.log('  - Editing category:', editingCategory);
-    console.log('  - Calculated remaining:', remaining);
-
     // Set error if over-allocated
     if (remaining < 0) {
       setAllocationError(`Over-allocated by ${Math.abs(remaining)} volunteers`);
-      console.log('  - ❌ Over-allocated error set');
     } else {
       setAllocationError("");
-      console.log('  - ✅ No allocation error');
     }
   }, [formData.maxVolunteers, formData.unlimitedVolunteers, formData.timeSlots, editingCategory]);
 
   const handleMaxVolunteersChange = (e) => {
     const { name, value } = e.target;
-    console.log('🔍 Max Volunteers Change Debug:');
-    console.log('  - Field name:', name);
-    console.log('  - New value:', value);
-    console.log('  - Current formData.maxVolunteers:', formData.maxVolunteers);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
   const equipmentOptions = ["Gloves", "Bags", "Masks", "Tools"];

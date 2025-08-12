@@ -277,8 +277,6 @@ export default function EventDetailsPage() {
   const fetchAndSetEvent = async () => {
     try {
       const res = await axiosInstance.get(`/api/events/${id}`);
-      console.log("🔧 EventDetailsPage - Fetched event data:", res.data);
-      console.log("🔧 EventDetailsPage - mapLocation:", res.data.mapLocation);
       setEvent(res.data);
       setOrganizerTeam(res.data.organizerTeam || []);
       // Check join request status for current user
@@ -1344,8 +1342,10 @@ export default function EventDetailsPage() {
           <div className="my-6">
             <h3 className="text-lg font-bold text-blue-700 mb-2">Pending Organizer Join Requests</h3>
             <ul>
-              {event.organizerJoinRequests.filter(r => r.status === 'pending').map(r => {
+              {event.organizerJoinRequests.filter(r => r.status === 'pending' && r.user).map(r => {
                 const user = r.user;
+                if (!user) return null; // Skip if user is null
+                
                 const userId = user._id || user;
                 const name = user.username ? `@${user.username}` : user.name || user.email || userId;
                 const profileImage = user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg';
@@ -1917,13 +1917,7 @@ export default function EventDetailsPage() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm text-gray-500">
-                              {new Date(comment.submittedAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                              {format(new Date(comment.submittedAt), 'dd/MM/yyyy HH:mm')}
                             </span>
                           </div>
                           <p className="text-gray-700 leading-relaxed">{comment.comment}</p>

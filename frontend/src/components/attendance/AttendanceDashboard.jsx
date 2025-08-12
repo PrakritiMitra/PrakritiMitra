@@ -59,18 +59,12 @@ const AttendanceDashboard = ({ eventId }) => {
     });
 
     newSocket.on('connect', () => {
-      console.log('Connected to attendance socket');
       newSocket.emit('joinAttendanceRoom', eventId);
     });
 
     newSocket.on('attendanceUpdated', (data) => {
-      console.log('Attendance updated:', data);
       // Refresh stats when attendance is updated (silent update)
       fetchStats(false);
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from attendance socket');
     });
 
     setSocket(newSocket);

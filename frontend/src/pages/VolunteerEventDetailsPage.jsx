@@ -958,13 +958,7 @@ export default function VolunteerEventDetailsPage() {
                                   <span
                                     className="text-sm text-gray-500"
                                   >
-                                    {new Date(comment.submittedAt).toLocaleDateString('en-US', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
+                                    {format(new Date(comment.submittedAt), 'dd/MM/yyyy HH:mm')}
                                   </span>
                                 </div>
                                 <p className="text-gray-700 leading-relaxed">{comment.comment}</p>

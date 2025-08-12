@@ -80,7 +80,6 @@ const createRecurringEventInstance = async (series, instanceNumber, startDateTim
       const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
       const summary = res.data.summary;
       await Event.findByIdAndUpdate(event._id, { summary });
-      console.log('✅ AI summary generated for recurring instance', event._id, 'Instance #', event.recurringInstanceNumber);
     } catch (err) {
       console.error('❌ Failed to generate AI summary for recurring instance:', err);
     }
@@ -204,15 +203,12 @@ const generateMissingSummaries = async (seriesId) => {
       ]
     });
 
-    console.log(`🔍 Found ${instances.length} recurring instances without AI summaries`);
-
     for (const instance of instances) {
       try {
         const summaryPrompt = `Write a detailed, engaging, 150-word summary for this recurring event instance, including what the event is about, its importance, and interesting facts about the location or event type if possible.\n\nEvent: ${instance.title}\nDescription: ${instance.description}\nType: ${instance.eventType}\nLocation: ${instance.location}\nDate: ${instance.startDateTime}\nOrganizer: ${instance.organization}\nPrecautions: ${instance.precautions}\nInstructions: ${instance.instructions}\nRecurring Instance: #${instance.recurringInstanceNumber}`;
         const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
         const summary = res.data.summary;
         await Event.findByIdAndUpdate(instance._id, { summary });
-        console.log(`✅ Generated AI summary for instance #${instance.recurringInstanceNumber}`);
         
         // Add a small delay to avoid overwhelming the AI service
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -221,7 +217,6 @@ const generateMissingSummaries = async (seriesId) => {
       }
     }
 
-    console.log(`✅ Completed generating missing summaries for series ${seriesId}`);
   } catch (error) {
     console.error('Error generating missing summaries:', error);
   }

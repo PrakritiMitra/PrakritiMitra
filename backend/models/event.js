@@ -29,7 +29,24 @@ const eventSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Made optional for deleted users
+  },
+  // Denormalized creator info for deleted users
+  creatorInfo: {
+    userId: mongoose.Schema.Types.ObjectId,
+    name: String,
+    username: String
+  },
+  // Indicates if the creator is deleted
+  isCreatorDeleted: {
+    type: Boolean,
+    default: false
+  },
+  // Tracks which deletion instance this anonymized data belongs to
+  creatorDeletionId: {
+    type: String,
+    index: true,
+    sparse: true
   },
 
   organization: {
@@ -170,7 +187,24 @@ const eventSchema = new mongoose.Schema({
 
   organizerTeam: [
     {
-      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Made optional
+      // Denormalized user info for deleted users
+      userInfo: {
+        userId: mongoose.Schema.Types.ObjectId,
+        name: String,
+        username: String
+      },
+      // Indicates if the user is deleted
+      isUserDeleted: {
+        type: Boolean,
+        default: false
+      },
+      // Tracks which deletion instance this anonymized data belongs to
+      deletionId: {
+        type: String,
+        index: true,
+        sparse: true
+      },
       hasAttended: { type: Boolean, default: false },
       questionnaire: {
         completed: { type: Boolean, default: false },
@@ -182,7 +216,24 @@ const eventSchema = new mongoose.Schema({
 
   organizerJoinRequests: [
     {
-      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Made optional
+      // Denormalized user info for deleted users
+      userInfo: {
+        userId: mongoose.Schema.Types.ObjectId,
+        name: String,
+        username: String
+      },
+      // Indicates if the user is deleted
+      isUserDeleted: {
+        type: Boolean,
+        default: false
+      },
+      // Tracks which deletion instance this anonymized data belongs to
+      deletionId: {
+        type: String,
+        index: true,
+        sparse: true
+      },
       status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
       _wasRejected: { type: Boolean, default: false },
     }

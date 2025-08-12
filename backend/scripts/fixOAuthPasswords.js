@@ -23,25 +23,16 @@ const fixOAuthPasswords = async () => {
       }
     });
 
-    console.log(`🔍 Found ${oauthUsers.length} OAuth users with unencrypted passwords`);
-
     if (oauthUsers.length === 0) {
-      console.log('✅ No users need password fixing');
       return;
     }
 
     // Hash each unencrypted password
-    for (const user of oauthUsers) {
-      console.log(`🔧 Fixing password for user: ${user.email}`);
-      
+    for (const user of oauthUsers) {      
       const hashedPassword = await bcrypt.hash(user.password, 10);
       user.password = hashedPassword;
       await user.save();
-      
-      console.log(`✅ Fixed password for: ${user.email}`);
-    }
-
-    console.log('✅ All OAuth user passwords have been fixed!');
+          }
 
   } catch (error) {
     console.error('❌ Error fixing OAuth passwords:', error);

@@ -39,11 +39,11 @@ export const getOrganizationOrganizers = async (id) => {
 
 // Fetch user by ID (for organizer profile)
 export const getUserById = (id) => {
-  axios.get(`/api/users/${id}`);
+  return axios.get(`/api/users/${id}`);
 }
 
 export const updateOrganization = (id, data) => {
-  axios.put(`/api/organizations/${id}`, data);
+  return axios.put(`/api/organizations/${id}`, data);
 } 
 
 // Get organization count for statistics

@@ -1,0 +1,1015 @@
+const User = require('../models/user');
+const Message = require('../models/Message');
+const Registration = require('../models/registration');
+const Event = require('../models/event');
+const Organization = require('../models/organization');
+const Sponsor = require('../models/sponsor');
+const Sponsorship = require('../models/sponsorship');
+const SponsorshipIntent = require('../models/sponsorshipIntent');
+const Receipt = require('../models/receipt');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken'); // added jwt
+const { validationResult } = require('express-validator');
+
+// Comprehensive function to anonymize user data across all models
+async function anonymizeUserData(userId, deletionId) {
+  try {
+    // 1. Anonymize Messages (already handled by Message model)
+    await Message.handleUserDeletion(userId);
+    
+    // 2. Anonymize Registrations
+    await Registration.updateMany(
+      { volunteerId: userId },
+      { 
+        $set: { 
+          'volunteerInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user',
+            profileImage: null
+          },
+          'isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to registration
+        },
+        $unset: { volunteerId: 1 }
+      }
+    );
+    
+    // 3. Anonymize Events (where user is creator or organizer)
+    await Event.updateMany(
+      { createdBy: userId },
+      { 
+        $set: { 
+          'creatorInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'isCreatorDeleted': true,
+          'deletionId': deletionId // Add deletionId to event
+        },
+        $unset: { createdBy: 1 }
+      }
+    );
+    
+    // Anonymize organizer team entries
+    await Event.updateMany(
+      { 'organizerTeam.user': userId },
+      { 
+        $set: { 
+          'organizerTeam.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'organizerTeam.$.isUserDeleted': true,
+          'organizerTeam.$.deletionId': deletionId // Add deletionId to organizer team entry
+        },
+        $unset: { 'organizerTeam.$.user': 1 }
+      }
+    );
+    
+    // Anonymize organizer join requests
+    await Event.updateMany(
+      { 'organizerJoinRequests.user': userId },
+      { 
+        $set: { 
+          'organizerJoinRequests.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'organizerJoinRequests.$.isUserDeleted': true,
+          'organizerJoinRequests.$.deletionId': deletionId // Add deletionId to organizer join request
+        },
+        $unset: { 'organizerJoinRequests.$.user': 1 }
+      }
+    );
+    
+    // 4. Anonymize Organizations
+    await Organization.updateMany(
+      { createdBy: userId },
+      { 
+        $set: { 
+          'creatorInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'isCreatorDeleted': true,
+          'deletionId': deletionId // Add deletionId to organization
+        },
+        $unset: { createdBy: 1 }
+      }
+    );
+    
+    // Anonymize team members
+    await Organization.updateMany(
+      { 'team.userId': userId },
+      { 
+        $set: { 
+          'team.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'team.$.isUserDeleted': true,
+          'team.$.deletionId': deletionId // Add deletionId to team member
+        },
+        $unset: { 'team.$.userId': 1 }
+      }
+    );
+    
+    // 5. Anonymize Sponsors
+    await Sponsor.updateMany(
+      { user: userId },
+      { 
+        $set: { 
+          'userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to sponsor
+        },
+        $unset: { user: 1 }
+      }
+    );
+    
+    // 6. Anonymize Sponsorships
+    await Sponsorship.updateMany(
+      { 'communications.createdBy': userId },
+      { 
+        $set: { 
+          'communications.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'communications.$.isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to sponsorship
+        },
+        $unset: { 'communications.$.createdBy': 1 }
+      }
+    );
+    
+    await Sponsorship.updateMany(
+      { 'documents.uploadedBy': userId },
+      { 
+        $set: { 
+          'documents.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'documents.$.isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to sponsorship document
+        },
+        $unset: { 'documents.$.uploadedBy': 1 }
+      }
+    );
+    
+    // 7. Anonymize Sponsorship Intents
+    await SponsorshipIntent.updateMany(
+      { 'communications.createdBy': userId },
+      { 
+        $set: { 
+          'communications.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'communications.$.isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to sponsorship intent
+        },
+        $unset: { 'communications.$.createdBy': 1 }
+      }
+    );
+    
+    await SponsorshipIntent.updateMany(
+      { 'documents.uploadedBy': userId },
+      { 
+        $set: { 
+          'documents.$.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'documents.$.isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to sponsorship intent document
+        },
+        $unset: { 'documents.$.uploadedBy': 1 }
+      }
+    );
+    
+    // 8. Anonymize Receipts
+    await Receipt.updateMany(
+      { 'manualVerification.verifiedBy': userId },
+      { 
+        $set: { 
+          'manualVerification.userInfo': {
+            userId: userId,
+            name: 'Deleted User',
+            username: 'deleted_user'
+          },
+          'manualVerification.isUserDeleted': true,
+          'deletionId': deletionId // Add deletionId to receipt
+        },
+        $unset: { 'manualVerification.verifiedBy': 1 }
+      }
+    );
+    
+    console.log(`✅ Successfully anonymized data for user ${userId} with deletionId ${deletionId}`);
+    
+  } catch (error) {
+    console.error(`❌ Error anonymizing data for user ${userId}:`, error);
+    throw error; // Re-throw to handle in calling function
+  }
+}
+
+// Create deletion history record for tracking
+async function createDeletionHistory(user, previousDeletions) {
+  try {
+    // This could be stored in a separate collection for better tracking
+    // For now, we'll log it and store in the user document
+    console.log(`📝 Deletion History for ${user.originalEmail}:`);
+    console.log(`   Current deletion: #${user.deletionSequence} (${user.deletionId})`);
+    if (previousDeletions.length > 0) {
+      console.log(`   Previous deletions: ${previousDeletions.map(d => `#${d.deletionSequence} (${d.deletionId})`).join(', ')}`);
+    }
+    
+    // You could also store this in a separate DeletionHistory collection
+    // const deletionHistory = new DeletionHistory({
+    //   email: user.originalEmail,
+    //   deletionId: user.deletionId,
+    //   deletionSequence: user.deletionSequence,
+    //   previousDeletionIds: user.previousDeletionIds,
+    //   deletedAt: user.deletedAt,
+    //   userId: user._id
+    // });
+    // await deletionHistory.save();
+    
+  } catch (error) {
+    console.error('Error creating deletion history:', error);
+    // Don't throw error as this is not critical to the deletion process
+  }
+}
+
+// Restore anonymized data when account is recovered
+async function restoreAnonymizedData(deletionId) {
+  try {
+    console.log(`🔄 Restoring anonymized data for deletionId: ${deletionId}`);
+    
+    // 1. Restore Registrations
+    const registrations = await Registration.find({ 'deletionId': deletionId });
+    for (const reg of registrations) {
+      if (reg.volunteerInfo && reg.volunteerInfo.userId) {
+        reg.volunteerId = reg.volunteerInfo.userId;
+        reg.volunteerInfo = undefined;
+        reg.isUserDeleted = false;
+        reg.deletionId = undefined;
+        await reg.save();
+      }
+    }
+    
+    // 2. Restore Events
+    const events = await Event.find({ 'deletionId': deletionId });
+    for (const event of events) {
+      if (event.creatorInfo && event.creatorInfo.userId) {
+        event.createdBy = event.creatorInfo.userId;
+        event.creatorInfo = undefined;
+        event.isCreatorDeleted = false;
+        event.deletionId = undefined;
+        await event.save();
+      }
+    }
+    
+    // Restore organizer team entries
+    const eventsWithOrganizerTeam = await Event.find({ 'organizerTeam.deletionId': deletionId });
+    for (const event of eventsWithOrganizerTeam) {
+      for (const organizer of event.organizerTeam) {
+        if (organizer.deletionId === deletionId && organizer.userInfo && organizer.userInfo.userId) {
+          organizer.user = organizer.userInfo.userId;
+          organizer.userInfo = undefined;
+          organizer.isUserDeleted = false;
+          organizer.deletionId = undefined;
+        }
+      }
+      await event.save();
+    }
+    
+    // Restore organizer join requests
+    const eventsWithJoinRequests = await Event.find({ 'organizerJoinRequests.deletionId': deletionId });
+    for (const event of eventsWithJoinRequests) {
+      for (const request of event.organizerJoinRequests) {
+        if (request.deletionId === deletionId && request.userInfo && request.userInfo.userId) {
+          request.user = request.userInfo.userId;
+          request.userInfo = undefined;
+          request.isUserDeleted = false;
+          request.deletionId = undefined;
+        }
+      }
+      await event.save();
+    }
+    
+    // 3. Restore Organizations
+    const organizations = await Organization.find({ 'deletionId': deletionId });
+    for (const org of organizations) {
+      if (org.creatorInfo && org.creatorInfo.userId) {
+        org.createdBy = org.creatorInfo.userId;
+        org.creatorInfo = undefined;
+        org.isCreatorDeleted = false;
+        org.deletionId = undefined;
+        await org.save();
+      }
+    }
+    
+    // Restore team members
+    const orgsWithTeam = await Organization.find({ 'team.deletionId': deletionId });
+    for (const org of orgsWithTeam) {
+      for (const member of org.team) {
+        if (member.deletionId === deletionId && member.userInfo && member.userInfo.userId) {
+          member.userId = member.userInfo.userId;
+          member.userInfo = undefined;
+          member.isUserDeleted = false;
+          member.deletionId = undefined;
+        }
+      }
+      await org.save();
+    }
+    
+    // 4. Restore Sponsors
+    const sponsors = await Sponsor.find({ 'deletionId': deletionId });
+    for (const sponsor of sponsors) {
+      if (sponsor.userInfo && sponsor.userInfo.userId) {
+        sponsor.user = sponsor.userInfo.userId;
+        sponsor.userInfo = undefined;
+        sponsor.isUserDeleted = false;
+        sponsor.deletionId = undefined;
+        await sponsor.save();
+      }
+    }
+    
+    // 5. Restore Sponsorships
+    const sponsorships = await Sponsorship.find({ 'application.deletionId': deletionId });
+    for (const sponsorship of sponsorships) {
+      if (sponsorship.application.deletionId === deletionId && sponsorship.application.userInfo && sponsorship.application.userInfo.userId) {
+        sponsorship.application.reviewedBy = sponsorship.application.userInfo.userId;
+        sponsorship.application.userInfo = undefined;
+        sponsorship.application.isUserDeleted = false;
+        sponsorship.application.deletionId = undefined;
+        await sponsorship.save();
+      }
+    }
+    
+    // Restore sponsorship communications
+    const sponsorshipsWithComm = await Sponsorship.find({ 'communications.deletionId': deletionId });
+    for (const sponsorship of sponsorshipsWithComm) {
+      for (const comm of sponsorship.communications) {
+        if (comm.deletionId === deletionId && comm.userInfo && comm.userInfo.userId) {
+          comm.createdBy = comm.userInfo.userId;
+          comm.userInfo = undefined;
+          comm.isUserDeleted = false;
+          comm.deletionId = undefined;
+        }
+      }
+      await sponsorship.save();
+    }
+    
+    // Restore sponsorship documents
+    const sponsorshipsWithDocs = await Sponsorship.find({ 'documents.deletionId': deletionId });
+    for (const sponsorship of sponsorshipsWithDocs) {
+      for (const doc of sponsorship.documents) {
+        if (doc.deletionId === deletionId && doc.userInfo && doc.userInfo.userId) {
+          doc.uploadedBy = doc.userInfo.userId;
+          doc.userInfo = undefined;
+          doc.isUserDeleted = false;
+          doc.deletionId = undefined;
+        }
+      }
+      await sponsorship.save();
+    }
+    
+    // 6. Restore Sponsorship Intents
+    const intents = await SponsorshipIntent.find({ 'review.deletionId': deletionId });
+    for (const intent of intents) {
+      if (intent.review.deletionId === deletionId && intent.review.userInfo && intent.review.userInfo.userId) {
+        intent.review.reviewedBy = intent.review.userInfo.userId;
+        intent.review.userInfo = undefined;
+        intent.review.isUserDeleted = false;
+        intent.review.deletionId = undefined;
+        await intent.save();
+      }
+    }
+    
+    // Restore intent communications
+    const intentsWithComm = await SponsorshipIntent.find({ 'communications.deletionId': deletionId });
+    for (const intent of intentsWithComm) {
+      for (const comm of intent.communications) {
+        if (comm.deletionId === deletionId && comm.userInfo && comm.userInfo.userId) {
+          comm.createdBy = comm.userInfo.userId;
+          comm.userInfo = undefined;
+          comm.isUserDeleted = false;
+          comm.deletionId = undefined;
+        }
+      }
+      await intent.save();
+    }
+    
+    // Restore intent documents
+    const intentsWithDocs = await SponsorshipIntent.find({ 'documents.deletionId': deletionId });
+    for (const intent of intentsWithDocs) {
+      for (const doc of intent.documents) {
+        if (doc.deletionId === deletionId && doc.userInfo && doc.userInfo.userId) {
+          doc.uploadedBy = doc.userInfo.userId;
+          doc.userInfo = undefined;
+          doc.isUserDeleted = false;
+          doc.deletionId = undefined;
+        }
+      }
+      await intent.save();
+    }
+    
+    // 7. Restore Receipts
+    const receipts = await Receipt.find({ 'manualVerification.deletionId': deletionId });
+    for (const receipt of receipts) {
+      if (receipt.manualVerification.deletionId === deletionId && receipt.manualVerification.userInfo && receipt.manualVerification.userInfo.userId) {
+        receipt.manualVerification.verifiedBy = receipt.manualVerification.userInfo.userId;
+        receipt.manualVerification.userInfo = undefined;
+        receipt.manualVerification.isUserDeleted = false;
+        receipt.manualVerification.deletionId = undefined;
+        await receipt.save();
+      }
+    }
+    
+    console.log(`✅ Successfully restored anonymized data for deletionId: ${deletionId}`);
+    
+  } catch (error) {
+    console.error(`❌ Error restoring anonymized data for deletionId ${deletionId}:`, error);
+    throw error;
+  }
+}
+
+// Create a nodemailer transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USERNAME,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
+// Helper function to generate JWT token
+const generateToken = (userId) => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
+
+/**
+ * Soft deletes a user account
+ */
+// Comprehensive account deletion that preserves all critical data
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // 1. Check if this email has been deleted before
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // 2. Check for previous deletions of the same email
+    const previousDeletions = await User.find({
+      originalEmail: user.email,
+      isDeleted: true
+    }).sort({ deletedAt: -1 });
+    
+    // 3. Generate unique deletion ID for this instance
+    const deletionId = `del_${Date.now()}_${userId.toString().slice(-8)}`;
+    
+    // 4. Soft delete the user account with enhanced tracking FIRST
+    user.originalEmail = user.email;
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.deletionId = deletionId; // Unique identifier for this deletion
+    user.deletionSequence = previousDeletions.length + 1; // 1st, 2nd, 3rd deletion, etc.
+    user.previousDeletionIds = previousDeletions.map(d => d.deletionId); // Track previous deletions
+    
+    // Store original authentication method for recovery
+    user.originalAuthMethod = user.oauthProvider ? 'oauth' : 'password';
+    if (user.oauthProvider) {
+      user.originalOAuthProvider = user.oauthProvider;
+      user.originalOAuthId = user.oauthId;
+    }
+    
+    // Generate placeholder email to maintain unique constraint
+    const timestamp = Date.now();
+    const randomId = user._id.toString().slice(-12);
+    user.email = `deleted_${timestamp}_${randomId}@deleted.prakritimitra.invalid`;
+    
+    // Clear sensitive fields
+    user.password = undefined;
+    user.oauthProvider = 'google'; // Use a valid enum value to bypass password requirement
+    user.oauthId = 'deleted_' + userId.toString().slice(-8);
+    user.oauthPicture = undefined;
+    user.recoveryToken = undefined;
+    user.recoveryTokenExpires = undefined;
+    
+    // Since we're setting oauthProvider, dateOfBirth and gender become optional
+    // But we'll keep them if they exist to maintain data integrity
+    
+    // 5. Save the user FIRST to ensure it's properly marked as deleted
+    await user.save();
+    console.log(`✅ User ${userId} marked as deleted successfully`);
+    
+    // 6. NOW anonymize all user's data across the system
+    try {
+      await anonymizeUserData(userId, deletionId);
+      console.log(`✅ Data anonymization completed for user ${userId}`);
+    } catch (anonymizeError) {
+      console.error(`❌ Error during data anonymization for user ${userId}:`, anonymizeError);
+      // Continue with deletion even if anonymization fails
+    }
+    
+    // 7. Create deletion history record
+    try {
+      await createDeletionHistory(user, previousDeletions);
+    } catch (historyError) {
+      console.error('Error creating deletion history:', historyError);
+      // Don't fail deletion if history creation fails
+    }
+    
+    res.json({ 
+      message: 'Account deleted successfully. All your data has been preserved but anonymized.',
+      note: `You can recover your account within 30 days using your original email. This is deletion #${user.deletionSequence} for this email.`,
+      deletionId: deletionId
+    });
+    
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ message: 'Failed to delete account', error: error.message });
+  }
+};
+
+// Handle account recreation scenarios
+exports.handleAccountRecreation = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // 1. Find all deleted accounts with this email
+    const deletedAccounts = await User.find({
+      originalEmail: email,
+      isDeleted: true
+    }).sort({ deletedAt: -1 });
+    
+    if (deletedAccounts.length === 0) {
+      return res.status(404).json({ 
+        message: 'No deleted accounts found for this email',
+        canCreateNew: true
+      });
+    }
+    
+    // 2. Check if there's an active account with this email
+    const activeAccount = await User.findOne({
+      email: email,
+      isDeleted: false
+    });
+    
+    if (activeAccount) {
+      return res.status(409).json({
+        message: 'An active account already exists with this email',
+        canCreateNew: false,
+        suggestion: 'Please use a different email or recover your deleted account'
+      });
+    }
+    
+    // 3. Provide detailed information about deleted accounts
+    const deletionInfo = deletedAccounts.map(acc => ({
+      deletionId: acc.deletionId,
+      deletionSequence: acc.deletionSequence,
+      deletedAt: acc.deletedAt,
+      username: acc.username,
+      role: acc.role,
+      canRecover: acc.deletedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days
+    }));
+    
+    // 4. Determine the best course of action
+    const latestDeletion = deletedAccounts[0];
+    const canRecoverLatest = latestDeletion.deletedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    let recommendation = '';
+    let canCreateNew = true;
+    
+    if (deletedAccounts.length === 1) {
+      if (canRecoverLatest) {
+        recommendation = 'You have one deleted account that can still be recovered. We recommend recovering it to preserve your data.';
+        canCreateNew = false;
+      } else {
+        recommendation = 'Your previous account has expired and cannot be recovered. You can create a new account.';
+        canCreateNew = true;
+      }
+    } else {
+      if (canRecoverLatest) {
+        recommendation = `You have ${deletedAccounts.length} deleted accounts. The most recent one can still be recovered. We recommend recovering it to preserve your latest data.`;
+        canCreateNew = false;
+      } else {
+        recommendation = `You have ${deletedAccounts.length} deleted accounts, but all have expired. You can create a new account.`;
+        canCreateNew = true;
+      }
+    }
+    
+    res.json({
+      message: 'Account recreation analysis complete',
+      deletedAccounts: deletionInfo,
+      recommendation: recommendation,
+      canCreateNew: canCreateNew,
+      latestDeletionId: latestDeletion.deletionId,
+      totalDeletions: deletedAccounts.length
+    });
+    
+  } catch (error) {
+    console.error('Error handling account recreation:', error);
+    res.status(500).json({ message: 'Failed to analyze account recreation', error: error.message });
+  }
+};
+
+/**
+ * Sends a recovery email with a secure token
+ */
+const sendRecoveryEmail = async (email, token, deletionSequence) => {
+  // Validate email parameter
+  if (!email || typeof email !== 'string' || email.trim() === '') {
+    console.error('❌ Invalid email parameter for recovery email:', email);
+    throw new Error('Invalid email address for recovery email');
+  }
+  
+  const cleanEmail = email.trim().toLowerCase();
+  console.log(`📧 Sending recovery email to: ${cleanEmail}`);
+  
+  // Validate environment variables
+  if (!process.env.EMAIL_USERNAME || !process.env.EMAIL_PASSWORD || !process.env.FRONTEND_URL) {
+    console.error('❌ Missing required environment variables for email sending:');
+    console.error('   EMAIL_USERNAME:', process.env.EMAIL_USERNAME ? '✅ Set' : '❌ Missing');
+    console.error('   EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '✅ Set' : '❌ Missing');
+    console.error('   FRONTEND_URL:', process.env.FRONTEND_URL ? '✅ Set' : '❌ Missing');
+    throw new Error('Missing required environment variables for email sending');
+  }
+
+  const recoveryUrl = `${process.env.FRONTEND_URL}/recovery-confirmation?token=${token}`;
+  
+  const mailOptions = {
+    from: `"PrakritiMitra" <${process.env.EMAIL_USERNAME}>`,
+    to: cleanEmail,
+    subject: 'Account Recovery - PrakritiMitra',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Account Recovery</h2>
+        <p>We received a request to recover your PrakritiMitra account. If you didn't make this request, you can safely ignore this email.</p>
+        <p>To recover your account, please click the button below:</p>
+        <div style="margin: 25px 0;">
+          <a href="${recoveryUrl}" 
+             style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            Recover Account
+          </a>
+        </div>
+        <p>Or copy and paste this link into your browser:</p>
+        <p>${recoveryUrl}</p>
+        <p>This link will expire in 1 hour.</p>
+        <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">If you're having trouble clicking the button, copy and paste the URL above into your web browser.</p>
+        <p>This recovery link is for deletion #${deletionSequence}.</p>
+      </div>
+    `,
+  };
+
+  try {
+    console.log(`📤 Attempting to send email to: ${cleanEmail}`);
+  await transporter.sendMail(mailOptions);
+    console.log(`✅ Recovery email sent successfully to: ${cleanEmail}`);
+  } catch (error) {
+    console.error('❌ Failed to send recovery email:', error);
+    throw error;
+  }
+};
+
+/**
+ * Initiates account recovery by sending a recovery email
+ */
+// Enhanced recovery request with deletion history
+exports.requestAccountRecovery = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Validate email input
+    if (!email || typeof email !== 'string' || email.trim() === '') {
+      return res.status(400).json({ 
+        message: 'Valid email address is required',
+        error: 'EMAIL_REQUIRED'
+      });
+    }
+    
+    const cleanEmail = email.trim().toLowerCase();
+    console.log(`🔍 Recovery requested for email: ${cleanEmail}`);
+    
+    // 1. Find all deleted accounts with this email
+    const deletedAccounts = await User.find({
+      originalEmail: cleanEmail,
+      isDeleted: true
+    }).sort({ deletedAt: -1 });
+    
+    console.log(`📊 Found ${deletedAccounts.length} deleted accounts for ${cleanEmail}`);
+    
+    if (deletedAccounts.length === 0) {
+      return res.status(404).json({ 
+        message: 'No deleted accounts found for this email',
+        suggestion: 'You can create a new account with this email'
+      });
+    }
+    
+    // 2. Check if there's an active account
+    const activeAccount = await User.findOne({
+      email: cleanEmail,
+      isDeleted: false
+    });
+    
+    if (activeAccount) {
+      return res.status(409).json({
+        message: 'An active account already exists with this email',
+        suggestion: 'Please use a different email or recover your deleted account'
+      });
+    }
+    
+    // 3. Find the most recent deletable account (within 30 days)
+    const recoverableAccount = deletedAccounts.find(acc => 
+      acc.deletedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    );
+    
+    if (!recoverableAccount) {
+      return res.status(410).json({
+        message: 'All deleted accounts for this email have expired and cannot be recovered',
+        suggestion: 'You can create a new account with this email',
+        expiredAccounts: deletedAccounts.length
+      });
+    }
+    
+    console.log(`✅ Found recoverable account: ${recoverableAccount.username} (${recoverableAccount._id})`);
+    console.log(`📧 Original email: ${recoverableAccount.originalEmail}`);
+    
+    // 4. Generate recovery token for the most recent account
+    const recoveryToken = crypto.randomBytes(32).toString('hex');
+    recoverableAccount.recoveryToken = recoveryToken;
+    recoverableAccount.recoveryTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
+    await recoverableAccount.save();
+    console.log(`🔑 Recovery token generated: ${recoveryToken.substring(0, 8)}...`);
+    
+    // 5. Send recovery email - use the clean email from request, not originalEmail
+    await sendRecoveryEmail(cleanEmail, recoveryToken, recoverableAccount.deletionSequence);
+    
+    res.json({
+      message: `Recovery email sent for deletion #${recoverableAccount.deletionSequence}`,
+              note: `This will recover your most recent deleted account (deleted on ${recoverableAccount.deletedAt.toLocaleDateString('en-GB')})`,
+      totalDeletedAccounts: deletedAccounts.length,
+      canRecover: true
+    });
+    
+  } catch (error) {
+    console.error('Error requesting account recovery:', error);
+    res.status(500).json({ message: 'Failed to send recovery email', error: error.message });
+  }
+};
+
+/**
+ * Recovers a soft-deleted account using a valid recovery token
+ */
+// Enhanced account recovery with deletion history
+exports.recoverAccount = async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    console.log(`🔄 Attempting to recover account with token: ${token.substring(0, 8)}...`);
+    
+    // 1. Find user by recovery token - include originalEmail field
+    const user = await User.findOne({
+      recoveryToken: token,
+      recoveryTokenExpires: { $gt: new Date() },
+      isDeleted: true
+    }).select('+recoveryToken +recoveryTokenExpires +originalEmail');
+    
+    if (!user) {
+      console.log('❌ No user found with valid recovery token');
+      return res.status(400).json({ message: 'Invalid or expired recovery token' });
+    }
+    
+    console.log(`✅ Found user for recovery: ${user.username} (${user._id})`);
+    console.log(`📧 Original email: ${user.originalEmail}`);
+    console.log(`📧 Current email: ${user.email}`);
+    
+    // Validate that we have the original email
+    if (!user.originalEmail) {
+      console.error('❌ User missing originalEmail field:', user._id);
+      return res.status(500).json({ 
+        message: 'Account recovery failed: Missing original email information',
+        error: 'MISSING_ORIGINAL_EMAIL'
+      });
+    }
+    
+    // 2. Check for conflicts with active accounts
+    const activeAccount = await User.findOne({
+      email: user.originalEmail,
+      isDeleted: false
+    });
+    
+    if (activeAccount) {
+      console.log(`⚠️  Active account conflict found: ${activeAccount.username}`);
+      return res.status(409).json({
+        message: 'Cannot recover account: An active account already exists with this email',
+        suggestion: 'Please delete the active account first, or use a different email for recovery'
+      });
+    }
+    
+    // 3. Restore the account
+    console.log(`🔄 Restoring account for email: ${user.originalEmail}`);
+    
+    user.email = user.originalEmail;
+    user.isDeleted = false;
+    user.deletedAt = undefined;
+    user.recoveryToken = undefined;
+    user.recoveryTokenExpires = undefined;
+    
+    // Restore original authentication method
+    // During deletion, we temporarily set oauthProvider to bypass validation
+    // Now we need to restore the original state
+    let generatedPassword = null;
+    
+    if (user.originalAuthMethod === 'oauth' && user.originalOAuthProvider && user.originalOAuthId && !user.originalOAuthId.startsWith('deleted_')) {
+      // This was a real OAuth account, keep it
+      user.oauthProvider = user.originalOAuthProvider;
+      user.oauthId = user.originalOAuthId;
+      user.oauthPicture = undefined; // Clear picture if it was a temporary deletion
+      console.log(`🔄 Kept OAuth authentication: ${user.oauthProvider}`);
+    } else {
+      // This was a password-based account (or temporary OAuth during deletion)
+      // Generate a secure random password
+      const crypto = require('crypto');
+      generatedPassword = crypto.randomBytes(8).toString('hex'); // 16 character hex password
+      const bcrypt = require('bcryptjs');
+      user.password = bcrypt.hashSync(generatedPassword, 10);
+      user.oauthProvider = undefined;
+      user.oauthId = undefined;
+      user.oauthPicture = undefined;
+      console.log(`🔄 Restored to password-based authentication with new password: ${generatedPassword}`);
+    }
+    
+    // Keep deletionId and deletionSequence for historical tracking
+    
+    await user.save();
+    console.log(`✅ Account restored successfully: ${user.email}`);
+    
+    // 4. Restore all anonymized data
+    if (user.deletionId) {
+      console.log(`🔄 Restoring anonymized data for deletionId: ${user.deletionId}`);
+      await restoreAnonymizedData(user.deletionId);
+      console.log(`✅ Data restoration completed`);
+    } else {
+      console.log(`⚠️  No deletionId found, skipping data restoration`);
+    }
+    
+    // 5. Generate new JWT token
+    const authToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    console.log(`🎉 Account recovery completed successfully for: ${user.email}`);
+    
+    const responseData = {
+      message: 'Account recovered successfully!',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        role: user.role
+      },
+      token: authToken,
+      note: `Recovered deletion #${user.deletionSequence} for email ${user.email}`,
+      newPassword: generatedPassword,
+      passwordNote: generatedPassword ? 'A new password has been generated for your account. Please use it to login and change it immediately.' : null
+    };
+    
+    res.json(responseData);
+    
+  } catch (error) {
+    console.error('Error recovering account:', error);
+    res.status(500).json({ message: 'Failed to recover account', error: error.message });
+  }
+};
+
+/**
+ * Recovers a soft-deleted account by email
+ */
+exports.recoverAccountByEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Find a deleted user with this email
+    const user = await User.findOne({
+      originalEmail: email,
+      isDeleted: true
+    });
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'No deleted account found with this email'
+      });
+    }
+    
+    // Check if the email is already in use by an active account
+    const emailInUse = await User.findOne({
+      email: user.originalEmail,
+      isDeleted: { $ne: true },
+      _id: { $ne: user._id }
+    });
+    
+    if (emailInUse) {
+      return res.status(400).json({
+        success: false,
+        message: 'This email is already in use by another account'
+      });
+    }
+    
+    // Restore the account
+    user.email = user.originalEmail;
+    user.originalEmail = undefined;
+    user.isDeleted = false;
+    user.deletedAt = undefined;
+    
+    await user.save();
+    
+    // TODO: Send welcome back email
+    
+    res.json({
+      success: true,
+      message: 'Account recovered successfully',
+      userId: user._id
+    });
+    
+  } catch (error) {
+    console.error('Error recovering account:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error recovering account',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Permanently deletes accounts that were soft-deleted more than X days ago
+ */
+exports.cleanupDeletedAccounts = async (req, res) => {
+  try {
+    const retentionDays = parseInt(process.env.ACCOUNT_RETENTION_DAYS) || 30;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    
+    // Find users to delete
+    const usersToDelete = await User.find({
+      isDeleted: true,
+      deletedAt: { $lte: cutoffDate }
+    });
+    
+    const userIds = usersToDelete.map(u => u._id);
+    
+    // Delete the users
+    const result = await User.deleteMany({
+      _id: { $in: userIds }
+    });
+    
+    // TODO: Delete associated files, etc.
+    
+    res.json({
+      success: true,
+      message: `Permanently deleted ${result.deletedCount} accounts`,
+      deletedCount: result.deletedCount
+    });
+    
+  } catch (error) {
+    console.error('Error cleaning up deleted accounts:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error cleaning up deleted accounts',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+// Export helper functions for testing purposes
+exports.anonymizeUserData = anonymizeUserData;
+exports.restoreAnonymizedData = restoreAnonymizedData;
+exports.createDeletionHistory = createDeletionHistory;

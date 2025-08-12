@@ -46,12 +46,10 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
         const res = await axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`);
         setIsRegistered(true);
         setRegistrationDetails(res.data.registration);
-        console.log('Registration details fetched:', res.data.registration);
       } catch (error) {
         // User is not registered for this event
         setIsRegistered(false);
         setRegistrationDetails(null);
-        console.log('User not registered for this event');
       }
     };
     

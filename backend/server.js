@@ -2,6 +2,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const { errorHandler } = require('./utils/errorResponse');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
@@ -27,6 +28,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const sponsorshipIntentPaymentRoutes = require('./routes/sponsorshipIntentPaymentRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
 const oauthRoutes = require('./routes/oauthRoutes');
+const accountRoutes = require('./routes/accountRoutes');
 
 const cors = require('cors');
 const http = require('http');
@@ -95,6 +97,9 @@ app.use('/api/receipts', receiptRoutes);
 // OAuth routes
 app.use('/api/oauth', oauthRoutes);
 
+// Account management routes
+app.use('/api/account', accountRoutes);
+
 // Initialize Socket.IO
 initializeSocket(io);
 
@@ -103,10 +108,20 @@ app.get("/", (req, res) => {
   res.send("Home Page!");
 });
 
+// Error handler middleware (must be after all routes)
+app.use(errorHandler);
+
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+const serverInstance = server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err, promise) => {
+  console.error(`Error: ${err.message}`);
+  // Close server & exit process
+  serverInstance.close(() => process.exit(1));
 });
 
 // No need to export io anymore from here

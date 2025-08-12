@@ -9,7 +9,25 @@ const registrationSchema = new mongoose.Schema({
   volunteerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Made optional for deleted users
+  },
+  // Denormalized volunteer info for deleted users
+  volunteerInfo: {
+    userId: mongoose.Schema.Types.ObjectId,
+    name: String,
+    username: String,
+    profileImage: String
+  },
+  // Indicates if the volunteer is deleted
+  isUserDeleted: {
+    type: Boolean,
+    default: false
+  },
+  // Tracks which deletion instance this anonymized data belongs to
+  deletionId: {
+    type: String,
+    index: true,
+    sparse: true
   },
   groupMembers: [
     {

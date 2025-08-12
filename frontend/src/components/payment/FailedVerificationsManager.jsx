@@ -18,6 +18,7 @@ import {
   Divider
 } from '@mui/material';
 import { getFailedVerifications, manualVerifyIntentPayment } from '../../api/intentPayment';
+import { formatDate } from '../../utils/dateUtils';
 
 const FailedVerificationsManager = ({ organizationId, onRefresh, onFailedVerificationsChange }) => {
   const [failedVerifications, setFailedVerifications] = useState([]);
@@ -144,7 +145,7 @@ const FailedVerificationsManager = ({ organizationId, onRefresh, onFailedVerific
                     Description: {intent.sponsorship.description}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Created: {new Date(intent.createdAt).toLocaleDateString()}
+                    Created: {formatDate(intent.createdAt)}
                   </Typography>
                 </Box>
                 

@@ -4,6 +4,7 @@ import Navbar from "../components/layout/Navbar";
 import axiosInstance from "../api/axiosInstance";
 import EventCard from "../components/event/EventCard";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { formatDate } from "../utils/dateUtils";
 
 export default function VolunteerPublicPage() {
   const { id } = useParams();
@@ -139,7 +140,7 @@ export default function VolunteerPublicPage() {
               )}
               <div className="mb-4">
                 <span className="font-semibold text-gray-700">Member Since:</span>
-                <span className="ml-2 text-gray-600">{volunteer.createdAt ? new Date(volunteer.createdAt).toLocaleDateString() : "Not available"}</span>
+                <span className="ml-2 text-gray-600">{formatDate(volunteer.createdAt)}</span>
               </div>
               {/* Registered Events */}
               <div className="mt-10">

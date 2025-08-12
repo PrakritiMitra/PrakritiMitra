@@ -28,7 +28,7 @@ async function generateCertificate({
   templateName,
   organizationLogo = '/public/images/default-logo.png',
   signatureImage = '/public/images/default-signature.png',
-  issueDate = new Date().toLocaleDateString(),
+      issueDate = new Date().toLocaleDateString('en-GB'),
   verificationUrl = 'https://yourdomain.com/verify-certificate/',
 }) {
   // 1. Generate unique certificate ID
