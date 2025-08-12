@@ -1411,6 +1411,7 @@ export default function EventDetailsPage() {
               </div>
             )}
           </div>
+
           
           {/* Add to Calendar Button */}
           <div className="relative">
@@ -1943,6 +1944,8 @@ export default function EventDetailsPage() {
           Complete Questionnaire
         </button>
       )}
+
+
       {/* Certificate Section for Organizers */}
       {isPast && isTeamMember && !isCreator && (
         <div className="mb-4">

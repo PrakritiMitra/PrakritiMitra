@@ -21,6 +21,77 @@ import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuesti
 import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap';
 
+// Function to format report content for better display
+const formatReportContent = (content) => {
+  if (!content) return '';
+  
+  let formattedContent = content
+    // Remove the appendix section
+    .replace(/\*\*Appendix:\*\*[\s\S]*?(?=\n\n|$)/gi, '')
+    .replace(/\*\*Appendix:\*\*[\s\S]*?Note:.*$/gis, '')
+    
+    // Convert markdown headers to proper HTML
+    .replace(/^# (.*?)$/gm, '<h1 class="text-3xl font-bold text-green-800 mb-6 mt-8 pb-3 border-b-2 border-green-300 text-center">$1</h1>')
+    .replace(/^## (.*?)$/gm, '<h2 class="text-2xl font-semibold text-blue-700 mb-4 mt-6 pb-2 border-b border-blue-200">$1</h2>')
+    .replace(/^### (.*?)$/gm, '<h3 class="text-xl font-semibold text-gray-700 mb-3 mt-5">$1</h3>')
+    
+    // Convert bold text
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-800">$1</strong>')
+    
+    // Convert italic text
+    .replace(/\*(.*?)\*/g, '<em class="italic text-gray-600">$1</em>');
+  
+  // Handle bullet points and lists more carefully
+  const lines = formattedContent.split('\n');
+  const processedLines = [];
+  let inList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check if this line starts a list
+    if (line.trim().match(/^[\*\-] (.+)$/)) {
+      if (!inList) {
+        processedLines.push('<ul class="list-disc pl-6 mb-4 space-y-1">');
+        inList = true;
+      }
+      const listItem = line.trim().replace(/^[\*\-] (.+)$/, '<li class="mb-2 text-gray-700">$1</li>');
+      processedLines.push(listItem);
+    } else {
+      // If we were in a list and this line doesn't start with bullet, close the list
+      if (inList) {
+        processedLines.push('</ul>');
+        inList = false;
+      }
+      processedLines.push(line);
+    }
+  }
+  
+  // Close any remaining open list
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+  
+  formattedContent = processedLines.join('\n');
+  
+  // Convert line breaks to proper paragraphs
+  formattedContent = formattedContent
+    .replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">')
+    .replace(/\n/g, '<br />');
+  
+  // Wrap in paragraph tags if not already wrapped
+  if (!formattedContent.startsWith('<')) {
+    formattedContent = '<p class="mb-4 text-gray-700 leading-relaxed">' + formattedContent + '</p>';
+  }
+  
+  // Clean up any double paragraph tags
+  formattedContent = formattedContent
+    .replace(/<\/p><p class="mb-4 text-gray-700 leading-relaxed"><\/p>/g, '</p>')
+    .replace(/<p class="mb-4 text-gray-700 leading-relaxed"><\/p>/g, '');
+  
+  return formattedContent;
+};
+
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
   const navigate = useNavigate();
@@ -430,7 +501,9 @@ export default function VolunteerEventDetailsPage() {
   const handleDownloadReport = () => {
     if (eventReport?.report?.content) {
       const filename = `${event.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_report.pdf`;
-      downloadReportAsPDF(eventReport.report.content, filename);
+      // Use the same formatted content for PDF download
+      const formattedContent = formatReportContent(eventReport.report.content);
+      downloadReportAsPDF(formattedContent, filename);
     }
   };
 
@@ -899,17 +972,28 @@ export default function VolunteerEventDetailsPage() {
 
             {/* AI Report */}
             {isPastEvent && isRegistered && (
-              <div className="mt-8 p-6 bg-green-50 border-l-4 border-green-400 rounded shadow">
-                <h2 className="text-xl font-bold text-green-700 mb-4">AI Event Report</h2>
+              <div className="mt-8 p-8 bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-bold text-green-800 mb-6 text-center">AI Event Report</h2>
                 {reportLoading ? (
-                  <div className="flex items-center text-gray-600">... Checking for available report ...</div>
+                  <div className="flex items-center justify-center text-gray-600 py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mr-3"></div>
+                    Checking for available report...
+                  </div>
                 ) : eventReport ? (
-                  <div className="flex gap-4">
-                    <button onClick={handleViewReport} className="px-6 py-3 bg-green-600 text-white rounded font-semibold hover:bg-green-700">📄 View Report</button>
-                    <button onClick={handleDownloadReport} className="px-6 py-3 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700">📥 Download PDF</button>
+                  <div className="flex justify-center gap-4">
+                    <button onClick={handleViewReport} className="px-8 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md hover:shadow-lg">
+                      📄 View Report
+                    </button>
+                    <button onClick={handleDownloadReport} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">
+                      📥 Download PDF
+                    </button>
                   </div>
                 ) : (
-                  <div className="text-gray-600">📋 No report available yet.</div>
+                  <div className="text-center text-gray-600 py-8">
+                    <div className="text-4xl mb-2">📋</div>
+                    <p className="text-lg">No report available yet.</p>
+                    <p className="text-sm text-gray-500 mt-1">Reports are generated after event completion and questionnaire submission.</p>
+                  </div>
                 )}
               </div>
             )}
@@ -1014,18 +1098,44 @@ export default function VolunteerEventDetailsPage() {
       {/* FIX: Report Modal is now correctly placed outside other conditional blocks */}
       {showReportModal && eventReport && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setShowReportModal(false)}>
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b bg-gray-50 flex justify-between items-center">
+          <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-blue-50 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-800">Event Report: {event.title}</h2>
-              <div className="flex gap-2">
-                <button onClick={handleDownloadReport} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Download PDF</button>
-                <button onClick={() => setShowReportModal(false)} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Close</button>
+              <div className="flex gap-3">
+                <button onClick={handleDownloadReport} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                  📥 Download PDF
+                </button>
+                <button onClick={() => setShowReportModal(false)} className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-md">
+                  ✕ Close
+                </button>
               </div>
             </div>
-            <div className="p-6 overflow-y-auto">
+            <div className="p-8 overflow-y-auto bg-gray-50">
               <div 
-                className="prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: eventReport.report.content.replace(/\n/g, '<br />') }}
+                className="prose prose-lg max-w-none bg-white p-8 rounded-lg shadow-sm"
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  lineHeight: '1.8',
+                  color: '#2c3e50',
+                  fontSize: '16px'
+                }}
+                dangerouslySetInnerHTML={{ 
+                  __html: `
+                    <style>
+                      .report-content h1 { text-align: center; margin-top: 2rem; margin-bottom: 1.5rem; }
+                      .report-content h2 { margin-top: 1.5rem; margin-bottom: 1rem; }
+                      .report-content h3 { margin-top: 1.25rem; margin-bottom: 0.75rem; }
+                      .report-content p { margin-bottom: 1rem; text-align: justify; }
+                      .report-content ul { margin-bottom: 1rem; }
+                      .report-content li { margin-bottom: 0.5rem; }
+                      .report-content strong { color: #1a365d; }
+                      .report-content em { color: #4a5568; }
+                    </style>
+                    <div class="report-content">
+                      ${formatReportContent(eventReport.report.content)}
+                    </div>
+                  `
+                }}
               />
             </div>
           </div>

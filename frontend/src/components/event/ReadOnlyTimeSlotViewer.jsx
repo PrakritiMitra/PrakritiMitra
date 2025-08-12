@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Chip,
-  Grid,
-} from '@mui/material';
+import { Box, Typography, Card, CardContent, Chip } from '@mui/material';
 
 const ReadOnlyTimeSlotViewer = ({ timeSlots = [] }) => {
   if (!timeSlots || timeSlots.length === 0) {
@@ -43,18 +36,25 @@ const ReadOnlyTimeSlotViewer = ({ timeSlots = [] }) => {
               />
             </Box>
 
-            <Grid container spacing={2} sx={{ mb: 2 }}>
-              <Grid item xs={12} sm={6}>
+            <Box
+              sx={{
+                mb: 2,
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: 2,
+              }}
+            >
+              <Box>
                 <Typography variant="body2" color="text.secondary">
                   <strong>Start Time:</strong> {slot.startTime}
                 </Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
+              </Box>
+              <Box>
                 <Typography variant="body2" color="text.secondary">
                   <strong>End Time:</strong> {slot.endTime}
                 </Typography>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
 
             <Typography variant="subtitle2" gutterBottom>
               Categories ({slot.categories.length})
