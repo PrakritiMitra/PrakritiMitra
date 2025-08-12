@@ -23,30 +23,18 @@ const deleteFile = (filePath, fileName) => {
 // Get user counts for statistics - MUST BE BEFORE /:id route
 router.get('/counts', async (req, res) => {
   try {
-    console.log('🔹 Fetching user counts...');
-    console.log('🔹 User model:', typeof User);
-    console.log('🔹 User.countDocuments:', typeof User.countDocuments);
-    
-    // Test if we can query the database
-    const totalUsers = await User.countDocuments({});
-    console.log('🔹 Total users in database:', totalUsers);
-    
     const [volunteerCount, organizerCount] = await Promise.all([
       User.countDocuments({ role: 'volunteer' }),
       User.countDocuments({ role: 'organizer' })
     ]);
     
-    console.log(`✅ User counts - Volunteers: ${volunteerCount}, Organizers: ${organizerCount}`);
-    
     res.json({
       volunteerCount,
-      organizerCount,
-      totalUsers // Include this for debugging
+      organizerCount
     });
   } catch (error) {
     console.error('❌ Error getting user counts:', error);
-    console.error('❌ Error stack:', error.stack);
-    res.status(500).json({ message: 'Failed to get user counts', error: error.message });
+    res.status(500).json({ message: 'Failed to get user counts' });
   }
 });
 
@@ -238,8 +226,11 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
       updateData.govtIdProofUrl = null;
     }
 
-    // Remove password from update data if it's not being changed
-    if (!updateData.password) {
+    // Handle password update with hashing
+    if (updateData.password) {
+      const bcrypt = require('bcryptjs');
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    } else {
       delete updateData.password;
     }
 
@@ -273,7 +264,18 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password -dateOfBirth');
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Check if user is deleted
+    if (user.isDeleted) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        error: 'ACCOUNT_DELETED'
+      });
+    }
+    
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });

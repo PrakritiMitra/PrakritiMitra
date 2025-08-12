@@ -388,9 +388,6 @@ exports.updateEvent = async (req, res) => {
       timeSlots,
     } = req.body;
 
-    console.log("🔧 Backend - Received mapLocation:", mapLocation);
-    console.log("🔧 Backend - Request body:", req.body);
-
     // Handle time slots
     let processedTimeSlots = [];
     if (timeSlotsEnabled === 'true' && timeSlots) {
@@ -443,7 +440,6 @@ exports.updateEvent = async (req, res) => {
         lat: parseFloat(mapLocation.lat) || event.mapLocation.lat,
         lng: parseFloat(mapLocation.lng) || event.mapLocation.lng,
       };
-      console.log("🔧 Backend - Updated mapLocation:", event.mapLocation);
     }
 
     event.startDateTime = startDateTime || event.startDateTime;
@@ -993,13 +989,15 @@ exports.generateCertificate = async (req, res) => {
     const { filePath, certificateId } = await generateCertificate({
       participantName: user.name || user.email,
       eventName: event.title,
+
       eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : '',
       eventLocation: event.mapLocation?.address || event.location || '',
+
       awardTitle: award,
       templateName,
       organizationLogo: '/public/images/default-logo.png', // Update as needed
       signatureImage: '/public/images/default-signature.png', // Update as needed
-      issueDate: new Date().toLocaleDateString(),
+              issueDate: new Date().toLocaleDateString('en-GB'),
       verificationUrl: 'https://yourdomain.com/verify-certificate/'
     });
     
@@ -1041,7 +1039,7 @@ exports.generateCertificate = async (req, res) => {
             issuedAt: new Date(),
             verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
             eventName: event.title,
-            eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : ''
+            eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString('en-GB') : ''
           }
         }
       }

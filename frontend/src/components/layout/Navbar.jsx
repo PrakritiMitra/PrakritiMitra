@@ -6,6 +6,7 @@ import axiosInstance from "../../api/axiosInstance";
 import { getMyOrganization } from "../../api/organization";
 import { ChevronDown, LogOut, User } from "react-feather";
 import { motion, AnimatePresence } from "framer-motion";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -26,12 +27,25 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleStorage = () => {
-      setUser(JSON.parse(localStorage.getItem("user")));
+      const updatedUser = JSON.parse(localStorage.getItem("user"));
+      setUser(updatedUser);
     };
+    
+    const handleUserDataUpdate = (event) => {
+      const updatedUser = event.detail.user;
+      setUser(updatedUser);
+    };
+    
     window.addEventListener("storage", handleStorage);
+    window.addEventListener("userDataUpdated", handleUserDataUpdate);
+    
     // Also update on mount and on route change
     handleStorage();
-    return () => window.removeEventListener("storage", handleStorage);
+    
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("userDataUpdated", handleUserDataUpdate);
+    };
   }, [pathname]);
 
   useEffect(() => {
@@ -219,11 +233,17 @@ export default function Navbar() {
                                       onClick={() => handleUserClick(user, 'volunteer')}
                                       className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50 mb-2"
                                     >
-                                      <img
-                                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                                        alt={displayName}
-                                        className="w-12 h-12 rounded-full object-cover border-2 border-green-400 mr-3"
-                                      />
+                                      {getProfileImageUrl(user) ? (
+                                        <img
+                                          src={getProfileImageUrl(user)}
+                                          alt={displayName}
+                                          className="w-12 h-12 rounded-full object-cover border-2 border-green-400 mr-3"
+                                        />
+                                      ) : (
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 border-green-400 mr-3 ${getRoleColors('volunteer')}`}>
+                                          <span className="font-bold text-lg">{getAvatarInitial(user)}</span>
+                                        </div>
+                                      )}
                                       <div className="flex flex-col flex-1">
                                         <span className="font-medium text-base text-green-800">{displayText}</span>
                                         {user.username && user.name && (
@@ -266,11 +286,17 @@ export default function Navbar() {
                                       onClick={() => handleUserClick(user, 'organizer')}
                                       className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2"
                                     >
-                                      <img
-                                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                                        alt={displayName}
-                                        className="w-12 h-12 rounded-full object-cover border-2 border-blue-400 mr-3"
-                                      />
+                                      {getProfileImageUrl(user) ? (
+                                        <img
+                                          src={getProfileImageUrl(user)}
+                                          alt={displayName}
+                                          className="w-12 h-12 rounded-full object-cover border-2 border-blue-400 mr-3"
+                                        />
+                                      ) : (
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 border-blue-400 mr-3 ${getRoleColors('organizer')}`}>
+                                          <span className="font-bold text-lg">{getAvatarInitial(user)}</span>
+                                        </div>
+                                      )}
                                       <div className="flex flex-col flex-1">
                                         <span className="font-medium text-base text-blue-800">{displayText}</span>
                                         {user.username && user.name && (
@@ -556,18 +582,16 @@ export default function Navbar() {
                   onClick={() => toggleDropdown('profile')}
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-500 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                    {user && user.profileImage ? (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
+                    {getProfileImageUrl(user) ? (
                       <img
-                        src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
+                        src={getProfileImageUrl(user)}
                         alt="Profile"
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="text-sm font-bold text-blue-600">
-                        {user && (user.username || user.name)
-                          ? (user.username || user.name).charAt(0).toUpperCase()
-                          : "U"}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(user?.role || 'user')}`}>
+                        <span className="text-sm font-bold">{getAvatarInitial(user)}</span>
                       </div>
                     )}
                   </div>

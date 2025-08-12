@@ -27,6 +27,7 @@ import { getPaymentStatus } from '../api/payment';
 import sponsorshipAPI from '../api/sponsorship';
 import Navbar from '../components/layout/Navbar';
 import PaymentGateway from '../components/payment/PaymentGateway';
+import { formatDate } from '../utils/dateUtils';
 
 const PaymentStatusPage = () => {
   const { sponsorshipId } = useParams();
@@ -117,16 +118,7 @@ const PaymentStatusPage = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Using the utility function instead of local formatDate
 
   if (loading) {
     return (

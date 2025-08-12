@@ -123,6 +123,25 @@ router.get('/upcoming', eventController.getUpcomingEvents);
 router.get('/created-by/:userId', async (req, res) => {
   try {
     const userId = req.params.userId;
+    
+    // First check if the user account exists and is not deleted
+    const User = require('../models/user');
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        error: 'USER_NOT_FOUND'
+      });
+    }
+    
+    if (user.isDeleted) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        error: 'ACCOUNT_DELETED'
+      });
+    }
+    
     const events = await require('../models/event').find({ createdBy: userId })
       .sort({ startDateTime: -1 })
       .populate('organization');
@@ -136,6 +155,25 @@ router.get('/created-by/:userId', async (req, res) => {
 router.get('/by-organizer-and-org/:userId/:orgId', async (req, res) => {
   try {
     const { userId, orgId } = req.params;
+    
+    // First check if the user account exists and is not deleted
+    const User = require('../models/user');
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        error: 'USER_NOT_FOUND'
+      });
+    }
+    
+    if (user.isDeleted) {
+      return res.status(404).json({ 
+        message: 'User not found',
+        error: 'ACCOUNT_DELETED'
+      });
+    }
+    
     const events = await require('../models/event').find({
       createdBy: userId,
       organization: orgId

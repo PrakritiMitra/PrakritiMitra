@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { sponsorAPI } from "../api";
 import { SponsorProfileForm, SponsorProfileDisplay } from "../components/sponsor";
 import Navbar from "../components/layout/Navbar";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 
 export default function SponsorProfilePage() {
   const [user, setUser] = useState(null);
@@ -57,6 +58,11 @@ export default function SponsorProfilePage() {
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
     
+    // Dispatch custom event to notify other components about user data update
+    window.dispatchEvent(new CustomEvent('userDataUpdated', {
+      detail: { user: userData }
+    }));
+    
     // Refresh sponsor profile
     await fetchSponsorProfile();
     
@@ -81,6 +87,11 @@ export default function SponsorProfilePage() {
         userData.sponsor = { isSponsor: false };
         localStorage.setItem("user", JSON.stringify(userData));
         setUser(userData);
+        
+        // Dispatch custom event to notify other components about user data update
+        window.dispatchEvent(new CustomEvent('userDataUpdated', {
+          detail: { user: userData }
+        }));
         
         setSponsorProfile(null);
         alert('Sponsor profile deleted successfully!');
@@ -131,16 +142,16 @@ export default function SponsorProfilePage() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-6">
               <div className="flex flex-col items-center space-y-2">
-                <div className="w-20 h-20 rounded-full bg-purple-100 flex items-center justify-center overflow-hidden border-4 border-purple-200">
-                  {user.profileImage ? (
+                <div className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden border-4 border-purple-200">
+                  {getProfileImageUrl(user) ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
+                      src={getProfileImageUrl(user)}
                       alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="text-2xl font-bold text-purple-600">
-                      {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center ${getRoleColors('sponsor')}`}>
+                      <span className="text-2xl font-bold">{getAvatarInitial(user)}</span>
                     </div>
                   )}
                 </div>

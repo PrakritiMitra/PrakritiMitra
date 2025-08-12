@@ -179,50 +179,15 @@ exports.getOrganizationIntents = async (req, res) => {
   }
 };
 
-// Get user's own intents
-exports.getUserIntents = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { status, page = 1, limit = 10 } = req.query;
 
-    // Build query
-    const query = { 'sponsor.user': userId };
-    if (status && status !== 'all') {
-      query.status = status;
-    }
-
-    // Pagination
-    const skip = (page - 1) * limit;
-    const intents = await SponsorshipIntent.find(query)
-      .populate('organization', 'name')
-      .populate('event', 'title')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await SponsorshipIntent.countDocuments(query);
-
-    res.json({
-      intents,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching user intents:', error);
-    res.status(500).json({
-      message: 'Failed to fetch user intents',
-      error: error.message
-    });
-  }
-};
 
 // Get intent by ID (with populated references)
 exports.getIntentById = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const userId = req.user._id;
 
@@ -280,6 +245,10 @@ exports.getIntentById = async (req, res) => {
 // Update intent
 exports.updateIntent = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const userId = req.user._id;
     const updateData = req.body;
@@ -731,9 +700,6 @@ exports.reviewIntent = async (req, res) => {
               }
             });
           } else {
-            // Admin has confirmed manual conversion - mark payment as completed
-            console.log(`Manual conversion confirmed for intent ${intent._id} - marking payment as completed`);
-            
             // Initialize payment object if it doesn't exist
             if (!intent.payment) {
               intent.payment = {};
@@ -853,19 +819,14 @@ exports.reviewIntent = async (req, res) => {
 
     // Handle sponsorship creation/update logic
     if (decision === 'convert_to_sponsorship') {
-      console.log(`=== CONVERSION LOGIC START ===`);
-      console.log(`Converting intent ${intent._id}: wasConverted=${wasConverted}, convertedTo=${intent.convertedTo}, sponsorshipDeleted=${intent.sponsorshipDeleted}`);
-      console.log(`Intent status: ${intent.status}, Decision: ${decision}`);
-      
+
       // Check if this intent was previously converted but the sponsorship was deleted
       if (wasConverted && intent.sponsorshipDeleted) {
         // This means the sponsorship was deleted, so we can create a new one
-        console.log(`PATH: Creating new sponsorship for previously deleted sponsorship (intent: ${intent._id})`);
         intent.sponsorshipDeleted = false; // Reset the flag
         await convertIntentToSponsorship(intent);
       } else if (wasConverted && intent.convertedTo) {
         // Update existing sponsorship
-        console.log(`PATH: Updating existing sponsorship ${intent.convertedTo} for intent ${intent._id}`);
         try {
           await updateExistingSponsorship(intent);
         } catch (error) {
@@ -875,10 +836,8 @@ exports.reviewIntent = async (req, res) => {
         }
       } else {
         // Create new sponsorship only if not already converted
-        console.log(`PATH: Creating new sponsorship for intent ${intent._id} (first time conversion)`);
         await convertIntentToSponsorship(intent);
       }
-      console.log(`=== CONVERSION LOGIC END ===`);
     } else if (wasConverted && intent.convertedTo && sponsorshipUpdates) {
       // If changing from converted status but have sponsorship updates, update the existing sponsorship
       try {
@@ -901,11 +860,9 @@ exports.reviewIntent = async (req, res) => {
 
         switch (decision) {
           case 'delete_sponsorship':
-            console.log(`Deleting sponsorship ${intent.convertedTo} for intent ${intent._id}`);
             
             // Delete the sponsorship
             const deleteResult = await Sponsorship.findByIdAndDelete(intent.convertedTo);
-            console.log(`Delete result:`, deleteResult);
             
             // Update organization's sponsorship list
             await Organization.findByIdAndUpdate(intent.organization, {
@@ -927,11 +884,9 @@ exports.reviewIntent = async (req, res) => {
             intent.convertedTo = undefined;
             intent.sponsorshipDeleted = true;
             intent.status = 'rejected'; // Change status to rejected after deletion
-            console.log(`Marked intent ${intent._id} as having deleted sponsorship`);
             break;
             
           case 'suspend_sponsorship':
-            console.log(`Suspending sponsorship ${intent.convertedTo} for intent ${intent._id}`);
             
             await Sponsorship.findByIdAndUpdate(intent.convertedTo, {
               status: 'suspended',
@@ -942,7 +897,6 @@ exports.reviewIntent = async (req, res) => {
             break;
             
           case 'reactivate_sponsorship':
-            console.log(`Reactivating sponsorship ${intent.convertedTo} for intent ${intent._id}`);
             
             await Sponsorship.findByIdAndUpdate(intent.convertedTo, {
               status: 'active',
@@ -976,24 +930,16 @@ exports.reviewIntent = async (req, res) => {
           switch (decision) {
             case 'reject':
               // Delete the sponsorship entirely for rejected applications
-              console.log(`Deleting sponsorship ${intent.convertedTo} for rejected intent ${intent._id}`);
               
               // Verify the sponsorship exists before deletion
               const sponsorshipToDelete = await Sponsorship.findById(intent.convertedTo);
-              if (!sponsorshipToDelete) {
-                console.log(`Sponsorship ${intent.convertedTo} not found, may have been already deleted`);
-              } else {
-                console.log(`Found sponsorship to delete: ${sponsorshipToDelete._id}, value: ${sponsorshipToDelete.contribution.value}`);
-              }
               
               const deleteResult = await Sponsorship.findByIdAndDelete(intent.convertedTo);
-              console.log(`Delete result:`, deleteResult);
               
               // Update organization's sponsorship list
               const orgUpdateResult = await Organization.findByIdAndUpdate(intent.organization, {
                 $pull: { sponsorships: intent.convertedTo }
               });
-              console.log(`Organization update result:`, orgUpdateResult);
               
               // Update event's sponsorship list if applicable
               if (intent.event) {
@@ -1004,13 +950,11 @@ exports.reviewIntent = async (req, res) => {
                     'sponsorship.sponsorCount': -1
                   }
                 });
-                console.log(`Event update result:`, eventUpdateResult);
               }
               
               // Clear the convertedTo reference and mark as deleted
               intent.convertedTo = undefined;
               intent.sponsorshipDeleted = true;
-              console.log(`Marked intent ${intent._id} as having deleted sponsorship. New state: convertedTo=${intent.convertedTo}, sponsorshipDeleted=${intent.sponsorshipDeleted}`);
               break;
               
             case 'request_changes':
@@ -1049,14 +993,12 @@ exports.reviewIntent = async (req, res) => {
     if (intent.payment && intent.payment.status === 'completed') {
       // If payment was already completed, preserve the payment status
       // and ensure the intent doesn't get reset to require payment again
-      console.log(`Preserving completed payment status for intent ${intent._id}`);
       
       // If changing from approved to something else and back to approved,
       // the payment should still be considered valid
       if (decision === 'approve' && intent.payment.status === 'completed') {
         // Keep the payment status as completed
         intent.payment.status = 'completed';
-        console.log(`Maintaining completed payment status for re-approved intent ${intent._id}`);
         
         // Add audit trail for payment status preservation
         intent.changeHistory.push({
@@ -1132,6 +1074,10 @@ exports.reviewIntent = async (req, res) => {
 // Get intents by user (for sponsors to track their applications)
 exports.getUserIntents = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const userId = req.user._id;
     const { 
       page = 1, 
@@ -1181,6 +1127,10 @@ exports.getUserIntents = async (req, res) => {
 // Add communication record
 exports.addCommunication = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const { type, summary, nextAction } = req.body;
     const adminId = req.user._id;
@@ -1217,6 +1167,10 @@ exports.addCommunication = async (req, res) => {
 // Delete sponsorship intent
 exports.deleteIntent = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ message: 'Unauthorized - User not authenticated' });
+    }
+    
     const { id } = req.params;
     const userId = req.user._id;
 
@@ -1254,24 +1208,6 @@ const sendEmailToAdmins = async (intent, organization) => {
     // Get organization admins
     const adminUsers = await User.find({
       _id: { $in: organization.team.filter(member => member.isAdmin).map(member => member.userId) }
-    });
-
-    // For now, just log the email details (email service will be implemented later)
-    console.log('Email to be sent to admins:', {
-      to: adminUsers.map(user => user.email),
-      subject: 'New Sponsorship Application',
-      body: `
-        New sponsorship application received:
-        
-        Sponsor: ${intent.sponsor.name}
-        Email: ${intent.sponsor.email}
-        Phone: ${intent.sponsor.phone}
-        Type: ${intent.sponsor.sponsorType}
-        Contribution: ${intent.sponsorship.type} - ₹${intent.sponsorship.estimatedValue}
-        Description: ${intent.sponsorship.description}
-        
-        Review at: ${process.env.FRONTEND_URL}/admin/sponsorship-intents/${intent._id}
-      `
     });
 
     // Mark email as sent (only if emailNotifications exists)
@@ -1314,12 +1250,6 @@ const sendEmailToSponsor = async (intent, decision) => {
       (isDecisionChange ? 
         `Your sponsorship application decision has been updated. It is now under review. We will get back to you soon.` :
         `Your sponsorship application is under review. We will get back to you soon.`);
-
-    console.log('Email to be sent to sponsor:', {
-      to: intent.sponsor.email,
-      subject,
-      body
-    });
 
     // Mark email as sent (only if emailNotifications exists)
     if (intent.emailNotifications) {

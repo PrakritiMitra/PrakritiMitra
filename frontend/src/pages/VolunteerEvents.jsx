@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
+import { formatDateTime } from "../utils/dateUtils";
 
 export default function VolunteerEvents() {
   const [events, setEvents] = useState([]);
@@ -43,7 +44,7 @@ export default function VolunteerEvents() {
               onClick={() => setSelectedEvent(event)}
             >
               <h3 className="font-semibold text-blue-700">{event.title}</h3>
-              <p>{new Date(event.date).toLocaleString()}</p>
+              <p>{formatDateTime(event.date)}</p>
               <p className="text-sm text-gray-600">{event.location}</p>
               <p className="text-sm italic text-gray-500 mt-1">
                 {event.organization?.name || "Unknown organization"}
@@ -68,7 +69,7 @@ export default function VolunteerEvents() {
             </h2>
             <p>
               <strong>Date:</strong>{" "}
-              {new Date(selectedEvent.date).toLocaleString()}
+              {formatDateTime(selectedEvent.date)}
             </p>
             <p>
               <strong>Location:</strong> {selectedEvent.location}

@@ -8,6 +8,7 @@ const USER_API = 'http://localhost:5000/api/users';
 export const signupVolunteer = (data) => axios.post(`${API_BASE}/signup-volunteer`, data);
 export const signupOrganizer = (data) => axios.post(`${API_BASE}/signup-organizer`, data);
 export const loginUser = (data) => axios.post(`${API_BASE}/login`, data);
+export const setPassword = (data) => axios.post(`${API_BASE}/set-password`, data);
 
 export const updateProfile = (data) => {
   const token = localStorage.getItem('token');
@@ -19,17 +20,69 @@ export const updateProfile = (data) => {
   });
 };
 
+// Account Recovery Functions
+/**
+ * Request account recovery by sending a recovery email
+ * @param {Object} data - Object containing email
+ * @returns {Promise<Object>} Response from the server
+ */
+export const requestAccountRecovery = async (data) => {
+  try {
+    const response = await axios.post('http://localhost:5000/api/account/recovery/request', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error requesting account recovery:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify recovery token and restore account
+ * @param {Object} data - Object containing recovery token
+ * @returns {Promise<Object>} Response from the server
+ */
+export const verifyRecoveryToken = async (data) => {
+  try {
+    const response = await axios.post('http://localhost:5000/api/account/recovery/verify', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error verifying recovery token:', error);
+    throw error;
+  }
+};
+
+// Delete user account
+/**
+ * Delete the currently authenticated user's account
+ * @returns {Promise<Object>} Response from the server
+ */
+export const deleteAccount = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+  
+  try {
+    const response = await axios.delete('http://localhost:5000/api/account', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    throw error;
+  }
+};
+
 // Get user counts for statistics
 export const getUserCounts = async () => {
   try {
-    console.log('🔹 Frontend: Calling getUserCounts...');
     const response = await axiosInstance.get('/api/users/counts');
-    console.log('🔹 Frontend: Response received:', response.data);
     return response.data;
   } catch (error) {
     console.error('❌ Frontend: Error fetching user counts:', error);
-    console.error('❌ Frontend: Error response:', error.response?.data);
-    console.error('❌ Frontend: Error status:', error.response?.status);
     return { volunteerCount: 0, organizerCount: 0 };
   }
 };

@@ -5,8 +5,25 @@ const sponsorSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    unique: true
+    required: false, // Made optional for deleted users
+    unique: false // Remove unique constraint for deleted users
+  },
+  // Denormalized user info for deleted users
+  userInfo: {
+    userId: mongoose.Schema.Types.ObjectId,
+    name: String,
+    username: String
+  },
+  // Indicates if the user is deleted
+  isUserDeleted: {
+    type: Boolean,
+    default: false
+  },
+  // Tracks which deletion instance this anonymized data belongs to
+  deletionId: {
+    type: String,
+    index: true,
+    sparse: true
   },
 
   // Sponsor type (business or individual)

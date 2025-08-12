@@ -5,6 +5,7 @@ import { getUserById } from "../api/organization";
 import { FaInstagram, FaLinkedin, FaTwitter, FaFacebook } from "react-icons/fa";
 import axiosInstance from "../api/axiosInstance";
 import EventCard from "../components/event/EventCard";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 
 export default function UserProfilePage() {
   const { id } = useParams();
@@ -76,11 +77,17 @@ export default function UserProfilePage() {
           ) : (
             <>
               <div className="flex flex-col items-center mb-6">
-                <img
-                  src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                  alt={user.username}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
-                />
+                {getProfileImageUrl(user) ? (
+                  <img
+                    src={getProfileImageUrl(user)}
+                    alt={user.username}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
+                  />
+                ) : (
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105 ${getRoleColors('organizer')}`}>
+                    <span className="text-3xl font-bold">{getAvatarInitial(user)}</span>
+                  </div>
+                )}
                 <h1 className="text-3xl font-bold text-blue-800 mb-1 animate-fade-in-slow">{user.name}</h1>
                 <p className="text-lg text-blue-600 font-medium">{user.username ? `@${user.username}` : ''}</p>
                 <span className="text-blue-600 font-medium capitalize mb-1">{user.role === 'organizer' ? 'Event Organizer' : user.role}</span>

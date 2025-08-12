@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { updateProfile } from "../api/auth";
+import { updateProfile, deleteAccount } from "../api/auth";
 import { getMyOrganization } from "../api/organization";
 import Navbar from "../components/layout/Navbar";
+import { formatDate } from "../utils/dateUtils";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -17,7 +18,10 @@ export default function ProfilePage() {
   const [removeGovtIdProof, setRemoveGovtIdProof] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [usernameError, setUsernameError] = useState('');
-  
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,7 +43,7 @@ export default function ProfilePage() {
               setOrganization(orgResponse.data);
             }
           } catch (error) {
-            console.log("No organization found or error fetching organization");
+            console.error("No organization found or error fetching organization");
           }
         }
 
@@ -134,15 +138,61 @@ export default function ProfilePage() {
     setFormData(prev => ({ ...prev, govtIdProof: undefined }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validate username before submission
-    if (usernameError) {
-      alert("Please fix the username errors before saving.");
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation.toLowerCase() !== 'delete my account') {
+      alert('Please type "delete my account" exactly as shown to confirm deletion.');
       return;
     }
 
+    if (!window.confirm('⚠️ WARNING: This will permanently delete your account and all associated data. This action cannot be undone. Are you absolutely sure?')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await deleteAccount();
+      
+      // Clear all local storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Redirect to home with a success message in the state
+      navigate('/', { 
+        state: { 
+          message: 'Your account has been successfully deleted. We\'re sorry to see you go!',
+          messageType: 'success'
+        },
+        replace: true // Replace the current entry in the history stack
+      });
+      
+      // Force a full page reload to ensure all state is cleared
+      window.location.href = '/';
+      
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      const errorMessage = error.response?.data?.message || 
+                         error.message || 
+                         'Failed to delete account. Please try again later.';
+      
+      alert(`Error: ${errorMessage}`);
+      
+      // If it's an authentication error, log the user out
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login', { replace: true });
+      }
+      
+      // Close the dialog on error
+      setShowDeleteDialog(false);
+      setDeleteConfirmation('');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (formData.username && formData.username.length < 3) {
       alert("Username must be at least 3 characters long.");
       return;
@@ -199,6 +249,11 @@ export default function ProfilePage() {
           confirmPassword: "",
           profileImage: undefined,
           govtIdProof: undefined,
+        }));
+        
+        // Dispatch custom event to notify other components about user data update
+        window.dispatchEvent(new CustomEvent('userDataUpdated', {
+          detail: { user: response.data.user }
         }));
         
         alert('Profile updated successfully!');
@@ -608,7 +663,7 @@ export default function ProfilePage() {
                 <div className="flex justify-between py-3 border-b border-gray-100">
                   <span className="font-medium text-gray-700">Member Since:</span>
                   <span className="text-gray-900">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Not available"}
+                    {formatDate(user.createdAt)}
                   </span>
                 </div>
                 {organization && (
@@ -728,6 +783,27 @@ export default function ProfilePage() {
           </div>
         </form>
 
+        {/* Account Deletion Section */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            Delete Account
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+          <button
+            onClick={() => setShowDeleteDialog(true)}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+          >
+            Delete My Account
+          </button>
+        </div>
+
         {/* Back Button */}
         <div className="mt-8 pt-6 border-t border-gray-200">
           <button
@@ -737,7 +813,52 @@ export default function ProfilePage() {
             ← Back
           </button>
         </div>
+
+        {/* Delete Account Confirmation Dialog */}
+        {showDeleteDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Delete Your Account</h3>
+              <p className="text-gray-700 mb-4">
+                This will permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">delete my account</span> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md mb-4"
+                placeholder="Type 'delete my account' to confirm"
+              />
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                    setDeleteConfirmation('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting || deleteConfirmation.toLowerCase() !== 'delete my account'}
+                  className={`px-4 py-2 text-white rounded-md ${
+                    deleteConfirmation.toLowerCase() === 'delete my account' 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : 'bg-red-300 cursor-not-allowed'
+                  }`}
+                >
+                  {isDeleting ? 'Deleting...' : 'Permanently Delete Account'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-} 
+}

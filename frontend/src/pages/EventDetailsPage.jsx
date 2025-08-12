@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/event";
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
@@ -33,11 +34,17 @@ const CommentAvatarAndName = ({ comment }) => {
       className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
       onClick={handleClick}
     >
-      <img 
-        src={comment.volunteer?.profileImage ? `http://localhost:5000/uploads/Profiles/${comment.volunteer.profileImage}` : '/images/default-profile.jpg'} 
-        alt={comment.volunteer?.name} 
-        className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
-      />
+      {getProfileImageUrl(comment.volunteer) ? (
+        <img 
+          src={getProfileImageUrl(comment.volunteer)} 
+          alt={comment.volunteer?.name} 
+          className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
+        />
+      ) : (
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 ${getRoleColors('volunteer')}`}>
+          <span className="text-sm font-bold">{getAvatarInitial(comment.volunteer)}</span>
+        </div>
+      )}
       <span className="font-medium text-green-800">{comment.volunteer?.username ? `@${comment.volunteer.username}` : comment.volunteer?.name}</span>
     </div>
   );
@@ -270,8 +277,6 @@ export default function EventDetailsPage() {
   const fetchAndSetEvent = async () => {
     try {
       const res = await axiosInstance.get(`/api/events/${id}`);
-      console.log("🔧 EventDetailsPage - Fetched event data:", res.data);
-      console.log("🔧 EventDetailsPage - mapLocation:", res.data.mapLocation);
       setEvent(res.data);
       setOrganizerTeam(res.data.organizerTeam || []);
       // Check join request status for current user
@@ -925,11 +930,17 @@ export default function EventDetailsPage() {
                       className={`group relative bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isThisUserCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
                       onClick={() => navigate(`/organizer/${user._id}`)}
                     >
-                      <img
-                        src={user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg'}
-                        alt={displayName}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                      />
+                      {getProfileImageUrl(user) ? (
+                        <img
+                          src={getProfileImageUrl(user)}
+                          alt={displayName}
+                          className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
+                        />
+                      ) : (
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-4 ${getRoleColors('organizer')}`}>
+                          <span className="text-lg font-bold">{getAvatarInitial(user)}</span>
+                        </div>
+                      )}
                       <div className="flex flex-col">
                         <span className="font-medium text-blue-800 text-lg">{displayText}</span>
                         {user.username && user.name && (
@@ -1331,8 +1342,10 @@ export default function EventDetailsPage() {
           <div className="my-6">
             <h3 className="text-lg font-bold text-blue-700 mb-2">Pending Organizer Join Requests</h3>
             <ul>
-              {event.organizerJoinRequests.filter(r => r.status === 'pending').map(r => {
+              {event.organizerJoinRequests.filter(r => r.status === 'pending' && r.user).map(r => {
                 const user = r.user;
+                if (!user) return null; // Skip if user is null
+                
                 const userId = user._id || user;
                 const name = user.username ? `@${user.username}` : user.name || user.email || userId;
                 const profileImage = user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg';
@@ -1905,13 +1918,7 @@ export default function EventDetailsPage() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm text-gray-500">
-                              {new Date(comment.submittedAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                              {format(new Date(comment.submittedAt), 'dd/MM/yyyy HH:mm')}
                             </span>
                           </div>
                           <p className="text-gray-700 leading-relaxed">{comment.comment}</p>

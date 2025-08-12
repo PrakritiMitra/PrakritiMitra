@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI } from '../api';
 import { getReceiptsBySponsorship } from '../api/receipt';
 import Navbar from '../components/layout/Navbar';
+import { formatDate } from '../utils/dateUtils';
 
 export default function MyApplicationsPage() {
   const [applications, setApplications] = useState([]);
@@ -53,7 +54,6 @@ export default function MyApplicationsPage() {
         limit: 100, // Get a large number to ensure we get all applications
         status: 'all' // Get all statuses
       });
-      console.log('API Response:', response); // Debug log
       
       // Store debug info
       setDebugInfo({
@@ -64,10 +64,8 @@ export default function MyApplicationsPage() {
       
       // Handle different response structures
       if (response.intents) {
-        console.log('Found intents:', response.intents.length);
         setApplications(response.intents);
       } else if (Array.isArray(response)) {
-        console.log('Response is array:', response.length);
         setApplications(response);
       } else {
         console.error('Unexpected response structure:', response);
@@ -133,15 +131,7 @@ export default function MyApplicationsPage() {
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Using the utility function instead of local formatDate
 
   const handleViewDetails = (application) => {
     setSelectedApplication(application);

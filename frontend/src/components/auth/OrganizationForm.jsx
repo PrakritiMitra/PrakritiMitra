@@ -103,7 +103,6 @@ export default function OrganizationForm() {
         withCredentials: true
       });
       alert('Organization registered successfully!');
-      console.log(response.data);
     } catch (err) {
       if (err.response && err.response.status === 409) {
         alert('An organization with this name already exists. Please choose a different name.');

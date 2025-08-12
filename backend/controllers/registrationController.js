@@ -394,6 +394,25 @@ exports.getVolunteersForEvent = async (req, res) => {
 exports.getEventsForVolunteer = async (req, res) => {
   try {
     const volunteerId = req.params.volunteerId;
+    
+    // First check if the volunteer account exists and is not deleted
+    const User = require('../models/user');
+    const volunteer = await User.findById(volunteerId);
+    
+    if (!volunteer) {
+      return res.status(404).json({ 
+        message: 'Volunteer not found',
+        error: 'USER_NOT_FOUND'
+      });
+    }
+    
+    if (volunteer.isDeleted) {
+      return res.status(404).json({ 
+        message: 'Volunteer not found',
+        error: 'ACCOUNT_DELETED'
+      });
+    }
+    
     // Find all registrations for this volunteer and populate event details
     const registrations = await Registration.find({ volunteerId }).populate({
       path: 'eventId',
@@ -651,14 +670,37 @@ exports.getEventQuestionnaireComments = async (req, res) => {
         }
       }
       
-      return {
-        _id: reg._id,
-        volunteer: {
+      // Handle both active and deleted users
+      let userInfo = {};
+      if (reg.isUserDeleted && reg.volunteerInfo) {
+        // Use anonymized data for deleted users
+        userInfo = {
+          _id: reg.volunteerInfo.userId,
+          name: reg.volunteerInfo.name,
+          username: reg.volunteerInfo.username,
+          profileImage: reg.volunteerInfo.profileImage
+        };
+      } else if (reg.volunteerId) {
+        // Use actual user data for active users
+        userInfo = {
           _id: reg.volunteerId._id,
           name: reg.volunteerId.name,
           username: reg.volunteerId.username,
           profileImage: reg.volunteerId.profileImage
-        },
+        };
+      } else {
+        // Fallback for edge cases
+        userInfo = {
+          _id: 'unknown',
+          name: 'Unknown User',
+          username: 'unknown',
+          profileImage: null
+        };
+      }
+      
+      return {
+        _id: reg._id,
+        volunteer: userInfo,
         comment: comment || 'No detailed feedback provided',
         submittedAt: reg.questionnaire.submittedAt,
         allAnswers: answers // Include all answers for potential future use

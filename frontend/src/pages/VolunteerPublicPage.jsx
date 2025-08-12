@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import axiosInstance from "../api/axiosInstance";
 import EventCard from "../components/event/EventCard";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { formatDate } from "../utils/dateUtils";
 
 export default function VolunteerPublicPage() {
   const { id } = useParams();
@@ -70,11 +72,17 @@ export default function VolunteerPublicPage() {
           ) : (
             <>
               <div className="flex flex-col items-center mb-6">
-                <img
-                  src={volunteer.profileImage ? `http://localhost:5000/uploads/Profiles/${volunteer.profileImage}` : '/images/default-profile.jpg'}
-                  alt={volunteer.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
-                />
+                {getProfileImageUrl(volunteer) ? (
+                  <img
+                    src={getProfileImageUrl(volunteer)}
+                    alt={volunteer.name}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
+                  />
+                ) : (
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105 ${getRoleColors('volunteer')}`}>
+                    <span className="text-3xl font-bold">{getAvatarInitial(volunteer)}</span>
+                  </div>
+                )}
                 <h1 className="text-3xl font-bold text-green-800 mb-1 animate-fade-in-slow">{volunteer.name}</h1>
                 <span className="text-green-600 font-medium capitalize mb-1">Volunteer</span>
                 {volunteer.city && <span className="text-gray-500 text-sm">{volunteer.city}</span>}
@@ -132,7 +140,7 @@ export default function VolunteerPublicPage() {
               )}
               <div className="mb-4">
                 <span className="font-semibold text-gray-700">Member Since:</span>
-                <span className="ml-2 text-gray-600">{volunteer.createdAt ? new Date(volunteer.createdAt).toLocaleDateString() : "Not available"}</span>
+                <span className="ml-2 text-gray-600">{formatDate(volunteer.createdAt)}</span>
               </div>
               {/* Registered Events */}
               <div className="mt-10">

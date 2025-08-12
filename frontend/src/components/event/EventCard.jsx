@@ -198,24 +198,6 @@ export default function EventCard({ event }) {
   const isLive = new Date(startDateTime) <= now && now < new Date(endDateTime);
   const isPastEvent = new Date(endDateTime) < new Date();
 
-  const handleAddToCalendar = () => {
-    const result = addEventToCalendar(event);
-    if (result.success) {
-      console.log(result.message);
-    } else {
-      console.error(result.message);
-    }
-  };
-
-  const handleDownloadCalendar = () => {
-    const result = downloadCalendarFile(event);
-    if (result.success) {
-      console.log(result.message);
-    } else {
-      console.error(result.message);
-    }
-  };
-
   const handleAddToWebsiteCalendar = async () => {
     try {
       const result = await addToWebsiteCalendar(_id);
@@ -225,7 +207,6 @@ export default function EventCard({ event }) {
         if (statusResult.success) {
           setCalendarStatus(statusResult.data);
         }
-        console.log(result.message);
       } else {
         console.error(result.message);
       }
@@ -243,7 +224,6 @@ export default function EventCard({ event }) {
         if (statusResult.success) {
           setCalendarStatus(statusResult.data);
         }
-        console.log(result.message);
       } else {
         console.error(result.message);
       }
@@ -405,7 +385,6 @@ export default function EventCard({ event }) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleAddToCalendar();
                   setShowCalendarOptions(false);
                 }}
                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
@@ -417,7 +396,6 @@ export default function EventCard({ event }) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleDownloadCalendar();
                   setShowCalendarOptions(false);
                 }}
                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"

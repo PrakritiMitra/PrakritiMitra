@@ -4,10 +4,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
+import Avatar from "../components/common/Avatar";
 import { approveTeamMember, rejectTeamMember, getOrganizationOrganizers } from "../api/organization";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
 import { OrganizationSponsorshipSection } from "../components/sponsor";
+import { formatDate } from "../utils/dateUtils";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -176,11 +178,7 @@ export default function OrganizationPage() {
                 className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50"
                 onClick={() => navigate(`/organizer/${org.userId._id}`)}
               >
-                <img
-                  src={org.userId.profileImage ? `http://localhost:5000/uploads/Profiles/${org.userId.profileImage}` : '/images/default-profile.jpg'}
-                  alt={org.userId.username || org.userId.name}
-                  className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                />
+                <Avatar user={org.userId} size="lg" role="organizer" className="mr-4" />
                 <div className="flex flex-col">
                   <span className="font-medium text-blue-800 text-lg">{org.userId.name}</span>
                   {org.userId.username && (
@@ -234,17 +232,13 @@ export default function OrganizationPage() {
                   <p className="text-green-600 font-medium">
                     Joined as admin{" "}
                     {memberEntry?.updatedAt &&
-                      `on ${new Date(
-                        memberEntry.updatedAt
-                      ).toLocaleDateString()}`}
+                      `on ${formatDate(memberEntry.updatedAt)}`}
                   </p>
                 ) : isMember ? (
                   <p className="text-green-600 font-medium">
                     Joined as member{" "}
                     {memberEntry?.updatedAt &&
-                      `on ${new Date(
-                        memberEntry.updatedAt
-                      ).toLocaleDateString()}`}
+                      `on ${formatDate(memberEntry.updatedAt)}`}
                   </p>
                 ) : hasRequested ? (
                   <p className="text-yellow-600 font-medium">

@@ -39,6 +39,7 @@ import { getIntentPaymentStatus } from '../api/intentPayment';
 import sponsorshipIntentAPI from '../api/sponsorshipIntent';
 import Navbar from '../components/layout/Navbar';
 import IntentPaymentGateway from '../components/payment/IntentPaymentGateway';
+import { formatDate } from '../utils/dateUtils';
 
 const IntentPaymentPage = () => {
   const { intentId } = useParams();
@@ -130,16 +131,7 @@ const IntentPaymentPage = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // Using the utility function instead of local formatDate
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
