@@ -116,15 +116,6 @@ const TimeSlotBuilder = ({
     // Special validation for maxVolunteers field
     if (field === 'maxVolunteers') {
       const numValue = value === '' ? null : parseInt(value);
-      
-      console.log('🔍 Category Update Debug:');
-      console.log('  - Slot ID:', slotId);
-      console.log('  - Category ID:', categoryId);
-      console.log('  - Field:', field);
-      console.log('  - Value:', value);
-      console.log('  - Parsed value:', numValue);
-      console.log('  - Remaining volunteers:', remainingVolunteers);
-      console.log('  - Unlimited volunteers:', unlimitedVolunteers);
     }
     
     setTimeSlots(timeSlots.map(slot => 
@@ -377,15 +368,11 @@ const TimeSlotBuilder = ({
                         updateCategory(slot.id, category.id, 'maxVolunteers', value);
                       }}
                       onFocus={() => {
-                        console.log('🔍 Category Focus Debug:');
-                        console.log('  - Setting editing category:', { slotId: slot.id, categoryId: category.id });
                         if (setEditingCategory) {
                           setEditingCategory({ slotId: slot.id, categoryId: category.id });
                         }
                       }}
                       onBlur={() => {
-                        console.log('🔍 Category Blur Debug:');
-                        console.log('  - Clearing editing category');
                         clearEditingState();
                       }}
                       sx={{ width: 150, mr: 1 }}

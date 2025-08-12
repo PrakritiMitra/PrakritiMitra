@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const Organization = require("../models/organization");
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const generateToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -29,14 +31,49 @@ exports.signupVolunteer = async (req, res) => {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    // Check if email already exists
-    const existingEmail = await User.findOne({ email });
+    // Check if email already exists in active accounts
+    const existingEmail = await User.findOne({
+      email,
+      $or: [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
+      ]
+    });
     if (existingEmail) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Check if username already exists
-    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    // Check for recently deleted accounts with same email
+    const recentlyDeletedAccount = await User.findOne({
+      email,
+      isDeleted: true,
+      deletedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Within 30 days
+    });
+
+    if (recentlyDeletedAccount) {
+      return res.status(409).json({
+        message: "Account with this email was recently deleted",
+        errorType: "RECENTLY_DELETED_ACCOUNT",
+        deletedAccount: {
+          username: recentlyDeletedAccount.username,
+          name: recentlyDeletedAccount.name,
+          role: recentlyDeletedAccount.role,
+          deletedAt: recentlyDeletedAccount.deletedAt,
+          deletionSequence: recentlyDeletedAccount.deletionSequence,
+          canRecover: recentlyDeletedAccount.deletionId ? true : false
+        },
+        suggestion: "You can recover your deleted account or create a new one with a different email"
+      });
+    }
+
+    // Check if username already exists in active accounts
+    const existingUsername = await User.findOne({
+      username: username.toLowerCase(),
+      $or: [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
+      ]
+    });
     if (existingUsername) {
       return res.status(400).json({ message: "Username already exists" });
     }
@@ -65,12 +102,6 @@ exports.signupVolunteer = async (req, res) => {
       oauthProvider: undefined,
       oauthId: undefined
     };
-
-    console.log('🔧 Creating new user with data:', {
-      ...userData,
-      password: '***hashed***',
-      dateOfBirth: userData.dateOfBirth.toISOString()
-    });
 
     const user = new User(userData);
 
@@ -107,10 +138,14 @@ exports.signupOrganizer = async (req, res) => {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    // Check if email already exists
-    console.log('🔍 Checking if email exists:', email);
-    const existingEmail = await User.findOne({ email });
-    console.log('🔎 Email check result:', existingEmail ? 'Exists' : 'Not found');
+    // Check if email already exists in active accounts
+    const existingEmail = await User.findOne({
+      email,
+      $or: [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
+      ]
+    });
     
     if (existingEmail) {
       console.warn(`⚠️ Email already exists: ${email}`, {
@@ -130,8 +165,37 @@ exports.signupOrganizer = async (req, res) => {
       });
     }
 
-    // Check if username already exists
-    const existingUsername = await User.findOne({ username: username.toLowerCase() });
+    // Check for recently deleted accounts with same email
+    const recentlyDeletedAccount = await User.findOne({
+      email,
+      isDeleted: true,
+      deletedAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Within 30 days
+    });
+
+    if (recentlyDeletedAccount) {
+      return res.status(409).json({
+        message: "Account with this email was recently deleted",
+        errorType: "RECENTLY_DELETED_ACCOUNT",
+        deletedAccount: {
+          username: recentlyDeletedAccount.username,
+          name: recentlyDeletedAccount.name,
+          role: recentlyDeletedAccount.role,
+          deletedAt: recentlyDeletedAccount.deletedAt,
+          deletionSequence: recentlyDeletedAccount.deletionSequence,
+          canRecover: recentlyDeletedAccount.deletionId ? true : false
+        },
+        suggestion: "You can recover your deleted account or create a new one with a different email"
+      });
+    }
+
+    // Check if username already exists in active accounts
+    const existingUsername = await User.findOne({
+      username: username.toLowerCase(),
+      $or: [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
+      ]
+    });
     if (existingUsername) {
       return res.status(400).json({ message: "Username already exists" });
     }
@@ -160,12 +224,6 @@ exports.signupOrganizer = async (req, res) => {
       oauthProvider: undefined,
       oauthId: undefined
     };
-
-    console.log('🔧 Creating new organizer with data:', {
-      ...userData,
-      password: '***hashed***',
-      dateOfBirth: userData.dateOfBirth.toISOString()
-    });
 
     // Create and save the organizer
     const user = new User(userData);
@@ -298,8 +356,6 @@ exports.setPassword = async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    console.log("✅ Password set successfully for OAuth user:", user.email);
-
     res.status(200).json({ 
       message: "Password set successfully. You can now login with email and password.",
       user: {
@@ -314,5 +370,151 @@ exports.setPassword = async (req, res) => {
   } catch (err) {
     console.error("❌ Set Password Error:", err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Forgot Password - Send reset email
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Find user by email (only active accounts)
+    const user = await User.findOne({ 
+      email, 
+      isDeleted: false 
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "No account found with this email address" });
+    }
+
+    // Check if user has a password (not OAuth-only)
+    if (!user.password) {
+      return res.status(400).json({ 
+        message: "This account was created with Google. Please use 'Sign in with Google' to login." 
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 3600000); // 1 hour
+
+    // Save reset token to user
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpires;
+    await user.save();
+
+    // Send reset email
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
+    
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USERNAME,
+      to: email,
+      subject: 'Password Reset Request - PrakritiMitra',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Password Reset Request</h2>
+          <p>Hello ${user.name},</p>
+          <p>You requested a password reset for your PrakritiMitra account.</p>
+          <p>Click the button below to reset your password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reset Password</a>
+          </div>
+          <p><strong>This link will expire in 1 hour.</strong></p>
+          <p>If you didn't request this reset, please ignore this email.</p>
+          <p>Best regards,<br>PrakritiMitra Team</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ 
+      message: "Password reset email sent successfully. Please check your email." 
+    });
+
+  } catch (err) {
+    console.error("❌ Forgot Password Error:", err);
+    res.status(500).json({ message: "Failed to send reset email. Please try again." });
+  }
+};
+
+// Verify Reset Token
+exports.verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
+    }
+
+    res.status(200).json({ 
+      valid: true,
+      email: user.email,
+      message: "Token is valid"
+    });
+
+  } catch (err) {
+    console.error("❌ Verify Reset Token Error:", err);
+    res.status(500).json({ message: "Failed to verify token" });
+  }
+};
+
+// Reset Password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: "Token and new password are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password and clear reset token
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.status(200).json({ 
+      message: "Password reset successfully. You can now login with your new password." 
+    });
+
+  } catch (err) {
+    console.error("❌ Reset Password Error:", err);
+    res.status(500).json({ message: "Failed to reset password" });
   }
 };

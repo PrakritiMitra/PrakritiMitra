@@ -26,13 +26,6 @@ export default function LocationPicker({ value, onChange }) {
   // Debug API key
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-    console.log("🔑 API Key status:", {
-      exists: !!apiKey,
-      length: apiKey?.length,
-      startsWith: apiKey?.substring(0, 10) + "...",
-      isLoaded,
-      loadError: loadError?.message
-    });
     
     if (apiKey) {
       setApiKeyStatus("found");

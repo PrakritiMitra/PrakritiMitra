@@ -3,6 +3,70 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
+  // Soft deletion fields
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+  originalEmail: {
+    type: String,
+    index: true,
+    sparse: true,
+    select: false
+  },
+  // Enhanced deletion tracking
+  deletionId: {
+    type: String,
+    index: true,
+    sparse: true
+  },
+  deletionSequence: {
+    type: Number,
+    default: 1 // 1st, 2nd, 3rd deletion, etc.
+  },
+  previousDeletionIds: [{
+    type: String
+  }],
+  recoveryToken: {
+    type: String,
+    select: false
+  },
+  recoveryTokenExpires: {
+    type: Date,
+    select: false
+  },
+
+  // Password reset fields
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
+  },
+
+  // Store original authentication method for recovery
+  originalAuthMethod: {
+    type: String,
+    enum: ['oauth', 'password'],
+    select: false
+  },
+  originalOAuthProvider: {
+    type: String,
+    enum: ['google', 'facebook', 'github'],
+    select: false
+  },
+  originalOAuthId: {
+    type: String,
+    select: false
+  },
+
   // Common fields
   name: {
     type: String,
@@ -12,7 +76,6 @@ const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     minlength: 3,
     maxlength: 30,
@@ -23,7 +86,6 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
   },
 
   phone: {
@@ -65,6 +127,15 @@ const userSchema = new mongoose.Schema({
     type: Date,
     required: function() {
       // Date of birth is optional for OAuth users
+      return !this.oauthProvider;
+    }
+  },
+
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other', 'prefer_not_to_say'],
+    required: function() {
+      // Gender is optional for OAuth users
       return !this.oauthProvider;
     }
   },
@@ -188,15 +259,38 @@ userSchema.index(
   }
 );
 
-// Pre-save hook to handle OAuth fields
+// Pre-save hook to handle OAuth fields and soft deletion
 userSchema.pre('save', function(next) {
   // If this is not an OAuth user, ensure oauth fields are undefined
   if (!this.oauthProvider) {
     this.oauthProvider = undefined;
     this.oauthId = undefined;
   }
+  
+  // Handle email hashing for soft-deleted accounts
+  if (this.isModified('isDeleted') && this.isDeleted) {
+    this.deletedAt = new Date();
+    
+    // Only hash email if it's not already hashed
+    if (this.email && !this.email.startsWith('deleted_')) {
+      this.originalEmail = this.email;
+      // Simple hash for email - we'll use a better hash in the controller
+      this.email = `deleted_${Date.now()}_${this._id}@deleted.prakritimitra.invalid`;
+    }
+  }
+  
   next();
 });
+
+// Add a static method to find active users
+userSchema.statics.findActive = function(conditions = {}) {
+  return this.find({ ...conditions, isDeleted: { $ne: true } });
+};
+
+// Add a static method to find deleted users
+userSchema.statics.findDeleted = function(conditions = {}) {
+  return this.find({ ...conditions, isDeleted: true });
+};
 
 // Post-save hook for better error logging
 userSchema.post('save', function(error, doc, next) {
@@ -214,7 +308,5 @@ userSchema.post('save', function(error, doc, next) {
   }
   next(error);
 });
-
-console.log('📌 OAuth index created with partial filter for non-null oauthProvider and oauthId');
 
 module.exports = mongoose.model('User', userSchema);

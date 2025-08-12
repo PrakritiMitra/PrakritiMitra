@@ -10,12 +10,7 @@ const Organization = require('../models/organization');
 // Get organization count for statistics
 router.get('/count', async (req, res) => {
   try {
-    console.log('🔹 Fetching organization count...');
-    
     const organizationCount = await Organization.countDocuments();
-    
-    console.log(`✅ Organization count: ${organizationCount}`);
-    
     res.json({ organizationCount });
   } catch (error) {
     console.error('❌ Error getting organization count:', error);

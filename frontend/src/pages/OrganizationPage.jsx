@@ -9,6 +9,7 @@ import { approveTeamMember, rejectTeamMember, getOrganizationOrganizers } from "
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
 import { OrganizationSponsorshipSection } from "../components/sponsor";
+import { formatDate } from "../utils/dateUtils";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -231,17 +232,13 @@ export default function OrganizationPage() {
                   <p className="text-green-600 font-medium">
                     Joined as admin{" "}
                     {memberEntry?.updatedAt &&
-                      `on ${new Date(
-                        memberEntry.updatedAt
-                      ).toLocaleDateString()}`}
+                      `on ${formatDate(memberEntry.updatedAt)}`}
                   </p>
                 ) : isMember ? (
                   <p className="text-green-600 font-medium">
                     Joined as member{" "}
                     {memberEntry?.updatedAt &&
-                      `on ${new Date(
-                        memberEntry.updatedAt
-                      ).toLocaleDateString()}`}
+                      `on ${formatDate(memberEntry.updatedAt)}`}
                   </p>
                 ) : hasRequested ? (
                   <p className="text-yellow-600 font-medium">

@@ -148,11 +148,13 @@ const OAuthRegistrationForm = ({ open, onClose, oauthData, role, onSubmit, onBac
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
+      sx={{ zIndex: 9999 }}
       PaperProps={{
         sx: {
           borderRadius: 3,
           p: 1,
-          bgcolor: '#f8f9fa'
+          bgcolor: '#f8f9fa',
+          zIndex: 9999
         }
       }}
     >

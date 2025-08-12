@@ -19,7 +19,6 @@ async function fixIndex() {
     // Drop the existing index
     try {
       await usersCollection.dropIndex('oauthProvider_1_oauthId_1');
-      console.log('✅ Dropped existing oauthProvider_1_oauthId_1 index');
     } catch (err) {
       console.log('ℹ️ No existing index to drop or error dropping index:', err.message);
     }
@@ -35,14 +34,10 @@ async function fixIndex() {
         }
       }
     );
-    console.log('✅ Created new partial index on oauthProvider and oauthId');
 
     // Verify the index was created
     const indexes = await usersCollection.indexes();
-    console.log('📋 Current indexes:');
-    console.log(indexes.map(idx => idx.name));
 
-    console.log('✨ Index fix completed successfully');
     process.exit(0);
   } catch (error) {
     console.error('❌ Error fixing index:', error);

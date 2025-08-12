@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatDate } from "../../utils/dateUtils";
 
 // Helper: Responsive YouTube/Video Embed with Striver TUF style
 function VideoEmbed({ url, title }) {
@@ -192,7 +193,7 @@ export default function ResourceCard({ resource }) {
         )}
       </div>
       {/* Created At */}
-      <div className="text-xs text-gray-400 mt-3">Added on {new Date(resource.createdAt).toLocaleDateString()}</div>
+      <div className="text-xs text-gray-400 mt-3">Added on {formatDate(resource.createdAt)}</div>
     </div>
   );
 }

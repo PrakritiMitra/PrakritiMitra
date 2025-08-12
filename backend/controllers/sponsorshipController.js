@@ -31,13 +31,6 @@ exports.createSponsorship = async (req, res) => {
 
     // Validate sponsor exists
     const sponsor = await Sponsor.findById(sponsorId);
-    console.log('Found sponsor for sponsorship creation:', {
-      sponsorId,
-      sponsorFound: !!sponsor,
-      sponsorUserId: sponsor?.user?.toString(),
-      sponsorEmail: sponsor?.email,
-      sponsorStats: sponsor?.stats
-    });
     
     if (!sponsor) {
       return res.status(404).json({ message: 'Sponsor not found' });
@@ -85,14 +78,6 @@ exports.createSponsorship = async (req, res) => {
     }
 
     const sponsorship = await Sponsorship.create(sponsorshipData);
-    
-    console.log('📝 Created sponsorship:', {
-      sponsorshipId: sponsorship._id.toString(),
-      sponsorId: sponsorship.sponsor.toString(),
-      status: sponsorship.status,
-      contributionValue: sponsorship.contribution?.value,
-      tier: sponsorship.tier?.name
-    });
 
     // Update organization's sponsorship list
     await Organization.findByIdAndUpdate(organizationId, {
@@ -111,10 +96,8 @@ exports.createSponsorship = async (req, res) => {
     }
 
     // Update sponsor statistics using the utility function
-    console.log('Updating sponsor stats for sponsorId:', sponsorId);
     try {
       await updateSponsorStatsOnSponsorshipChange(sponsorId);
-      console.log('✅ Sponsor stats updated successfully for sponsorship creation');
     } catch (error) {
       console.error('❌ Error updating sponsor stats during sponsorship creation:', error);
     }

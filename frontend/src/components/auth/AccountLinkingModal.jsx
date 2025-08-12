@@ -19,6 +19,7 @@ import {
 import LinkIcon from '@mui/icons-material/Link';
 import LockIcon from '@mui/icons-material/Lock';
 import SecurityIcon from '@mui/icons-material/Security';
+import { formatDate } from '../../utils/dateUtils';
 
 const AccountLinkingModal = ({ 
   open, 
@@ -56,10 +57,12 @@ const AccountLinkingModal = ({
       onClose={handleClose}
       maxWidth="md"
       fullWidth
+      sx={{ zIndex: 9999 }}
       PaperProps={{
         sx: {
           borderRadius: 3,
-          p: 1
+          p: 1,
+          zIndex: 9999
         }
       }}
     >
@@ -111,7 +114,7 @@ const AccountLinkingModal = ({
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" mt={1}>
-                Account created on: {new Date(existingUser?.createdAt).toLocaleDateString()}
+                Account created on: {formatDate(existingUser?.createdAt)}
               </Typography>
             </Box>
           </Box>

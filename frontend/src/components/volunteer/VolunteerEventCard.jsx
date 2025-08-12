@@ -178,22 +178,10 @@ const VolunteerEventCard = ({ event }) => {
   // Calendar functions
   const handleAddToCalendar = (e) => {
     e.stopPropagation(); // prevent card navigation
-    const result = addEventToCalendar(event);
-    if (result.success) {
-      console.log(result.message);
-    } else {
-      console.error(result.message);
-    }
   };
 
   const handleDownloadCalendar = (e) => {
     e.stopPropagation(); // prevent card navigation
-    const result = downloadCalendarFile(event);
-    if (result.success) {
-      console.log(result.message);
-    } else {
-      console.error(result.message);
-    }
   };
 
   const handleAddToWebsiteCalendar = async (e) => {
@@ -203,7 +191,6 @@ const VolunteerEventCard = ({ event }) => {
       if (result.success) {
         const statusResult = await checkWebsiteCalendarStatus(event._id);
         if (statusResult.success) setCalendarStatus(statusResult.data);
-        console.log(result.message);
       } else { console.error(result.message); }
     } catch (error) { console.error('Error adding to website calendar:', error); }
   };
@@ -215,7 +202,6 @@ const VolunteerEventCard = ({ event }) => {
       if (result.success) {
         const statusResult = await checkWebsiteCalendarStatus(event._id);
         if (statusResult.success) setCalendarStatus(statusResult.data);
-        console.log(result.message);
       } else { console.error(result.message); }
     } catch (error) { console.error('Error removing from website calendar:', error); }
   };

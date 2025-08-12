@@ -135,7 +135,7 @@ EVENT DETAILS:
 - Type: ${event.eventType}
 - Description: ${event.description}
 - Location: ${event.location}
-- Date: ${new Date(event.startDateTime).toLocaleDateString()} to ${new Date(event.endDateTime).toLocaleDateString()}
+        - Date: ${new Date(event.startDateTime).toLocaleDateString('en-GB')} to ${new Date(event.endDateTime).toLocaleDateString('en-GB')}
 - Organization: ${event.organization?.name || 'N/A'}
 - Total Registered Volunteers: ${totalVolunteers}
 - Total Organizers: ${totalOrganizers}

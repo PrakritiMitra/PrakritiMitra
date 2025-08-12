@@ -1,10 +1,12 @@
 // src/pages/HomePage.jsx
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { getUserCounts } from '../api/auth';
 import { getOrganizationCount } from '../api/organization';
 import { getEventCount } from '../api/event';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 export default function HomePage() {
   const [stats, setStats] = useState({
@@ -14,6 +16,25 @@ export default function HomePage() {
     eventCount: 0
   });
   const [loading, setLoading] = useState(true);
+  const [successMessage, setSuccessMessage] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Handle success message from location state
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the message from location state to prevent showing it again on refresh
+      window.history.replaceState({}, document.title);
+      
+      // Auto-dismiss the message after 10 seconds
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 10000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.state]);
 
   // Get user from localStorage
   const user = React.useMemo(() => {
@@ -29,7 +50,6 @@ export default function HomePage() {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        console.log('🔹 Fetching statistics from backend...');
         
         const [userCounts, orgCount, eventCount] = await Promise.all([
           getUserCounts(),
@@ -37,16 +57,7 @@ export default function HomePage() {
           getEventCount()
         ]);
 
-        console.log('📊 Statistics received:', { userCounts, orgCount, eventCount });
-
         setStats({
-          volunteerCount: userCounts.volunteerCount || 0,
-          organizerCount: userCounts.organizerCount || 0,
-          organizationCount: orgCount.organizationCount || 0,
-          eventCount: eventCount.eventCount || 0
-        });
-        
-        console.log('✅ Statistics updated:', {
           volunteerCount: userCounts.volunteerCount || 0,
           organizerCount: userCounts.organizerCount || 0,
           organizationCount: orgCount.organizationCount || 0,
@@ -75,6 +86,36 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <Navbar />
+      
+      {/* Success Message */}
+      {successMessage && (
+        <div className="bg-green-50 border-l-4 border-green-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">
+                {successMessage}
+              </p>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSuccessMessage('')}
+                  className="inline-flex rounded-md p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="pt-20 pb-16 px-4 min-h-screen flex flex-col justify-between">

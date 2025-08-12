@@ -14,6 +14,7 @@ import RoleSelectionModal from './RoleSelectionModal';
 import OAuthRegistrationForm from './OAuthRegistrationForm';
 import AccountLinkingModal from './AccountLinkingModal';
 import { googleOAuthCallback, linkOAuthAccount, completeOAuthRegistration } from '../../api/oauth';
+import { Link } from 'react-router-dom';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -56,7 +57,22 @@ export default function LoginForm() {
         navigate('/volunteer/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      // Check if it's a deleted account error
+      if (err.response?.data?.code === 'ACCOUNT_DELETED') {
+        setError(
+          <div>
+            <p className="text-red-600 mb-2">{err.response.data.message}</p>
+            <Link 
+              to="/recover-account" 
+              className="text-blue-600 hover:text-blue-500 underline text-sm"
+            >
+              Click here to recover your account
+            </Link>
+          </div>
+        );
+      } else {
+        setError(err.response?.data?.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -95,7 +111,22 @@ export default function LoginForm() {
         setShowRoleModal(true);
       }
     } catch (error) {
-      setError(error.message || 'OAuth authentication failed');
+      // Check if it's a deleted account error
+      if (error.response?.data?.code === 'ACCOUNT_DELETED') {
+        setError(
+          <div>
+            <p className="text-red-600 mb-2">{error.response.data.message}</p>
+            <Link 
+              to="/recover-account" 
+              className="text-blue-600 hover:text-blue-500 underline text-sm"
+            >
+              Click here to recover your account
+            </Link>
+          </div>
+        );
+      } else {
+        setError(error.message || 'OAuth authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -128,7 +159,30 @@ export default function LoginForm() {
         navigate('/volunteer/dashboard');
       }
     } catch (error) {
-      setError(error.message || 'Registration failed');
+      // Check if it's a recently deleted account error
+      if (error.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
+        setError(
+          <div>
+            <p className="text-red-600 mb-2">{error.response.data.message}</p>
+            <p className="text-sm text-gray-600 mb-2">
+              Account: {error.response.data.deletedAccount.username} ({error.response.data.deletedAccount.role})
+            </p>
+            <div className="space-y-2">
+              <Link 
+                to="/recover-account" 
+                className="block text-blue-600 hover:text-blue-500 underline text-sm"
+              >
+                🔄 Recover your deleted account
+              </Link>
+              <p className="text-xs text-gray-500">
+                Or use a different email address for a new account
+              </p>
+            </div>
+          </div>
+        );
+      } else {
+        setError(error.message || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -237,8 +291,8 @@ export default function LoginForm() {
             disabled={loading}
           />
           
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary">
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
               New user?{' '}
               <Button 
                 variant="text" 
@@ -247,6 +301,26 @@ export default function LoginForm() {
                 sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
               >
                 Create an account
+              </Button>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+              <Button 
+                variant="text" 
+                size="small" 
+                onClick={() => navigate('/forgot-password')}
+                sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+              >
+                Forgot your password?
+              </Button>
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+              <Button 
+                variant="text" 
+                size="small" 
+                onClick={() => navigate('/recover-account')}
+                sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+              >
+                Recover deleted account?
               </Button>
             </Typography>
           </Box>

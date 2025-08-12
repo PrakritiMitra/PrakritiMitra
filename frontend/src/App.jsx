@@ -4,6 +4,10 @@ import PrivateRoute from "./components/PrivateRoute";
 import HomePage from "./pages/HomePage";
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
+import RecoverAccountPage from "./pages/RecoverAccountPage";
+import RecoveryConfirmationPage from "./pages/RecoveryConfirmationPage";
 import VolunteerDashboard from "./pages/VolunteerDashboard";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
 import RegisterOrganization from "./pages/RegisterOrganization";
@@ -119,6 +123,10 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/recover-account" element={<RecoverAccountPage />} />
+          <Route path="/recovery-confirmation" element={<RecoveryConfirmationPage />} />
           <Route path="/faqs" element={<FAQSection />} />
           <Route path="/team" element={<TeamPage />} />
 

@@ -103,10 +103,6 @@ export default function EditEventPage() {
 
   const handleSubmit = async () => {
     const data = new FormData();
-
-    console.log("🔧 EditEventPage - FormData before sending:", formData);
-    console.log("🔧 EditEventPage - mapLocation:", formData.mapLocation);
-
     for (const key in formData) {
       if (key === "equipmentNeeded") {
         formData.equipmentNeeded.forEach((item) =>
@@ -126,11 +122,6 @@ export default function EditEventPage() {
           data.append("mapLocation[address]", formData.mapLocation.address || "");
           data.append("mapLocation[lat]", formData.mapLocation.lat || "");
           data.append("mapLocation[lng]", formData.mapLocation.lng || "");
-          console.log("🔧 EditEventPage - Sending mapLocation:", {
-            address: formData.mapLocation.address,
-            lat: formData.mapLocation.lat,
-            lng: formData.mapLocation.lng
-          });
         }
       } else {
         data.append(key, formData[key]);
@@ -152,7 +143,6 @@ export default function EditEventPage() {
       const response = await axiosInstance.put(`/api/events/${id}`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log("✅ EditEventPage - Event updated successfully:", response.data);
       alert("Event updated successfully");
       navigate(`/events/${id}`, { replace: true });
     } catch (err) {

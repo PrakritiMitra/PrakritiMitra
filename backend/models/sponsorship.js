@@ -104,7 +104,25 @@ const sponsorshipSchema = new mongoose.Schema({
     reviewedAt: Date,
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: false // Made optional for deleted users
+    },
+    // Denormalized user info for deleted users
+    userInfo: {
+      userId: mongoose.Schema.Types.ObjectId,
+      name: String,
+      username: String
+    },
+    // Indicates if the user is deleted
+    isUserDeleted: {
+      type: Boolean,
+      default: false
+    },
+    // Tracks which deletion instance this anonymized data belongs to
+    deletionId: {
+      type: String,
+      index: true,
+      sparse: true
     },
     reviewNotes: String,
     adminNotes: String // Internal notes for organization admins
@@ -194,7 +212,25 @@ const sponsorshipSchema = new mongoose.Schema({
     nextAction: String,
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: false // Made optional for deleted users
+    },
+    // Denormalized user info for deleted users
+    userInfo: {
+      userId: mongoose.Schema.Types.ObjectId,
+      name: String,
+      username: String
+    },
+    // Indicates if the user is deleted
+    isUserDeleted: {
+      type: Boolean,
+      default: false
+    },
+    // Tracks which deletion instance this anonymized data belongs to
+    deletionId: {
+      type: String,
+      index: true,
+      sparse: true
     }
   }],
 
@@ -205,7 +241,25 @@ const sponsorshipSchema = new mongoose.Schema({
     uploadedAt: Date,
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      ref: 'User',
+      required: false // Made optional for deleted users
+    },
+    // Denormalized user info for deleted users
+    userInfo: {
+      userId: mongoose.Schema.Types.ObjectId,
+      name: String,
+      username: String
+    },
+    // Indicates if the user is deleted
+    isUserDeleted: {
+      type: Boolean,
+      default: false
+    },
+    // Tracks which deletion instance this anonymized data belongs to
+    deletionId: {
+      type: String,
+      index: true,
+      sparse: true
     }
   }],
 

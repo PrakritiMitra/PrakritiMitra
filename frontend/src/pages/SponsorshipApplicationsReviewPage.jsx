@@ -5,6 +5,7 @@ import { getReceiptsBySponsorship } from '../api/receipt';
 import Navbar from '../components/layout/Navbar';
 import FailedVerificationsManager from '../components/payment/FailedVerificationsManager';
 import ManualVerificationForm from '../components/payment/ManualVerificationForm';
+import { formatDate, formatDateTime } from '../utils/dateUtils';
 
 export default function SponsorshipApplicationsReviewPage() {
   const { organizationId } = useParams();
@@ -39,21 +40,16 @@ export default function SponsorshipApplicationsReviewPage() {
 
   const fetchData = async () => {
     try {
-      console.log('Fetching data for organization:', organizationId);
       setLoading(true);
       
       const [orgRes, applicationsRes] = await Promise.all([
         getOrganizationById(organizationId),
         sponsorshipIntentAPI.getOrganizationIntents(organizationId)
       ]);
-      
-      console.log('Organization response:', orgRes);
-      console.log('Applications response:', applicationsRes);
-      
+
       setOrganization(orgRes.data);
       setApplications(applicationsRes?.intents || []);
       
-      console.log('Data updated successfully. Applications count:', applicationsRes?.intents?.length || 0);
     } catch (error) {
       console.error('Error fetching data:', error);
       
@@ -97,14 +93,12 @@ export default function SponsorshipApplicationsReviewPage() {
   const submitReview = async () => {
     setIsSubmitting(true);
     try {
-      console.log('Submitting review for application:', selectedApplication._id, 'with data:', reviewData);
       
       const response = await sponsorshipIntentAPI.reviewIntent(
         selectedApplication._id,
         reviewData
       );
 
-      console.log('Review submission response:', response);
 
       // Check if the response indicates success (backend returns message and intent)
       if (response.message && response.intent) {
@@ -139,9 +133,7 @@ export default function SponsorshipApplicationsReviewPage() {
         
         // Wait a moment for the modal to close, then refresh data
         setTimeout(async () => {
-          console.log('Refreshing data after successful review...');
           await fetchData();
-          console.log('Data refresh completed');
         }, 100);
       } else {
         throw new Error('Review submission failed: ' + (response.message || 'Unknown error'));
@@ -168,7 +160,7 @@ export default function SponsorshipApplicationsReviewPage() {
       const manualConversionData = {
         ...pendingConversion,
         manualConversion: true,
-        manualConversionNotes: `Manual conversion by admin - Payment received outside the system (${new Date().toLocaleString()})`
+                        manualConversionNotes: `Manual conversion by admin - Payment received outside the system (${formatDateTime(new Date())})`
       };
       setReviewData(manualConversionData);
       setPendingConversion(null);
@@ -475,7 +467,7 @@ export default function SponsorshipApplicationsReviewPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(application.createdAt).toLocaleDateString()}
+                          {formatDate(application.createdAt)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
@@ -917,7 +909,7 @@ export default function SponsorshipApplicationsReviewPage() {
                           </div>
                           {suggestion.implemented && suggestion.implementedAt && (
                             <p className="text-xs text-gray-600 mt-1">
-                              Implemented on {new Date(suggestion.implementedAt).toLocaleDateString()}
+                              Implemented on {formatDate(suggestion.implementedAt)}
                             </p>
                           )}
                         </div>
@@ -955,7 +947,7 @@ export default function SponsorshipApplicationsReviewPage() {
                                 {change.changeType.replace('_', ' ').toUpperCase()}
                               </p>
                               <p className="text-xs text-gray-600">
-                                {new Date(change.timestamp).toLocaleString()}
+                                {formatDateTime(change.timestamp)}
                               </p>
                               {change.notes && (
                                 <p className="text-sm text-gray-700 mt-1">{change.notes}</p>
