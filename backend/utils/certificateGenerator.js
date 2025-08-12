@@ -48,12 +48,16 @@ async function generateCertificate({
   }
   let html = fs.readFileSync(templatePath, 'utf-8');
 
-  // 4. Replace placeholders
+  // 4. Prepare derived placeholders
+  const eventLocationAt = eventLocation ? ` at ${eventLocation}` : '';
+
+  // 5. Replace placeholders
   html = html
     .replace(/{{participantName}}/g, participantName)
     .replace(/{{eventName}}/g, eventName)
     .replace(/{{eventDate}}/g, eventDate)
     .replace(/{{eventLocation}}/g, eventLocation)
+    .replace(/{{eventLocationAt}}/g, eventLocationAt)
     .replace(/{{awardTitle}}/g, awardTitle)
     .replace(/{{organizationLogo}}/g, organizationLogo)
     .replace(/{{signatureImage}}/g, signatureImage)
@@ -61,7 +65,7 @@ async function generateCertificate({
     .replace(/{{qrCode}}/g, qrCode)
     .replace(/{{issueDate}}/g, issueDate);
 
-  // 5. Render HTML to PDF using Puppeteer
+  // 6. Render HTML to PDF using Puppeteer
   const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0' });

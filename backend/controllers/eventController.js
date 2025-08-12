@@ -470,6 +470,9 @@ exports.updateEvent = async (req, res) => {
 
     await event.save();
 
+    // ✅ Send success response immediately
+    res.status(200).json({ message: 'Event updated successfully', event });
+
     // --- AI SUMMARY GENERATION (background) ---
     setImmediate(async () => {
       try {
@@ -986,8 +989,10 @@ exports.generateCertificate = async (req, res) => {
     const { filePath, certificateId } = await generateCertificate({
       participantName: user.name || user.email,
       eventName: event.title,
-              eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString('en-GB') : '',
-      eventLocation: event.location || '',
+
+      eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString() : '',
+      eventLocation: event.mapLocation?.address || event.location || '',
+
       awardTitle: award,
       templateName,
       organizationLogo: '/public/images/default-logo.png', // Update as needed

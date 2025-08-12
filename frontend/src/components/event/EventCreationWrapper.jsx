@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import EventStepOne from "./EventStepOne";
 import EventStepTwo from "./EventStepTwo";
 import EventPreview from "./EventPreview";
-import axios from "axios";
+import axiosInstance from "../../api/axiosInstance";
 
 export default function EventCreationWrapper({
   selectedOrgId,
@@ -94,6 +94,14 @@ export default function EventCreationWrapper({
   };
 
   const handleSubmit = async () => {
+    // Debug: ensure click reaches here
+    // Using console logs instead of alerts for unobtrusive debugging
+    console.log("[EventCreationWrapper] handleSubmit called", {
+      step,
+      hasTimeSlots: !!(formData.timeSlots && formData.timeSlots.length),
+      timeSlotsEnabled: formData.timeSlotsEnabled,
+      unlimitedVolunteers: formData.unlimitedVolunteers,
+    });
     // Validate volunteer allocation if time slots are enabled
     if (formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && !formData.unlimitedVolunteers) {
       const eventMax = parseInt(formData.maxVolunteers) || 0;
@@ -159,24 +167,19 @@ export default function EventCreationWrapper({
     try {
       const token = localStorage.getItem("token");
 
+      const isUpdating = Boolean(isEdit && eventId);
+      const url = isUpdating ? `/api/events/${eventId}` : "/api/events/create";
+      const method = isUpdating ? 'PUT' : 'POST';
+      console.log(`[EventCreationWrapper] About to ${method} ${url}`);
+
       let response;
-      if (isEdit && eventId) {
-        response = await axios.put(`/api/events/${eventId}`, data, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-          withCredentials: true,
-        });
+      if (isUpdating) {
+        response = await axiosInstance.put(url, data);
+        console.log(`[EventCreationWrapper] PUT ${url} ->`, response.status);
         alert("Event updated successfully!");
       } else {
-        response = await axios.post("/api/events/create", data, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-          withCredentials: true,
-        });
+        response = await axiosInstance.post(url, data);
+        console.log(`[EventCreationWrapper] POST ${url} ->`, response.status);
         alert("Event created successfully!");
       }
 
@@ -193,8 +196,12 @@ export default function EventCreationWrapper({
         navigate('/');
       }
     } catch (err) {
-      console.error(err);
-      alert("Failed to submit event.");
+      console.error("[EventCreationWrapper] Submit failed", err?.response || err);
+      if (err?.response) {
+        console.error("[EventCreationWrapper] Error status:", err.response.status);
+        console.error("[EventCreationWrapper] Error data:", err.response.data);
+      }
+      alert(err?.response?.data?.message || "Failed to submit event.");
     }
   };
 

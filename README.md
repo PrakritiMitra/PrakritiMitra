@@ -1,8 +1,8 @@
 # PrakritiMitra
 
 ## Developers
-- Sidhik
-- Amrut
+- Sidhik Udaysing Thorat
+- Amrut Avinash Pathane
 
 ## About
 PrakritiMitra is an environmental conservation platform that connects volunteers with organizations for environmental events and initiatives.

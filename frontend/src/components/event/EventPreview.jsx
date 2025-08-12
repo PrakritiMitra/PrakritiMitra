@@ -118,6 +118,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
                     ))}
                   </div>
                 }
+                secondaryTypographyProps={{ component: 'div' }}
               />
             </ListItem>
           </>
@@ -138,6 +139,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
                 : "None"
             }
             primaryTypographyProps={{ fontWeight: "bold" }}
+            secondaryTypographyProps={{ component: 'div' }}
           />
         </ListItem>
         <ListItem>
@@ -174,6 +176,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
               </Box>
             }
             primaryTypographyProps={{ fontWeight: "bold" }}
+            secondaryTypographyProps={{ component: 'div' }}
           />
         </ListItem>
         <ListItem>
@@ -202,7 +205,18 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
         <Button variant="outlined" color="primary" onClick={onBack}>
           Back
         </Button>
-        <Button variant="contained" color="success" onClick={onSubmit}>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => {
+            console.log("[EventPreview] Submit button clicked");
+            if (typeof onSubmit === 'function') {
+              onSubmit();
+            } else {
+              console.error('[EventPreview] onSubmit prop is not a function', { onSubmitType: typeof onSubmit });
+            }
+          }}
+        >
           Submit Event
         </Button>
       </Box>
