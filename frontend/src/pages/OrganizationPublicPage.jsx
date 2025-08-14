@@ -27,6 +27,24 @@ import {
 const orgFileUrl = (filename) =>
   filename ? `http://localhost:5000/uploads/organizationdetails/${filename.replace(/\\/g, '/')}` : null;
 
+// Get organization initials for default logo
+const getOrganizationInitials = (name) => {
+  if (!name || name.trim().length === 0) return '?';
+  
+  const trimmedName = name.trim();
+  if (trimmedName.length === 1) {
+    return trimmedName.toUpperCase();
+  }
+  
+  const words = trimmedName.split(/\s+/);
+  if (words.length === 1) {
+    return trimmedName.substring(0, 2).toUpperCase();
+  }
+  
+  const initials = words.slice(0, 2).map(word => word.charAt(0)).join('').toUpperCase();
+  return initials.length > 0 ? initials : '?';
+};
+
 function FilePreview({ filePath, label }) {
   if (!filePath) return null;
   const url = orgFileUrl(filePath);
@@ -167,11 +185,16 @@ export default function OrganizationPublicPage() {
         {/* Header Section */}
         <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-            {logo && (
-              <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-lg border-4 border-white/20">
+            <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-lg border-4 border-white/20">
+              {logo ? (
                 <img src={orgFileUrl(logo)} alt={name} className="w-full h-full object-cover" />
-              </div>
-            )}
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center text-white text-4xl font-bold relative">
+                  {getOrganizationInitials(name)}
+                  <BuildingOfficeIcon className="absolute bottom-2 right-2 w-6 h-6 text-white/80" />
+                </div>
+              )}
+            </div>
             <div className="flex-1">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-3">{name}</h1>
               <p className="text-lg text-slate-600 mb-4 leading-relaxed">{description}</p>

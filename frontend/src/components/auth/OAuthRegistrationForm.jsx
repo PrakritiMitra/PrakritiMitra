@@ -96,6 +96,8 @@ const OAuthRegistrationForm = ({ open, onClose, oauthData, role, onSubmit, onBac
     e.preventDefault();
     setError('');
 
+    console.log('📝 OAuth registration form submitted');
+
     // Validate required fields
     if (!formData.phone) {
       setError('Phone number is required');
@@ -113,6 +115,14 @@ const OAuthRegistrationForm = ({ open, onClose, oauthData, role, onSubmit, onBac
     }
 
     setLoading(true);
+    console.log('⏳ Setting loading to true in form');
+
+    // Add a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⚠️ Form loading timeout reached, resetting loading state');
+      setLoading(false);
+      setError('Request timed out. Please try again.');
+    }, 30000); // 30 seconds timeout
 
     try {
       const userData = {
@@ -122,14 +132,27 @@ const OAuthRegistrationForm = ({ open, onClose, oauthData, role, onSubmit, onBac
         username: formData.username.toLowerCase(),
       };
 
-      // Call onSubmit and keep loading state active
-      // The loading state will be managed by the parent component
-      onSubmit(userData);
-      // Note: Don't set loading to false here - let the parent component handle it
-      // after successful login and navigation
+      console.log('📤 Calling onSubmit with userData:', userData);
+
+      // Call onSubmit - the parent component will handle the API call and loading state
+      await onSubmit(userData);
+      
+      // Clear the timeout since we got a response
+      clearTimeout(loadingTimeout);
+      
+      console.log('✅ onSubmit completed successfully');
+      
+      // If we reach here, registration was successful
+      // The parent component will handle closing the modal and navigation
+      
     } catch (error) {
+      console.error('❌ Error in form submission:', error);
+      
+      // Clear the timeout since we got an error
+      clearTimeout(loadingTimeout);
+      
       setError(error.message || 'Registration failed');
-      setLoading(false); // Only reset loading on error
+      setLoading(false); // Reset loading on error
     }
   };
 

@@ -286,20 +286,69 @@ export default function LoginForm() {
     setLoading(true);
     clearMessages();
     
+    // Add a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('⚠️ Loading timeout reached, resetting loading state');
+      setLoading(false);
+      setError('Request timed out. Please check your internet connection and try again.');
+    }, 30000); // 30 seconds timeout
+    
     try {
+      console.log('🚀 Starting OAuth registration with data:', userData);
       const response = await completeOAuthRegistration(userData);
+      console.log('✅ OAuth registration response:', response);
       
-      // Show success message
-      toast.success('🎉 OAuth registration completed! Please login to continue.');
+      // Clear the timeout since we got a response
+      clearTimeout(loadingTimeout);
       
-      // Redirect to login page instead of auto-login
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
+      if (response.success) {
+        // Store user data and tokens in localStorage
+        localStorage.setItem('accessToken', response.token);
+        localStorage.setItem('refreshToken', response.refreshToken);
+        localStorage.setItem('user', JSON.stringify(response.user));
+
+        console.log('💾 Stored user data in localStorage');
+
+        // Show success message
+        toast.success('🎉 Account created successfully! Welcome to PrakritiMitra.');
+
+        // Close the registration modal
+        setShowRegistrationForm(false);
+        setOauthData(null);
+
+        console.log('🔒 Closed registration modal');
+
+        // Dispatch custom event to notify other components about user data update
+        window.dispatchEvent(new CustomEvent('userDataUpdated', {
+          detail: { user: response.user }
+        }));
+
+        // Navigate to appropriate dashboard based on role
+        setTimeout(() => {
+          console.log('🧭 Navigating to dashboard for role:', response.user.role);
+          if (response.user.role === 'organizer') {
+            navigate('/organizer/dashboard');
+          } else {
+            navigate('/volunteer/dashboard');
+          }
+        }, 1500);
+      } else {
+        console.error('❌ Registration response indicates failure:', response);
+        setError('Registration failed. Please try again.');
+      }
 
     } catch (error) {
-      // Check if it's a recently deleted account error
-      if (error.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
+      console.error('❌ OAuth registration error:', error);
+      
+      // Clear the timeout since we got an error
+      clearTimeout(loadingTimeout);
+      
+      // Handle different types of errors
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        setError('Request timed out. Please check your internet connection and try again.');
+      } else if (error.code === 'ERR_NETWORK') {
+        setError('Network error. Please check your internet connection and try again.');
+      } else if (error.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
         setError(
           <div>
             <p className="text-red-600 mb-2">{error.response.data.message}</p>
@@ -319,10 +368,13 @@ export default function LoginForm() {
             </div>
           </div>
         );
+      } else if (error.response?.data?.message) {
+        setError(error.response.data.message);
       } else {
-        setError(error.message || 'Registration failed');
+        setError(error.message || 'Registration failed. Please try again.');
       }
     } finally {
+      console.log('🏁 Setting loading to false');
       setLoading(false);
     }
   };

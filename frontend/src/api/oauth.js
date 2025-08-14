@@ -15,7 +15,9 @@ export const googleOAuthCallback = async (token) => {
 // Complete OAuth registration
 export const completeOAuthRegistration = async (userData) => {
   try {
-    const response = await axiosInstance.post(`${OAUTH_API}/complete-registration`, userData);
+    const response = await axiosInstance.post(`${OAUTH_API}/complete-registration`, userData, {
+      timeout: 25000 // 25 second timeout
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Registration failed' };

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
+import OrganizationCard from "../components/common/OrganizationCard";
 import { 
   PlusIcon, 
   BuildingOfficeIcon,
@@ -43,6 +44,10 @@ export default function YourOrganizations() {
 
   const handleCreateOrganization = () => {
     navigate("/register-organization");
+  };
+
+  const handleOrganizationClick = (organization) => {
+    navigate(`/organization/${organization._id}`);
   };
 
   if (loading) {
@@ -149,56 +154,16 @@ export default function YourOrganizations() {
               {orgs.map((org, index) => (
                 <div
                   key={org._id}
-                  className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                  className={`transform hover:-translate-y-1 transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                   style={{ animationDelay: `${index * 100}ms` }}
-                  onClick={() => navigate(`/organization/${org._id}`)}
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-lg">
-                          <BuildingOfficeIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <h2 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors duration-200">
-                            {org.name}
-                          </h2>
-                          {org.verifiedStatus && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <ShieldCheckIcon className="w-3 h-3 text-emerald-600" />
-                              <span className="text-xs text-emerald-600 font-medium">
-                                {org.verifiedStatus}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <ArrowRightIcon className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-200" />
-                    </div>
-                    
-                    <p className="text-slate-600 text-sm mb-4 line-clamp-2">
-                      {org.description}
-                    </p>
-
-                    {org.website && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                        <GlobeAltIcon className="w-3 h-3" />
-                        <span className="truncate">{org.website}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">
-                        Click to view dashboard
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <UsersIcon className="w-4 h-4 text-slate-400" />
-                        <span className="text-xs text-slate-500">
-                          {org.memberCount || 0} members
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <OrganizationCard
+                    organization={org}
+                    onClick={() => handleOrganizationClick(org)}
+                    variant="default"
+                    showStats={true}
+                    autoSize={true}
+                  />
                 </div>
               ))}
             </div>
