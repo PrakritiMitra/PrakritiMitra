@@ -328,29 +328,16 @@ export default function Navbar() {
                                           <span className="font-bold text-lg">{getAvatarInitial(user)}</span>
                                         </div>
                                       )}
-<<<<<<< Amrut1
                                       <div className="flex flex-col flex-1">
-                                        <span className="font-medium text-base text-green-800">{displayText}</span>
+                                        <span className="font-semibold text-base text-slate-800 group-hover:text-emerald-700 transition-colors">{displayText}</span>
                                         {user.username && user.name && (
-                                          <span className="text-sm text-gray-600">{getSafeUserName(user)}</span>
+                                          <span className="text-sm text-slate-600">{user.name}</span>
                                         )}
-                                        <span className="text-xs text-gray-500 capitalize">volunteer</span>
+                                        <span className="text-xs text-slate-500 capitalize">volunteer</span>
                                       </div>
-                                      <div className="px-2 py-1 rounded text-xs font-bold text-white bg-green-500">
+                                      <div className="px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-sm">
                                         Volunteer
                                       </div>
-=======
-                                                                              <div className="flex flex-col flex-1">
-                                          <span className="font-semibold text-base text-slate-800 group-hover:text-emerald-700 transition-colors">{displayText}</span>
-                                          {user.username && user.name && (
-                                            <span className="text-sm text-slate-600">{user.name}</span>
-                                          )}
-                                          <span className="text-xs text-slate-500 capitalize">volunteer</span>
-                                        </div>
-                                        <div className="px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-sm">
-                                          Volunteer
-                                        </div>
->>>>>>> main
                                     </div>
                                   );
                                 })
@@ -404,16 +391,16 @@ export default function Navbar() {
                                           <span className="font-bold text-lg">{getAvatarInitial(user)}</span>
                                         </div>
                                       )}
-                                                                              <div className="flex flex-col flex-1">
-                                          <span className="font-semibold text-base text-slate-800 group-hover:text-blue-700 transition-colors">{displayText}</span>
-                                          {user.username && user.name && (
-                                            <span className="text-sm text-slate-600">{user.name}</span>
-                                          )}
-                                          <span className="text-xs text-slate-500 capitalize">organizer</span>
-                                        </div>
-                                        <div className="px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 shadow-sm">
-                                          Organizer
-                                        </div>
+                                      <div className="flex flex-col flex-1">
+                                        <span className="font-semibold text-base text-slate-800 group-hover:text-blue-700 transition-colors">{displayText}</span>
+                                        {user.username && user.name && (
+                                          <span className="text-sm text-slate-600">{user.name}</span>
+                                        )}
+                                        <span className="text-xs text-slate-500 capitalize">organizer</span>
+                                      </div>
+                                      <div className="px-3 py-1.5 rounded-full text-xs font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 shadow-sm">
+                                        Organizer
+                                      </div>
                                     </div>
                                   );
                                 })
