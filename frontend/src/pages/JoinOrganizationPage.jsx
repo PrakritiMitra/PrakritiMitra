@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import { useNavigate } from "react-router-dom";
+import OrganizationCard from "../components/common/OrganizationCard";
 import { 
   BuildingOfficeIcon,
   ClockIcon,
@@ -149,6 +150,10 @@ export default function JoinOrganizationPage() {
     }
   };
 
+  const handleOrganizationClick = (organization) => {
+    navigate(`/organizations/${organization._id}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
@@ -240,84 +245,67 @@ export default function JoinOrganizationPage() {
               {organizations.map((org, index) => (
                 <div
                   key={org._id}
-                  className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                  className={`transform hover:-translate-y-1 transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                   style={{ animationDelay: `${index * 100}ms` }}
-                  onClick={() => navigate(`/organizations/${org._id}`)}
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-lg">
-                          <BuildingOfficeIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors duration-200">
-                            {org.name}
-                          </h3>
-                          {org.verifiedStatus && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <ShieldCheckIcon className="w-3 h-3 text-emerald-600" />
-                              <span className="text-xs text-emerald-600 font-medium">
-                                {org.verifiedStatus}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <ArrowRightIcon className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-200" />
-                    </div>
-                    
-                    <p className="text-slate-600 text-sm mb-4 line-clamp-2">
-                      {org.description}
-                    </p>
-
-                    {org.website && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                        <GlobeAltIcon className="w-3 h-3" />
-                        <span className="truncate">{org.website}</span>
-                      </div>
-                    )}
-
-                    <div className="space-y-3">
-                      {org.status === "pending" ? (
-                        <div className="flex items-center justify-between">
-                          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor('pending')}`}>
-                            {getStatusIcon('pending')}
-                            Approval Pending
-                          </span>
+                  {/* Organization Card */}
+                  <OrganizationCard
+                    organization={org}
+                    onClick={() => handleOrganizationClick(org)}
+                    variant="default"
+                    showStats={true}
+                    autoSize={false}
+                    actionButtons={
+                      <div className="space-y-3">
+                        {org.status === "pending" ? (
+                          <div className="flex items-center justify-between">
+                            <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('pending')}`}>
+                              {getStatusIcon('pending')}
+                              Approval Pending
+                            </span>
+                            <button
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleWithdrawRequest(org._id);
+                              }}
+                            >
+                              <XCircleIcon className="w-4 h-4" />
+                              Withdraw
+                            </button>
+                          </div>
+                        ) : org.status === "rejected" ? (
+                          <div className="flex items-center justify-between">
+                            <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('rejected')}`}>
+                              {getStatusIcon('rejected')}
+                              Request Rejected
+                            </span>
+                            <button
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleJoinRequest(org._id);
+                              }}
+                            >
+                              <CheckCircleIcon className="w-4 h-4" />
+                              Reapply
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                            onClick={(e) => { e.stopPropagation(); handleWithdrawRequest(org._id); }}
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleJoinRequest(org._id);
+                            }}
                           >
-                            <XCircleIcon className="w-3 h-3" />
-                            Withdraw
+                            <UsersIcon className="w-4 h-4" />
+                            Request to Join
                           </button>
-                        </div>
-                      ) : org.status === "rejected" ? (
-                        <div className="flex items-center justify-between">
-                          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor('rejected')}`}>
-                            {getStatusIcon('rejected')}
-                            Request Rejected
-                          </span>
-                          <button
-                            className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                            onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
-                          >
-                            <CheckCircleIcon className="w-3 h-3" />
-                            Reapply
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
-                          onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
-                        >
-                          <UsersIcon className="w-4 h-4" />
-                          Request to Join
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                        )}
+                      </div>
+                    }
+                  />
                 </div>
               ))}
             </div>

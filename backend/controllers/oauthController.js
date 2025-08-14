@@ -327,6 +327,8 @@ exports.googleCallback = async (req, res) => {
 // Complete OAuth registration
 exports.completeOAuthRegistration = async (req, res) => {
   try {
+    console.log('🚀 [COMPLETE_OAUTH_REGISTRATION] Starting registration with data:', req.body);
+    
     const {
       oauthId,
       name,
@@ -339,11 +341,26 @@ exports.completeOAuthRegistration = async (req, res) => {
       organization
     } = req.body;
 
+    console.log('📋 [COMPLETE_OAUTH_REGISTRATION] Parsed data:', {
+      oauthId: !!oauthId,
+      name: !!name,
+      email: !!email,
+      role: !!role,
+      phone: !!phone,
+      username: !!username
+    });
+
     // Validate required fields
     if (!oauthId || !name || !email || !role || !phone) {
-      return res.status(400).json({ message: 'Missing required fields' });
+      console.log('❌ [COMPLETE_OAUTH_REGISTRATION] Missing required fields');
+      return res.status(400).json({ 
+        success: false,
+        message: 'Missing required fields' 
+      });
     }
 
+    console.log('✅ [COMPLETE_OAUTH_REGISTRATION] Validation passed');
+    
     // Check if email already exists in active accounts
     let existingUser = await User.findOne({ 
       email,
@@ -354,8 +371,14 @@ exports.completeOAuthRegistration = async (req, res) => {
     });
     
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already exists' });
+      console.log('❌ [COMPLETE_OAUTH_REGISTRATION] Email already exists:', email);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email already exists' 
+      });
     }
+    
+    console.log('✅ [COMPLETE_OAUTH_REGISTRATION] Email check passed');
     
     // Check if there's a soft-deleted account with this email
     // Check both email and originalEmail fields since deleted accounts store original email in originalEmail
@@ -426,6 +449,8 @@ exports.completeOAuthRegistration = async (req, res) => {
           existingUser.username = username.toLowerCase();
         }
         
+        console.log('🔄 [COMPLETE_OAUTH_REGISTRATION] Restoring existing user account');
+        
         // Generate tokens for automatic login
         const tokens = generateToken(existingUser._id, 'oauth-restore', req.ip || req.connection.remoteAddress);
         
@@ -439,6 +464,8 @@ exports.completeOAuthRegistration = async (req, res) => {
         });
         
         await existingUser.save();
+        
+        console.log('✅ [COMPLETE_OAUTH_REGISTRATION] Account restored successfully');
         
         return res.status(200).json({
           success: true,
@@ -458,18 +485,30 @@ exports.completeOAuthRegistration = async (req, res) => {
       }
     }
 
+    console.log('✅ [COMPLETE_OAUTH_REGISTRATION] No existing accounts found, proceeding with new account creation');
+    
     // Generate username if not provided
     let finalUsername = username;
     if (!finalUsername) {
+      console.log('🔤 [COMPLETE_OAUTH_REGISTRATION] Generating username from name:', name);
       finalUsername = await generateUniqueUsername(name);
+      console.log('🔤 [COMPLETE_OAUTH_REGISTRATION] Generated username:', finalUsername);
     } else {
       // Check username availability
+      console.log('🔍 [COMPLETE_OAUTH_REGISTRATION] Checking username availability:', finalUsername);
       const usernameAvailable = await checkUsernameAvailability(finalUsername);
       if (!usernameAvailable) {
-        return res.status(400).json({ message: 'Username already exists' });
+        console.log('❌ [COMPLETE_OAUTH_REGISTRATION] Username not available:', finalUsername);
+        return res.status(400).json({ 
+          success: false,
+          message: 'Username already exists' 
+        });
       }
+      console.log('✅ [COMPLETE_OAUTH_REGISTRATION] Username available:', finalUsername);
     }
 
+    console.log('🏗️ [COMPLETE_OAUTH_REGISTRATION] Creating user data object');
+    
     // Create user data
     const userData = {
       name,
@@ -487,10 +526,21 @@ exports.completeOAuthRegistration = async (req, res) => {
     if (interests && Array.isArray(interests)) userData.interests = interests;
     if (organization) userData.organization = organization;
 
+    console.log('👤 [COMPLETE_OAUTH_REGISTRATION] User data prepared:', {
+      name: userData.name,
+      username: userData.username,
+      email: userData.email,
+      role: userData.role,
+      hasOAuth: !!userData.oauthProvider
+    });
+
     // Create user
+    console.log('💾 [COMPLETE_OAUTH_REGISTRATION] Creating user in database');
     const user = await User.create(userData);
+    console.log('✅ [COMPLETE_OAUTH_REGISTRATION] User created successfully:', user._id);
 
     // Generate tokens for automatic login
+    console.log('🔑 [COMPLETE_OAUTH_REGISTRATION] Generating authentication tokens');
     const tokens = generateToken(user._id, 'oauth-signup', req.ip || req.connection.remoteAddress);
     
     // Add session to user
@@ -502,7 +552,10 @@ exports.completeOAuthRegistration = async (req, res) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
     });
     
+    console.log('💾 [COMPLETE_OAUTH_REGISTRATION] Saving user with session data');
     await user.save();
+
+    console.log('🎉 [COMPLETE_OAUTH_REGISTRATION] Registration completed successfully, sending response');
 
     res.status(201).json({
       success: true,
@@ -521,7 +574,11 @@ exports.completeOAuthRegistration = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Registration failed' });
+    console.error('❌ [COMPLETE_OAUTH_REGISTRATION] Error occurred:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Registration failed: ' + error.message 
+    });
   }
 };
 

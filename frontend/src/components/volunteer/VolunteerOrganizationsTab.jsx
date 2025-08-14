@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
+import OrganizationCard from "../common/OrganizationCard";
 
 const VolunteerOrganizationsTab = () => {
   const [organizations, setOrganizations] = useState([]);
@@ -33,15 +34,23 @@ const VolunteerOrganizationsTab = () => {
       const description = org.description?.toLowerCase() || '';
       const city = org.city?.toLowerCase() || '';
       const state = org.state?.toLowerCase() || '';
+      const focusArea = org.focusArea?.toLowerCase() || '';
+      const focusAreaOther = org.focusAreaOther?.toLowerCase() || '';
       
       return name.includes(searchLower) ||
              description.includes(searchLower) ||
              city.includes(searchLower) ||
-             state.includes(searchLower);
+             state.includes(searchLower) ||
+             focusArea.includes(searchLower) ||
+             focusAreaOther.includes(searchLower);
     });
   };
 
   const filteredOrganizations = filterOrganizations(organizations);
+
+  const handleOrganizationClick = (organization) => {
+    navigate(`/organizations/${organization._id}`);
+  };
 
   if (loading) return <p>Loading organizations...</p>;
 
@@ -52,7 +61,7 @@ const VolunteerOrganizationsTab = () => {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search organizations by name, description, city, or state..."
+            placeholder="Search organizations by name, description, city, state, or focus area..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -68,23 +77,16 @@ const VolunteerOrganizationsTab = () => {
       <h2 className="text-xl font-semibold mb-4">All Organizations</h2>
 
       {filteredOrganizations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredOrganizations.map((org) => (
-            <div
-              key={org._id}
-              onClick={() => navigate(`/organizations/${org._id}`)}
-              className="bg-white border rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer"
-            >
-              <h3 className="text-lg font-bold text-blue-800 mb-1">{org.name}</h3>
-              <p className="text-sm text-gray-700 mb-2 line-clamp-3">
-                {org.description || "No description provided."}
-              </p>
-              {/* Optional: show number of events if populated */}
-              {org.events?.length > 0 && (
-                <p className="text-xs text-gray-500">
-                  {org.events.length} upcoming event{org.events.length > 1 ? "s" : ""}
-                </p>
-              )}
+            <div key={org._id} className="transform hover:-translate-y-1 transition-all duration-300">
+              <OrganizationCard
+                organization={org}
+                onClick={() => handleOrganizationClick(org)}
+                variant="default"
+                showStats={true}
+                autoSize={true}
+              />
             </div>
           ))}
         </div>

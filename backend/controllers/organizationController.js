@@ -159,12 +159,71 @@ exports.approveTeamMember = async (req, res) => {
 // Get all organizations NOT already joined by current user
 exports.getAllOrganizations = async (req, res) => {
   try {
-
     const userId = req.user?._id;
     if (userId) {
+      // User is logged in, we could filter out organizations they're already part of
+      // For now, we'll return all organizations with enhanced data
     }
 
-    const orgs = await Organization.find({}, "name description logoUrl");
+    // Get organizations with comprehensive data for cards
+    const orgs = await Organization.aggregate([
+      {
+        $lookup: {
+          from: 'events',
+          localField: '_id',
+          foreignField: 'organization',
+          as: 'events'
+        }
+      },
+      {
+        $addFields: {
+          memberCount: { $size: '$team' },
+          totalEvents: { $size: '$events' },
+          upcomingEvents: {
+            $size: {
+              $filter: {
+                input: '$events',
+                cond: { $gte: ['$$this.startDateTime', new Date()] }
+              }
+            }
+          },
+          pastEvents: {
+            $size: {
+              $filter: {
+                input: '$events',
+                cond: { $lt: ['$$this.startDateTime', new Date()] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          logo: 1,
+          logoUrl: 1,
+          website: 1,
+          city: 1,
+          state: 1,
+          headOfficeLocation: 1,
+          yearOfEstablishment: 1,
+          focusArea: 1,
+          focusAreaOther: 1,
+          verifiedStatus: 1,
+          team: 1,
+          events: 1,
+          memberCount: 1,
+          totalEvents: 1,
+          upcomingEvents: 1,
+          pastEvents: 1,
+          volunteerImpact: 1,
+          sponsorshipImpact: 1,
+          createdAt: 1
+        }
+      }
+    ]);
 
     res.json(orgs);
   } catch (err) {
@@ -213,20 +272,79 @@ exports.getOrganizationTeam = async (req, res) => {
 // Get all approved organizations
 exports.getApprovedOrganizations = async (req, res) => {
   try {
-
-    const orgs = await Organization.find({
-      $or: [
-        { createdBy: req.user._id },
-        {
-          team: {
-            $elemMatch: {
-              userId: req.user._id,
-              status: 'approved'
+    const orgs = await Organization.aggregate([
+      {
+        $match: {
+          $or: [
+            { createdBy: req.user._id },
+            {
+              team: {
+                $elemMatch: {
+                  userId: req.user._id,
+                  status: 'approved'
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        $lookup: {
+          from: 'events',
+          localField: '_id',
+          foreignField: 'organization',
+          as: 'events'
+        }
+      },
+      {
+        $addFields: {
+          memberCount: { $size: '$team' },
+          totalEvents: { $size: '$events' },
+          upcomingEvents: {
+            $size: {
+              $filter: {
+                input: '$events',
+                cond: { $gte: ['$$this.startDateTime', new Date()] }
+              }
+            }
+          },
+          pastEvents: {
+            $size: {
+              $filter: {
+                input: '$events',
+                cond: { $lt: ['$$this.startDateTime', new Date()] }
+              }
             }
           }
         }
-      ]
-    }).select('name _id description');
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          logo: 1,
+          logoUrl: 1,
+          website: 1,
+          city: 1,
+          state: 1,
+          headOfficeLocation: 1,
+          yearOfEstablishment: 1,
+          focusArea: 1,
+          focusAreaOther: 1,
+          verifiedStatus: 1,
+          team: 1,
+          events: 1,
+          memberCount: 1,
+          totalEvents: 1,
+          upcomingEvents: 1,
+          pastEvents: 1,
+          volunteerImpact: 1,
+          sponsorshipImpact: 1,
+          createdAt: 1
+        }
+      }
+    ]);
 
     res.json(orgs);
   } catch (err) {
