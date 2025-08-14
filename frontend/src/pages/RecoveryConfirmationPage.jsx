@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { verifyRecoveryToken } from '../api/auth';
@@ -12,11 +12,36 @@ const RecoveryConfirmationPage = () => {
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState(null);
   const [error, setError] = useState('');
-  const [newPassword, setNewPassword] = useState('');
+  const [recoveryData, setRecoveryData] = useState(null);
 
   const token = searchParams.get('token');
 
+  console.log('Token from URL params:', token);
+  console.log('Search params:', Object.fromEntries(searchParams.entries()));
+
+  // Auto-retry mechanism for recovery in progress
   useEffect(() => {
+    if (recoveryStatus === 'loading' && token) {
+      // If recovery is in loading state, wait a bit and then retry
+      const retryTimer = setTimeout(() => {
+        console.log('🔄 [FRONTEND] Auto-retrying recovery for token:', token.substring(0, 8));
+        // Use a function reference to avoid circular dependency
+        const attemptRecovery = async () => {
+          if (token && !sessionStorage.getItem(`recovery_${token}`)) {
+            await handleRecovery();
+          }
+        };
+        attemptRecovery();
+      }, 2000); // Wait 2 seconds before retrying
+      
+      return () => clearTimeout(retryTimer);
+    }
+  }, [recoveryStatus, token]); // Remove handleRecovery from dependencies
+
+  // Main recovery effect - runs only once when component mounts
+  useEffect(() => {
+    console.log('🔄 [FRONTEND] useEffect triggered with token:', token ? 'present' : 'missing');
+    
     if (!token) {
       setError('No recovery token provided');
       setIsLoading(false);
@@ -24,50 +49,115 @@ const RecoveryConfirmationPage = () => {
     }
 
     // Auto-recover the account when the page loads
-    handleRecovery();
-  }, [token]);
+    console.log('🔄 [FRONTEND] Calling handleRecovery from useEffect');
+    
+    // Only call handleRecovery if not already processed
+    if (token && !sessionStorage.getItem(`recovery_${token}`)) {
+      // Use a function reference to avoid circular dependency
+      const attemptRecovery = async () => {
+        await handleRecovery();
+      };
+      attemptRecovery();
+    }
+    
+    // Cleanup function to clear session storage when component unmounts
+    return () => {
+      if (token) {
+        const recoveryKey = `recovery_${token}`;
+        sessionStorage.removeItem(recoveryKey);
+        console.log('🧹 [FRONTEND] Cleaned up session storage for token');
+      }
+    };
+  }, [token]); // Remove handleRecovery from dependencies
 
-  const handleRecovery = async () => {
+  const handleRecovery = useCallback(async () => {
     if (!token) return;
 
+    // Prevent multiple recovery attempts
+    if (isRecovering) {
+      console.log('🔄 Recovery already in progress, skipping duplicate call');
+      return;
+    }
+
+    // Add additional protection against multiple calls
+    const recoveryKey = `recovery_${token}`;
+    if (sessionStorage.getItem(recoveryKey)) {
+      console.log('🔄 Recovery already attempted for this token, skipping duplicate call');
+      return;
+    }
+
+    // Mark this token as being processed
+    sessionStorage.setItem(recoveryKey, 'processing');
     setIsRecovering(true);
+    setRecoveryStatus('loading'); // Set loading state immediately
+    setError(''); // Clear any previous errors
+    
+    console.log('🚀 [FRONTEND] Attempting recovery with token:', token);
+    console.log('🚀 [FRONTEND] Token length:', token?.length);
+    console.log('🚀 [FRONTEND] Recovery attempt timestamp:', new Date().toISOString());
     
     try {
       const data = await verifyRecoveryToken({ token });
       
+      console.log('✅ [FRONTEND] Recovery response data:', data);
+      
+      // Mark recovery as completed
+      sessionStorage.setItem(recoveryKey, 'completed');
+      
+      // Clear any previous errors
+      setError('');
+      
       setRecoveryStatus('success');
+      setRecoveryData(data);
       
-      // Store the new password if provided
-      if (data.newPassword) {
-        setNewPassword(data.newPassword);
-        toast.success('Account recovered successfully! Check below for your new password.');
+      // Show success message based on account type
+      if (data.accountType === 'OAuth') {
+        toast.success('OAuth account recovered successfully! Check your email for login instructions.');
       } else {
-        toast.success('Account recovered successfully! You can now log in.');
-      }
-      
-      // Store the recovered user data and token
-      if (data.token && data.user) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new CustomEvent('userDataUpdated', {
-          detail: { user: data.user }
-        }));
+        toast.success('Account recovered successfully! Check your email for the new password.');
       }
     } catch (error) {
-      setRecoveryStatus('error');
-      setError(error.response?.data?.message || 'Recovery failed');
-      toast.error(error.response?.data?.message || 'Recovery failed');
+      console.error('Recovery error details:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        validationErrors: error.response?.data?.errors
+      });
+      
+      // Clear session storage on error
+      const recoveryKey = `recovery_${token}`;
+      sessionStorage.removeItem(recoveryKey);
+      
+      // Handle specific error cases
+      if (error.response?.data?.error === 'RECOVERY_IN_PROGRESS') {
+        // This is not a real failure - recovery is in progress
+        setError('Account recovery is already in progress. Please wait while we complete the process...');
+        setRecoveryStatus('loading'); // Keep showing loading state
+        toast.info('Recovery in progress. Please wait...');
+        
+        // Don't clear session storage - let the recovery continue
+        // Don't set error status - keep it as loading
+        return; // Exit early, don't show error state
+      } else {
+        // This is a real error
+        const recoveryKey = `recovery_${token}`;
+        sessionStorage.removeItem(recoveryKey);
+        
+        setError(error.response?.data?.message || 'Recovery failed');
+        toast.error(error.response?.data?.message || 'Recovery failed');
+        setRecoveryStatus('error');
+      }
     } finally {
       setIsLoading(false);
       setIsRecovering(false);
     }
-  };
+  }, [token]);
 
   const handleRetry = () => {
     setRecoveryStatus(null);
     setError('');
+    setRecoveryData(null);
     setIsLoading(true);
     handleRecovery();
   };
@@ -83,7 +173,6 @@ const RecoveryConfirmationPage = () => {
             <p className="text-gray-600">Please wait while we restore your account...</p>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -102,45 +191,129 @@ const RecoveryConfirmationPage = () => {
             
             <h2 className="text-2xl font-bold text-green-900 mb-4">Account Recovered!</h2>
             <p className="text-gray-600 mb-6">
-              Your account has been successfully restored. You can now log in and access all your data.
+              {recoveryData?.accountType === 'OAuth' 
+                ? 'Your OAuth account has been successfully restored. You can now login using your OAuth provider.'
+                : 'Your account has been successfully restored. A new password has been sent to your email address.'
+              }
             </p>
             
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <p className="text-sm text-green-800">
                 <strong>Welcome back!</strong> All your events, messages, and data have been preserved.
               </p>
+              {recoveryData ? (
+                <p className="text-xs text-green-600 mt-2">
+                  <strong>Note:</strong> {recoveryData.accountType === 'OAuth' 
+                    ? 'OAuth accounts may have minimal profile information. You can complete your profile after logging in.'
+                    : 'Password-based accounts require complete profile information for security.'
+                  }
+                </p>
+              ) : (
+                <p className="text-xs text-green-600 mt-2">
+                  <strong>Note:</strong> Loading account information...
+                </p>
+              )}
             </div>
             
-            {newPassword && (
+            {recoveryData?.passwordNote ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <h3 className="text-sm font-semibold text-blue-800 mb-2">🔑 Your New Password</h3>
-                <div className="bg-white border border-blue-300 rounded p-3 mb-2">
-                  <code className="text-lg font-mono text-blue-900 select-all">{newPassword}</code>
-                </div>
-                <p className="text-xs text-blue-700">
-                  <strong>Important:</strong> Use this password to login, then change it immediately for security.
+                <h3 className="text-sm font-semibold text-blue-800 mb-2">📧 Check Your Email</h3>
+                <p className="text-sm text-blue-700 mb-2">
+                  <strong>Important:</strong> A new password has been sent to your email address.
+                </p>
+                <p className="text-xs text-blue-600">
+                  Please check your inbox (and spam folder) for the email containing your new password. 
+                  Use that password to login, then change it immediately for security.
+                </p>
+              </div>
+            ) : recoveryData?.oauthNote ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <h3 className="text-sm font-semibold text-green-800 mb-2">📧 Check Your Email</h3>
+                <p className="text-sm text-green-700 mb-2">
+                  <strong>Great!</strong> A welcome back email has been sent to your email address.
+                </p>
+                <p className="text-xs text-green-600">
+                  Please check your inbox (and spam folder) for the email with instructions on how to login with your OAuth account.
+                </p>
+              </div>
+            ) : null}
+            
+            {recoveryData ? (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <h3 className="text-sm font-semibold text-green-800 mb-2">✅ Account Recovery Details</h3>
+                <p className="text-sm text-green-700 mb-2">
+                  <strong>Account Type:</strong> {recoveryData.accountType || 'Unknown'}
+                </p>
+                <p className="text-xs text-green-600">
+                  <strong>Profile Fields:</strong> Date of Birth: {recoveryData.hasProfileFields?.dateOfBirth ? 'Present' : 'Not set'}, 
+                  Gender: {recoveryData.hasProfileFields?.gender ? 'Present' : 'Not set'}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-xs text-blue-600">
+                  <strong>Note:</strong> Account recovery details are being loaded...
                 </p>
               </div>
             )}
             
+
+            
             <div className="space-y-3">
               <Link
-                to="/volunteer/dashboard"
+                to="/login"
                 className="block w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
               >
-                Go to Dashboard
+                Go to Login
               </Link>
               
               <Link
-                to="/login"
+                to="/recover-account"
                 className="block w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors"
               >
-                Back to Login
+                Request New Recovery Link
               </Link>
             </div>
           </div>
         </div>
-        <Footer />
+      </div>
+    );
+  }
+
+  if (recoveryStatus === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center py-12 px-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            
+            <h2 className="text-2xl font-bold text-blue-900 mb-4">Recovering Your Account</h2>
+            <p className="text-gray-600 mb-6">
+              {error || 'Please wait while we restore your account and send you the necessary information...'}
+            </p>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2">🔄 Recovery in Progress</h3>
+              <p className="text-sm text-blue-700 mb-2">
+                <strong>What's happening:</strong>
+              </p>
+              <ul className="text-sm text-blue-700 mt-2 text-left list-disc list-inside space-y-1">
+                <li>Verifying your recovery token</li>
+                <li>Restoring your account data</li>
+                <li>Generating new credentials</li>
+                <li>Sending recovery email</li>
+              </ul>
+            </div>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-xs text-yellow-700">
+                <strong>Please wait:</strong> Do not refresh this page or close the browser tab. 
+                The recovery process will complete automatically.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -171,8 +344,19 @@ const RecoveryConfirmationPage = () => {
                 <li>Recovery link has already been used</li>
                 <li>Account was not found or is not deleted</li>
                 <li>Invalid or corrupted recovery token</li>
+                <li>Missing required profile information</li>
               </ul>
             </div>
+            
+            {error && error.includes('MISSING_PROFILE_FIELDS') && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h3 className="text-sm font-semibold text-yellow-800 mb-2">⚠️ Missing Profile Information</h3>
+                <p className="text-xs text-yellow-700">
+                  Your password-based account is missing required profile fields. This can happen if the account was created 
+                  before these fields were made mandatory. Please contact support for assistance.
+                </p>
+              </div>
+            )}
             
             <div className="space-y-3">
               <button
@@ -199,7 +383,6 @@ const RecoveryConfirmationPage = () => {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }

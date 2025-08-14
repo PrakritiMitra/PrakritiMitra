@@ -10,6 +10,28 @@ import { MdDelete } from 'react-icons/md';
 import EmojiPicker from 'emoji-picker-react';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
 
+// Utility function to safely get user data (handles deleted users)
+const getSafeUserData = (user) => {
+  if (!user || user.isDeleted) {
+    return {
+      _id: null,
+      name: 'Deleted User',
+      username: 'deleted_user',
+      role: 'user',
+      profileImage: null,
+      isDeleted: true
+    };
+  }
+  return user;
+};
+
+// Safe display name function
+const getDisplayName = (user) => {
+  const safeUser = getSafeUserData(user);
+  if (safeUser.isDeleted) return 'Deleted User';
+  return safeUser.username ? `@${safeUser.username}` : safeUser.name || 'Unknown User';
+};
+
 
 const socket = io('http://localhost:5000', {
   autoConnect: false,
@@ -305,7 +327,7 @@ export default function EventChatbox({ eventId, currentUser }) {
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
 
-    socket.emit('typing', { eventId, userName: currentUser.username || currentUser.name });
+    socket.emit('typing', { eventId, userName: currentUser.username || currentUser.name || 'User' });
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -393,7 +415,8 @@ export default function EventChatbox({ eventId, currentUser }) {
   };
 
   const canEditMessage = (msg) => {
-    if (msg.userId?._id !== currentUser._id) return false;
+    const safeUser = getSafeUserData(msg.userId);
+    if (safeUser.isDeleted || safeUser._id !== currentUser._id) return false;
     if (msg.editCount > 0) return false;
     const now = new Date();
     const created = new Date(msg.createdAt);
@@ -401,7 +424,8 @@ export default function EventChatbox({ eventId, currentUser }) {
   };
 
   const canUnsendMessage = (msg) => {
-    if (msg.userId?._id !== currentUser._id) return false;
+    const safeUser = getSafeUserData(msg.userId);
+    if (safeUser.isDeleted || safeUser._id !== currentUser._id) return false;
     const now = new Date();
     const created = new Date(msg.createdAt);
     return (now - created) <= 5 * 60 * 1000;
@@ -423,7 +447,12 @@ export default function EventChatbox({ eventId, currentUser }) {
   };
 
   const handleUsernameClick = (user) => {
-    if (!user) return;
+    if (!user || user.isDeleted || !user._id) {
+      // Show a toast or alert for deleted users instead of navigation
+      alert('This user account has been deleted');
+      return;
+    }
+    
     if (user.role === 'organizer') {
       navigate(`/organizer/${user._id}`);
     } else {
@@ -555,10 +584,10 @@ export default function EventChatbox({ eventId, currentUser }) {
               </div>
                               <div className="text-sm mt-1 text-gray-800">
                   <span 
-                    className="font-semibold cursor-pointer hover:text-blue-600 hover:underline"
-                    onClick={() => handleUsernameClick(pinnedMessage.userId)}
+                    className={`font-semibold ${pinnedMessage.userId && !pinnedMessage.userId.isDeleted ? 'cursor-pointer hover:text-blue-600 hover:underline' : 'text-gray-500 cursor-default'}`}
+                    onClick={() => pinnedMessage.userId && !pinnedMessage.userId.isDeleted && handleUsernameClick(pinnedMessage.userId)}
                   >
-                    {pinnedMessage.userId.username ? `@${pinnedMessage.userId.username}` : pinnedMessage.userId.name}:
+                    {getDisplayName(pinnedMessage.userId)}:
                   </span> {pinnedMessage.message}
                 </div>
               {pinnedMessage.fileUrl && (
@@ -605,8 +634,9 @@ export default function EventChatbox({ eventId, currentUser }) {
               </>
             ) : <>
               {messages.map((msg, idx) => {
-                const isMe = msg.userId?._id === currentUser._id;
-                const role = msg.userId?.role;
+                const safeUser = getSafeUserData(msg.userId);
+                const isMe = safeUser._id === currentUser._id;
+                const role = safeUser.role;
                 const roleLabel = role === 'organizer' ? 'Organizer' : 'Volunteer';
                 const roleColor = role === 'organizer' ? 'bg-blue-500 text-white' : 'bg-green-500 text-white';
                 // Improved color scheme for sender's own messages
@@ -633,25 +663,25 @@ export default function EventChatbox({ eventId, currentUser }) {
                     ref={idx === 0 ? firstMsgRef : null}
                     className={`group flex items-start gap-3 my-2 ${isMe ? 'flex-row-reverse' : ''}`}
                   >
-                    {getProfileImageUrl(msg.userId) ? (
+                    {getProfileImageUrl(safeUser) ? (
                       <img
-                        src={getProfileImageUrl(msg.userId)}
-                        alt={msg.userId?.username || msg.userId?.name}
+                        src={getProfileImageUrl(safeUser)}
+                        alt={getDisplayName(safeUser)}
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(msg.userId?.role || 'user')}`}>
-                        <span className="text-xs font-bold">{getAvatarInitial(msg.userId)}</span>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(safeUser.role)}`}>
+                        <span className="text-xs font-bold">{getAvatarInitial(safeUser)}</span>
                       </div>
                     )}
                     <div className={`relative p-3 rounded-lg max-w-[70%] ${bubbleColor} ${isPinned ? 'border-2 border-yellow-400' : ''}`}>
-                      {/* Reply preview in chat bubble */}
+                                              {/* Reply preview in chat bubble */}
                                               {reply && (
                           <div className="mb-2 p-2 rounded bg-gray-100 border-l-4 border-blue-400">
                             <div className="text-xs text-gray-500">Replying to <span 
-                              className="font-semibold cursor-pointer hover:text-blue-600 hover:underline"
-                              onClick={() => handleUsernameClick(reply.userId)}
-                            >{reply.userId?.username ? `@${reply.userId.username}` : reply.userId?.name}</span></div>
+                              className={`font-semibold ${reply.userId && !reply.userId.isDeleted ? 'cursor-pointer hover:text-blue-600 hover:underline' : 'text-gray-500 cursor-default'}`}
+                              onClick={() => reply.userId && !reply.userId.isDeleted && handleUsernameClick(reply.userId)}
+                            >{getDisplayName(reply.userId)}</span></div>
                             <div className="truncate text-xs text-gray-700 max-w-xs">{reply.message}</div>
                           </div>
                         )}
@@ -727,10 +757,10 @@ export default function EventChatbox({ eventId, currentUser }) {
 
                       <div className="flex items-center gap-2 mb-1">
                         <span 
-                          className="font-semibold text-sm cursor-pointer hover:text-blue-600 hover:underline"
-                          onClick={() => handleUsernameClick(msg.userId)}
+                          className={`font-semibold text-sm ${safeUser.isDeleted ? 'text-gray-500 cursor-default' : 'cursor-pointer hover:text-blue-600 hover:underline'}`}
+                          onClick={() => !safeUser.isDeleted && handleUsernameClick(safeUser)}
                         >
-                          {msg.userId?.username ? `@${msg.userId.username}` : msg.userId?.name}
+                          {getDisplayName(safeUser)}
                         </span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${roleColor}`}>{roleLabel}</span>
                         {isPinned && (
@@ -831,9 +861,9 @@ export default function EventChatbox({ eventId, currentUser }) {
                               <div className="p-2 bg-gray-100 rounded-lg mb-2 relative flex items-center gap-2">
                   <div className="flex-1">
                     <div className="text-xs text-gray-500">Replying to <span 
-                      className="font-semibold cursor-pointer hover:text-blue-600 hover:underline"
-                      onClick={() => handleUsernameClick(replyToMessage.userId)}
-                    >{replyToMessage.userId?.username ? `@${replyToMessage.userId.username}` : replyToMessage.userId?.name}</span></div>
+                      className={`font-semibold ${replyToMessage.userId && !replyToMessage.userId.isDeleted ? 'cursor-pointer hover:text-blue-600 hover:underline' : 'text-gray-500 cursor-default'}`}
+                      onClick={() => replyToMessage.userId && !replyToMessage.userId.isDeleted && handleUsernameClick(replyToMessage.userId)}
+                    >{getDisplayName(replyToMessage.userId)}</span></div>
                     <div className="truncate text-sm text-gray-700 max-w-xs">{replyToMessage.message}</div>
                   </div>
                 <button type="button" onClick={() => setReplyToMessage(null)} className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full"><IoMdClose size={16} /></button>

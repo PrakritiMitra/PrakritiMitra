@@ -1,3 +1,17 @@
+/**
+ * Account Controller - Handles account operations including deletion, recovery, and cleanup
+ * 
+ * Key Features:
+ * - 7-day account recovery window after deletion
+ * - Email blocking for deleted accounts during recovery period
+ * - Comprehensive data anonymization
+ * - Soft deletion with recovery capabilities
+ * 
+ * Recovery Window: Users can recover deleted accounts within 7 days
+ * Email Blocking: Deleted email addresses cannot be used for new accounts during recovery period
+ * After 7 days: Email becomes available for new accounts, old account cannot be recovered
+ */
+
 const User = require('../models/user');
 const Message = require('../models/Message');
 const Registration = require('../models/registration');
@@ -543,7 +557,7 @@ exports.deleteAccount = async (req, res) => {
     
     res.json({ 
       message: 'Account deleted successfully. All your data has been preserved but anonymized.',
-      note: `You can recover your account within 30 days using your original email. This is deletion #${user.deletionSequence} for this email.`,
+      note: `You can recover your account within 7 days using your original email. This is deletion #${user.deletionSequence} for this email.`,
       deletionId: deletionId
     });
     
@@ -592,12 +606,12 @@ exports.handleAccountRecreation = async (req, res) => {
       deletedAt: acc.deletedAt,
       username: acc.username,
       role: acc.role,
-      canRecover: acc.deletedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days
+              canRecover: acc.deletedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 days
     }));
     
     // 4. Determine the best course of action
     const latestDeletion = deletedAccounts[0];
-    const canRecoverLatest = latestDeletion.deletedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const canRecoverLatest = latestDeletion.deletedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     
     let recommendation = '';
     let canCreateNew = true;
@@ -741,9 +755,9 @@ exports.requestAccountRecovery = async (req, res) => {
       });
     }
     
-    // 3. Find the most recent deletable account (within 30 days)
+    // 3. Find the most recent deletable account (within 7 days)
     const recoverableAccount = deletedAccounts.find(acc => 
-      acc.deletedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      acc.deletedAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     );
     
     if (!recoverableAccount) {
@@ -758,12 +772,38 @@ exports.requestAccountRecovery = async (req, res) => {
     console.log(`📧 Original email: ${recoverableAccount.originalEmail}`);
     
     // 4. Generate recovery token for the most recent account
-    const recoveryToken = crypto.randomBytes(32).toString('hex');
+    // Ensure token uniqueness by checking if it already exists
+    let recoveryToken;
+    let tokenExists = true;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (tokenExists && attempts < maxAttempts) {
+      recoveryToken = crypto.randomBytes(32).toString('hex');
+      
+      // Check if this token already exists
+      const existingToken = await User.findOne({ recoveryToken });
+      if (!existingToken) {
+        tokenExists = false;
+      } else {
+        attempts++;
+        console.log(`⚠️ Recovery token collision detected, generating new token (attempt ${attempts})`);
+      }
+    }
+    
+    if (tokenExists) {
+      console.error('❌ Failed to generate unique recovery token after multiple attempts');
+      return res.status(500).json({ 
+        message: 'Failed to generate recovery token. Please try again.',
+        error: 'TOKEN_GENERATION_FAILED'
+      });
+    }
+    
     recoverableAccount.recoveryToken = recoveryToken;
     recoverableAccount.recoveryTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     
     await recoverableAccount.save();
-    console.log(`🔑 Recovery token generated: ${recoveryToken.substring(0, 8)}...`);
+    console.log(`🔑 Recovery token generated: ${recoveryToken.substring(0, 8)}... (${attempts} collision attempts)`);
     
     // 5. Send recovery email - use the clean email from request, not originalEmail
     await sendRecoveryEmail(cleanEmail, recoveryToken, recoverableAccount.deletionSequence);
@@ -781,31 +821,131 @@ exports.requestAccountRecovery = async (req, res) => {
   }
 };
 
+// Helper function to get user ID from recovery token
+async function getUserIdFromToken(token) {
+  try {
+    const user = await User.findOne({ recoveryToken: token }).select('_id');
+    return user?._id || null;
+  } catch (error) {
+    console.error('Error getting user ID from token:', error);
+    return null;
+  }
+}
+
+// Simple in-memory lock for recovery tokens (for single server instance)
+const recoveryLocks = new Map();
+
+// Helper function to acquire/release recovery lock
+async function acquireRecoveryLock(token, requestId) {
+  if (recoveryLocks.has(token)) {
+    console.log(`🔒 [${requestId}] Token ${token.substring(0, 8)}... is already locked`);
+    return false;
+  }
+  
+  recoveryLocks.set(token, requestId);
+  console.log(`🔒 [${requestId}] Lock acquired for token ${token.substring(0, 8)}...`);
+  return true;
+}
+
+function releaseRecoveryLock(token, requestId) {
+  if (recoveryLocks.has(token)) {
+    recoveryLocks.delete(token);
+    console.log(`🔓 [${requestId}] Lock released for token ${token.substring(0, 8)}...`);
+  }
+}
+
 /**
  * Recovers a soft-deleted account using a valid recovery token
  */
 // Enhanced account recovery with deletion history
 exports.recoverAccount = async (req, res) => {
+  // Add unique request ID to track duplicate calls - define it at the top level
+  const requestId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  let lockAcquired = false;
+  let token = null;
+  
   try {
-    const { token } = req.body;
+    console.log(`🚀 [${requestId}] Recovery request started`);
+    console.log(`🚀 [${requestId}] Recovery request body:`, req.body);
+    console.log(`🚀 [${requestId}] Recovery request headers:`, req.headers);
     
-    console.log(`🔄 Attempting to recover account with token: ${token.substring(0, 8)}...`);
+    token = req.body.token;
     
-    // 1. Find user by recovery token - include originalEmail field
+    if (!token) {
+      console.error(`❌ [${requestId}] No token provided in request body`);
+      return res.status(400).json({ 
+        message: 'Recovery token is required',
+        error: 'MISSING_TOKEN'
+      });
+    }
+    
+    console.log(`🔄 [${requestId}] Attempting to recover account with token: ${token.substring(0, 8)}...`);
+    
+    // 1. Simple in-memory locking to prevent race conditions
+    console.log(`🔍 [${requestId}] Attempting to acquire recovery lock for token: ${token.substring(0, 8)}...`);
+    
+    // Try to acquire the lock first
+    if (!await acquireRecoveryLock(token, requestId)) {
+      console.log(`❌ [${requestId}] Failed to acquire recovery lock - another request is processing this token`);
+      return res.status(429).json({ 
+        message: 'Account recovery is already in progress. Please wait.',
+        error: 'RECOVERY_IN_PROGRESS'
+      });
+    }
+    
+    lockAcquired = true;
+    console.log(`🔒 [${requestId}] Lock successfully acquired, proceeding with recovery...`);
+    
+    // Now find the user with the recovery token
     const user = await User.findOne({
       recoveryToken: token,
       recoveryTokenExpires: { $gt: new Date() },
       isDeleted: true
-    }).select('+recoveryToken +recoveryTokenExpires +originalEmail');
+    }).select('+recoveryToken +recoveryTokenExpires +originalEmail +originalAuthMethod +originalOAuthProvider +originalOAuthId');
     
     if (!user) {
-      console.log('❌ No user found with valid recovery token');
-      return res.status(400).json({ message: 'Invalid or expired recovery token' });
+      console.log(`❌ [${requestId}] No user found with valid recovery token`);
+      return res.status(400).json({ 
+        message: 'Invalid or expired recovery token',
+        error: 'TOKEN_INVALID'
+      });
     }
     
-    console.log(`✅ Found user for recovery: ${user.username} (${user._id})`);
-    console.log(`📧 Original email: ${user.originalEmail}`);
-    console.log(`📧 Current email: ${user.email}`);
+    // Check if token was already used
+    if (user.recoveryTokenUsed) {
+      console.log(`❌ [${requestId}] Recovery token already used for user: ${user._id}`);
+      return res.status(400).json({ 
+        message: 'This recovery token has already been used',
+        error: 'TOKEN_ALREADY_USED'
+      });
+    }
+    
+    console.log(`🔒 [${requestId}] Recovery lock acquired for user: ${user._id}`);
+    
+    // Double-check: verify no other users have this recovery token
+    const duplicateTokenCheck = await User.find({
+      recoveryToken: token,
+      _id: { $ne: user._id }
+    });
+    
+    if (duplicateTokenCheck.length > 0) {
+      console.error(`❌ [${requestId}] CRITICAL: Found ${duplicateTokenCheck.length} other users with the same recovery token!`);
+      duplicateTokenCheck.forEach(dupUser => {
+        console.error(`❌ [${requestId}] Duplicate token user: ${dupUser._id} - ${dupUser.email}`);
+      });
+    } else {
+      console.log(`✅ [${requestId}] No duplicate recovery tokens found`);
+    }
+
+    console.log(`✅ [${requestId}] Found user for recovery: ${user.username} (${user._id})`);
+    console.log(`📧 [${requestId}] Original email: ${user.originalEmail}`);
+    console.log(`📧 [${requestId}] Current email: ${user.email}`);
+    console.log(`📱 [${requestId}] Phone: ${user.phone}`);
+    console.log(`👤 [${requestId}] Role: ${user.role}`);
+    console.log(`🎂 [${requestId}] Date of Birth: ${user.dateOfBirth || 'Not set'}`);
+    console.log(`⚧ [${requestId}] Gender: ${user.gender || 'Not set'}`);
+    console.log(`🔐 [${requestId}] Original auth method: ${user.originalAuthMethod || 'Unknown'}`);
+    console.log(`🔐 [${requestId}] Original OAuth provider: ${user.originalOAuthProvider || 'None'}`);
     
     // Validate that we have the original email
     if (!user.originalEmail) {
@@ -813,6 +953,24 @@ exports.recoverAccount = async (req, res) => {
       return res.status(500).json({ 
         message: 'Account recovery failed: Missing original email information',
         error: 'MISSING_ORIGINAL_EMAIL'
+      });
+    }
+    
+    // Validate that we have the phone field
+    if (!user.phone) {
+      console.error('❌ User missing phone field:', user._id);
+      return res.status(500).json({ 
+        message: 'Account recovery failed: Missing phone information',
+        error: 'MISSING_PHONE'
+      });
+    }
+    
+    // Validate that we have the name field
+    if (!user.name) {
+      console.error('❌ User missing name field:', user._id);
+      return res.status(500).json({ 
+        message: 'Account recovery failed: Missing name information',
+        error: 'MISSING_NAME'
       });
     }
     
@@ -838,6 +996,10 @@ exports.recoverAccount = async (req, res) => {
     user.deletedAt = undefined;
     user.recoveryToken = undefined;
     user.recoveryTokenExpires = undefined;
+    user.recoveryTokenUsed = true; // Mark token as used to prevent duplicate recovery
+    user.recoveryInProgress = false; // Clear the progress flag
+    
+    console.log(`🔒 [${requestId}] Clearing recovery token and marking as used for user: ${user._id}`);
     
     // Restore original authentication method
     // During deletion, we temporarily set oauthProvider to bypass validation
@@ -850,23 +1012,175 @@ exports.recoverAccount = async (req, res) => {
       user.oauthId = user.originalOAuthId;
       user.oauthPicture = undefined; // Clear picture if it was a temporary deletion
       console.log(`🔄 Kept OAuth authentication: ${user.oauthProvider}`);
+      console.log(`✅ OAuth account - dateOfBirth and gender are optional`);
+      console.log(`📧 Will send OAuth recovery email to: ${user.email}`);
     } else {
       // This was a password-based account (or temporary OAuth during deletion)
-      // Generate a secure random password
+      // First, clear OAuth fields to make password required
+      user.oauthProvider = undefined;
+      user.oauthId = undefined;
+      user.oauthPicture = undefined;
+      
+      // Now generate and set the password
       const crypto = require('crypto');
       generatedPassword = crypto.randomBytes(8).toString('hex'); // 16 character hex password
       const bcrypt = require('bcryptjs');
       user.password = bcrypt.hashSync(generatedPassword, 10);
-      user.oauthProvider = undefined;
-      user.oauthId = undefined;
-      user.oauthPicture = undefined;
-      console.log(`🔄 Restored to password-based authentication with new password: ${generatedPassword}`);
+      
+      console.log(`🔄 [${requestId}] Restored to password-based authentication with new password: ${generatedPassword}`);
+      console.log(`🔐 [${requestId}] Password hash stored: ${user.password.substring(0, 20)}...`);
+      console.log(`⚠️ [${requestId}] Password-based account - checking required fields (dateOfBirth: ${!!user.dateOfBirth}, gender: ${!!user.gender})`);
+      console.log(`📧 [${requestId}] Will send password recovery email to: ${user.email}`);
     }
     
     // Keep deletionId and deletionSequence for historical tracking
     
-    await user.save();
-    console.log(`✅ Account restored successfully: ${user.email}`);
+    // Log the user state before saving for debugging
+    console.log(`🔍 User state before save:`, {
+      name: !!user.name,
+      username: !!user.username,
+      email: !!user.email,
+      phone: !!user.phone,
+      role: !!user.role,
+      oauthProvider: user.oauthProvider,
+      dateOfBirth: !!user.dateOfBirth,
+      gender: !!user.gender,
+      password: !!user.password
+    });
+    
+    // Final validation: ensure all required fields are present
+    if (!user.name || !user.username || !user.email || !user.phone || !user.role) {
+      console.error('❌ Missing required fields for account recovery:', {
+        name: !!user.name,
+        username: !!user.username,
+        email: !!user.email,
+        phone: !!user.phone,
+        role: !!user.role
+      });
+      return res.status(500).json({ 
+        message: 'Account recovery failed: Missing required fields',
+        error: 'MISSING_REQUIRED_FIELDS'
+      });
+    }
+    
+    // For password-based users, ensure password is present and valid
+    if (!user.oauthProvider && !user.password) {
+      console.error('❌ Missing password for password-based user');
+      return res.status(500).json({ 
+        message: 'Account recovery failed: Password not set for password-based account',
+        error: 'MISSING_PASSWORD'
+      });
+    }
+    
+    if (!user.oauthProvider && user.password) {
+      // Verify password hash format (bcrypt hashes start with $2a$, $2b$, or $2y$)
+      if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$') && !user.password.startsWith('$2y$')) {
+        console.error('❌ Invalid password hash format:', user.password.substring(0, 10));
+        return res.status(500).json({ 
+          message: 'Account recovery failed: Invalid password format',
+          error: 'INVALID_PASSWORD_FORMAT'
+        });
+      }
+      console.log(`✅ Password hash format is valid: ${user.password.substring(0, 7)}...`);
+    }
+    
+    // For password-based users, ensure dateOfBirth and gender are present
+    if (!user.oauthProvider && (!user.dateOfBirth || !user.gender)) {
+      console.error('❌ Missing required fields for password-based user:', {
+        dateOfBirth: !!user.dateOfBirth,
+        gender: !!user.gender
+      });
+      
+      const missingFields = [];
+      if (!user.dateOfBirth) missingFields.push('Date of Birth');
+      if (!user.gender) missingFields.push('Gender');
+      
+      return res.status(500).json({ 
+        message: `Account recovery failed: Missing required profile fields for password-based account: ${missingFields.join(', ')}. Please contact support.`,
+        error: 'MISSING_PROFILE_FIELDS',
+        missingFields: missingFields,
+        note: 'Password-based accounts require Date of Birth and Gender. OAuth accounts can have these fields empty.'
+      });
+    }
+    
+    // For OAuth users, these fields are optional, so we don't validate them
+    if (user.oauthProvider) {
+      console.log(`✅ OAuth user - dateOfBirth and gender are optional`);
+    }
+    
+    try {
+      // Log the user object before save
+      console.log(`🔍 User object before save:`, {
+        _id: user._id,
+        email: user.email,
+        oauthProvider: user.oauthProvider,
+        hasPassword: !!user.password,
+        passwordLength: user.password ? user.password.length : 0,
+        passwordStartsWith: user.password ? user.password.substring(0, 10) : 'N/A'
+      });
+      
+      await user.save();
+      console.log(`✅ Account restored successfully: ${user.email}`);
+    } catch (saveError) {
+      console.error('❌ Error saving user during recovery:', saveError);
+      if (saveError.name === 'ValidationError') {
+        console.error('❌ Validation errors:', saveError.errors);
+        console.error('❌ Validation error details:', JSON.stringify(saveError.errors, null, 2));
+      }
+      throw saveError;
+    }
+    
+    // Verify password was saved correctly
+    if (!user.oauthProvider) {
+      // Try multiple ways to retrieve the password
+      const savedUser1 = await User.findById(user._id).select('+password');
+      const savedUser2 = await User.findById(user._id);
+      
+      console.log(`🔐 Password verification after save:`);
+      console.log(`🔐 Method 1 (select +password): ${savedUser1.password ? 'Password hash present' : 'Password hash missing'}`);
+      console.log(`🔐 Method 2 (no select): ${savedUser2.password ? 'Password hash present' : 'Password hash missing'}`);
+      
+      // Use the method that has the password
+      const savedUser = savedUser1.password ? savedUser1 : savedUser2;
+      
+      if (savedUser.password) {
+        console.log(`🔐 Password hash starts with: ${savedUser.password.substring(0, 20)}...`);
+        console.log(`🔐 Full password hash: ${savedUser.password}`);
+        
+        // Test password verification
+        const bcrypt = require('bcryptjs');
+        const isPasswordValid = bcrypt.compareSync(generatedPassword, savedUser.password);
+        console.log(`🔐 Password verification test: ${isPasswordValid ? 'PASSED' : 'FAILED'}`);
+        
+        if (!isPasswordValid) {
+          console.error('❌ CRITICAL: Generated password does not match stored hash!');
+          console.error(`❌ Generated password: ${generatedPassword}`);
+          console.error(`❌ Stored hash: ${savedUser.password}`);
+          
+          // Try to debug the issue by checking if the password was modified
+          console.error(`🔍 Debug: User object password field: ${user.password}`);
+          console.error(`🔍 Debug: User object oauthProvider: ${user.oauthProvider}`);
+        }
+      } else {
+        console.error('❌ CRITICAL: Password field is missing from both query methods!');
+        console.error(`🔍 Debug: User object password field: ${user.password}`);
+        console.error(`🔍 Debug: User object oauthProvider: ${user.oauthProvider}`);
+      }
+    }
+    
+    // Log summary of what was restored
+    console.log(`📋 Recovery Summary:`, {
+      accountType: user.oauthProvider ? 'OAuth' : 'Password-based',
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      dateOfBirth: user.dateOfBirth ? 'Present' : 'Not set',
+      gender: user.gender ? 'Present' : 'Not set',
+      hasPassword: !!user.password,
+      oauthProvider: user.oauthProvider || 'None'
+    });
     
     // 4. Restore all anonymized data
     if (user.deletionId) {
@@ -877,14 +1191,44 @@ exports.recoverAccount = async (req, res) => {
       console.log(`⚠️  No deletionId found, skipping data restoration`);
     }
     
-    // 5. Generate new JWT token
-    const authToken = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    // 5. Send appropriate email based on account type
+    if (user.oauthProvider) {
+      // For OAuth users, send a welcome back email
+      try {
+        await sendOAuthRecoveryEmail(user.email, user.name, user.oauthProvider);
+        console.log(`📧 OAuth recovery email sent to: ${user.email}`);
+      } catch (emailError) {
+        console.error('⚠️ Failed to send OAuth recovery email:', emailError);
+        // Don't fail the recovery if email fails
+      }
+    } else if (generatedPassword) {
+      // For password-based users, send password recovery email
+      console.log(`📧 [${requestId}] Sending password recovery email with password: ${generatedPassword}`);
+      
+      // Double-check the password is still valid before sending email
+      const currentUser = await User.findById(user._id).select('+password');
+      if (currentUser && currentUser.password) {
+        const bcrypt = require('bcryptjs');
+        const isStillValid = bcrypt.compareSync(generatedPassword, currentUser.password);
+        console.log(`🔐 [${requestId}] Password verification before email: ${isStillValid ? 'VALID' : 'INVALID'}`);
+        if (!isStillValid) {
+          console.error(`❌ [${requestId}] CRITICAL: Password became invalid before email sending!`);
+          console.error(`❌ [${requestId}] Generated password: ${generatedPassword}`);
+          console.error(`❌ [${requestId}] Stored hash: ${currentUser.password}`);
+        }
+      }
+      
+      try {
+        await sendPasswordRecoveryEmail(user.email, generatedPassword, user.name);
+        console.log(`📧 [${requestId}] Password recovery email sent to: ${user.email}`);
+      } catch (emailError) {
+        console.error(`⚠️ [${requestId}] Failed to send password recovery email:`, emailError);
+        // Don't fail the recovery if email fails
+      }
+    }
     
-    console.log(`🎉 Account recovery completed successfully for: ${user.email}`);
+    console.log(`🎉 [${requestId}] Account recovery completed successfully for: ${user.email}`);
+    console.log(`📧 [${requestId}] Email sent: ${user.oauthProvider ? 'OAuth recovery email' : 'Password recovery email'}`);
     
     const responseData = {
       message: 'Account recovered successfully!',
@@ -895,17 +1239,51 @@ exports.recoverAccount = async (req, res) => {
         username: user.username,
         role: user.role
       },
-      token: authToken,
       note: `Recovered deletion #${user.deletionSequence} for email ${user.email}`,
-      newPassword: generatedPassword,
-      passwordNote: generatedPassword ? 'A new password has been generated for your account. Please use it to login and change it immediately.' : null
+      passwordNote: generatedPassword ? 'A new password has been generated and sent to your email. Please use it to login and change it immediately.' : null,
+      oauthNote: user.oauthProvider ? `A welcome back email has been sent to your email. You can login using your ${user.oauthProvider} account.` : null,
+      accountType: user.oauthProvider ? 'OAuth' : 'Password-based',
+      hasProfileFields: {
+        dateOfBirth: !!user.dateOfBirth,
+        gender: !!user.gender
+      }
     };
+    
+    // Clear the recovery token and mark as used on successful completion
+    try {
+      await User.findByIdAndUpdate(user._id, { 
+        recoveryToken: undefined,
+        recoveryTokenExpires: undefined,
+        recoveryTokenUsed: true
+      });
+      console.log(`🔓 [${requestId}] Recovery token cleared on success for user: ${user._id}`);
+      
+      // Verify the cleanup
+      const cleanupCheck = await User.findById(user._id).select('+recoveryToken +recoveryTokenExpires +recoveryTokenUsed');
+      console.log(`🔍 [${requestId}] Cleanup verification:`, {
+        recoveryToken: cleanupCheck.recoveryToken,
+        recoveryTokenExpires: cleanupCheck.recoveryTokenExpires,
+        recoveryTokenUsed: cleanupCheck.recoveryTokenUsed
+      });
+    } catch (lockError) {
+      console.error(`❌ [${requestId}] Failed to clear recovery token on success:`, lockError);
+    }
     
     res.json(responseData);
     
   } catch (error) {
-    console.error('Error recovering account:', error);
+    console.error(`❌ [${requestId}] Error recovering account:`, error);
+    
+    // Note: The recovery lock will be released in the finally block
+    console.log(`❌ [${requestId}] Error occurred during recovery, lock will be released automatically`);
+    
     res.status(500).json({ message: 'Failed to recover account', error: error.message });
+  } finally {
+    // Always release the recovery lock when the function completes
+    if (lockAcquired && token) {
+      releaseRecoveryLock(token, requestId);
+      console.log(`🔓 [${requestId}] Recovery lock released in finally block`);
+    }
   }
 };
 
@@ -974,7 +1352,7 @@ exports.recoverAccountByEmail = async (req, res) => {
  */
 exports.cleanupDeletedAccounts = async (req, res) => {
   try {
-    const retentionDays = parseInt(process.env.ACCOUNT_RETENTION_DAYS) || 30;
+    const retentionDays = parseInt(process.env.ACCOUNT_RETENTION_DAYS) || 7;
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
     
@@ -1013,3 +1391,175 @@ exports.cleanupDeletedAccounts = async (req, res) => {
 exports.anonymizeUserData = anonymizeUserData;
 exports.restoreAnonymizedData = restoreAnonymizedData;
 exports.createDeletionHistory = createDeletionHistory;
+
+/**
+ * Send password recovery email to user
+ */
+async function sendPasswordRecoveryEmail(email, newPassword, userName) {
+  try {
+    console.log(`📧 Email function called with password: ${newPassword}`);
+    console.log(`📧 Email function called with email: ${email}`);
+    console.log(`📧 Email function called with userName: ${userName}`);
+    
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // Email content
+    const mailOptions = {
+      from: `"PrakritiMitra" <${process.env.EMAIL_USERNAME}>`,
+      to: email,
+      subject: '🔑 Your New Password - Account Recovery Successful',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+          <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #28a745; margin: 0; font-size: 28px;">🎉 Account Recovery Successful!</h1>
+            </div>
+            
+            <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              Hello <strong>${userName}</strong>,
+            </p>
+            
+            <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              Great news! Your account has been successfully recovered. We've generated a new secure password for you to access your account.
+            </p>
+            
+            <div style="background-color: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+              <h2 style="color: #1976d2; margin: 0 0 15px 0; font-size: 20px;">🔑 Your New Password</h2>
+              <div style="background-color: #ffffff; border: 1px solid #2196f3; border-radius: 6px; padding: 15px; margin: 10px 0;">
+                <code style="font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #1976d2; letter-spacing: 2px;">${newPassword}</code>
+              </div>
+              <p style="color: #1976d2; font-size: 14px; margin: 10px 0 0 0;">
+                <strong>Important:</strong> Copy this password and use it to login
+              </p>
+            </div>
+            
+            <div style="background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; padding: 15px; margin: 20px 0;">
+              <h3 style="color: #f57c00; margin: 0 0 10px 0; font-size: 16px;">⚠️ Security Notice</h3>
+              <ul style="color: #e65100; margin: 0; padding-left: 20px; font-size: 14px;">
+                <li>Use this password to login to your account</li>
+                <li>Change your password immediately after logging in</li>
+                <li>Do not share this password with anyone</li>
+                <li>This password is temporary and should be changed</li>
+              </ul>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="/login" 
+                 style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                🚀 Login to Your Account
+              </a>
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center;">
+              <p style="color: #666; font-size: 12px; margin: 0;">
+                If you didn't request this account recovery, please contact our support team immediately.
+              </p>
+              <p style="color: #666; font-size: 12px; margin: 5px 0 0 0;">
+                This email was sent to ${email}
+              </p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`📧 Password recovery email sent successfully to ${email}:`, info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send password recovery email:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send OAuth account recovery email to user
+ */
+async function sendOAuthRecoveryEmail(email, userName, oauthProvider) {
+  try {
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // Email content
+    const mailOptions = {
+      from: `"PrakritiMitra" <${process.env.EMAIL_USERNAME}>`,
+      to: email,
+      subject: '🎉 Welcome Back - OAuth Account Recovery Successful',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+          <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #28a745; margin: 0; font-size: 28px;">🎉 Account Recovery Successful!</h1>
+            </div>
+            
+            <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              Hello <strong>${userName}</strong>,
+            </p>
+            
+            <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              Great news! Your OAuth account has been successfully recovered. You can now login using your ${oauthProvider} account as usual.
+            </p>
+            
+            <div style="background-color: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+              <h2 style="color: #1976d2; margin: 0 0 15px 0; font-size: 20px;">🔐 Login with OAuth</h2>
+              <p style="color: #1976d2; font-size: 16px; margin: 0;">
+                Since you created your account using ${oauthProvider}, you can login directly with your ${oauthProvider} account.
+              </p>
+              <p style="color: #1976d2; font-size: 14px; margin: 10px 0 0 0;">
+                <strong>No password needed!</strong> Just click the ${oauthProvider} login button.
+              </p>
+            </div>
+            
+            <div style="background-color: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; padding: 15px; margin: 20px 0;">
+              <h3 style="color: #f57c00; margin: 0 0 10px 0; font-size: 16px;">ℹ️ What Happened</h3>
+              <ul style="color: #e65100; margin: 0; padding-left: 20px; font-size: 14px;">
+                <li>Your account was temporarily deleted but has been restored</li>
+                <li>All your data, events, and messages are preserved</li>
+                <li>You can login using your ${oauthProvider} account</li>
+                <li>No password changes are needed</li>
+              </ul>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="/login" 
+                 style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                🚀 Login with ${oauthProvider}
+              </a>
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center;">
+              <p style="color: #666; font-size: 12px; margin: 0;">
+                If you didn't request this account recovery, please contact our support team immediately.
+              </p>
+              <p style="color: #666; font-size: 12px; margin: 5px 0 0 0;">
+                This email was sent to ${email}
+              </p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`📧 OAuth recovery email sent successfully to ${email}:`, info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send OAuth recovery email:', error);
+    throw error;
+  }
+}

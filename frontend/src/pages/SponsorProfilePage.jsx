@@ -4,6 +4,14 @@ import { sponsorAPI } from "../api";
 import { SponsorProfileForm, SponsorProfileDisplay } from "../components/sponsor";
 import Navbar from "../components/layout/Navbar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../utils/safeUserUtils";
 import {
   CurrencyDollarIcon,
   UserIcon,
@@ -25,7 +33,6 @@ export default function SponsorProfilePage() {
   const [showSponsorForm, setShowSponsorForm] = useState(false);
   const [sponsorLoading, setSponsorLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isVisible, setIsVisible] = useState(false);
   
   const navigate = useNavigate();
 
@@ -38,17 +45,23 @@ export default function SponsorProfilePage() {
       return;
     }
 
-    setUser(userData);
+    // Check if user data indicates a deleted account
+    const safeUserData = getSafeUserData(userData);
+    if (safeUserData.isDeleted) {
+      // Redirect to login if user account is deleted
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login");
+      return;
+    }
+
+    setUser(safeUserData);
     setLoading(false);
 
     // Fetch sponsor profile if user is a sponsor
     if (userData.sponsor?.isSponsor) {
       fetchSponsorProfile();
     }
-
-    // Trigger animations
-    const timer = setTimeout(() => setIsVisible(true), 100);
-    return () => clearTimeout(timer);
   }, [navigate]);
 
   // Fetch sponsor profile data
@@ -123,10 +136,16 @@ export default function SponsorProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
-        <Navbar />
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -134,12 +153,12 @@ export default function SponsorProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
+      <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
         <Navbar />
-        <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-slate-900 mb-4">Profile Not Found</h1>
-            <p className="text-slate-600">Please log in to view your sponsor profile.</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Profile Not Found</h1>
+            <p className="text-gray-600">Please log in to view your sponsor profile.</p>
           </div>
         </div>
       </div>
@@ -147,15 +166,15 @@ export default function SponsorProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
+    <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
       <Navbar />
-      <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header Section */}
-        <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+          <div className="flex justify-between items-center">
             <div className="flex items-center space-x-6">
               <div className="flex flex-col items-center space-y-2">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center overflow-hidden border-4 border-purple-200 shadow-lg">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden border-4 border-purple-200">
                   {getProfileImageUrl(user) ? (
                     <img
                       src={getProfileImageUrl(user)}
@@ -164,25 +183,24 @@ export default function SponsorProfilePage() {
                     />
                   ) : (
                     <div className={`w-20 h-20 rounded-full flex items-center justify-center ${getRoleColors('sponsor')}`}>
-                      <span className="text-2xl font-bold text-white">{getAvatarInitial(user)}</span>
+                      <span className="text-2xl font-bold">{getAvatarInitial(user)}</span>
                     </div>
                   )}
                 </div>
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-purple-900 to-blue-900 bg-clip-text text-transparent">Sponsor Profile</h1>
-                <p className="text-lg text-purple-600 font-medium">{user.name}</p>
-                <p className="text-slate-600">{user.username ? `@${user.username}` : ''}</p>
-                <p className="text-sm text-slate-500 capitalize">{user.role === "organizer" ? "Event Organizer" : "Volunteer"}</p>
+                <p className="text-lg text-purple-600 font-medium">{getSafeUserName(user)}</p>
+                <p className="text-slate-600">{getUsernameDisplay(user)}</p>
+                <p className="text-sm text-slate-500 capitalize">{getSafeUserRole(user) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
               </div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex space-x-3">
               {user.sponsor?.isSponsor && sponsorProfile && (
                 <button
                   onClick={handleEditSponsor}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
-                  <PencilIcon className="w-5 h-5" />
                   Edit Sponsor Profile
                 </button>
               )}
@@ -192,16 +210,16 @@ export default function SponsorProfilePage() {
 
         {/* Sponsor Section */}
         {!showSponsorForm && (
-          <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+            <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-4 flex items-center">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center mr-3">
-                    <CurrencyDollarIcon className="w-5 h-5 text-white" />
-                  </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
+                  <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
                   Sponsor Capabilities
                 </h2>
-                <p className="text-slate-600 text-lg">
+                <p className="text-gray-600">
                   {user.sponsor?.isSponsor 
                     ? 'You have sponsor capabilities enabled. Manage your sponsor profile below.'
                     : 'Upgrade your account to become a sponsor and support great causes.'
@@ -211,9 +229,8 @@ export default function SponsorProfilePage() {
               {!user.sponsor?.isSponsor && (
                 <button
                   onClick={handleCreateSponsor}
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
-                  <SparklesIcon className="w-5 h-5" />
                   Become a Sponsor
                 </button>
               )}
@@ -222,9 +239,9 @@ export default function SponsorProfilePage() {
             {user.sponsor?.isSponsor ? (
               <div>
                 {sponsorLoading ? (
-                  <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                    <p className="text-slate-600 text-lg">Loading sponsor profile...</p>
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                    <p className="text-gray-600 mt-2">Loading sponsor profile...</p>
                   </div>
                 ) : sponsorProfile ? (
                   <SponsorProfileDisplay
@@ -233,44 +250,46 @@ export default function SponsorProfilePage() {
                     onDelete={handleDeleteSponsor}
                   />
                 ) : (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <ExclamationTriangleIcon className="w-8 h-8 text-purple-600" />
-                    </div>
-                    <p className="text-slate-600 mb-6 text-lg">Your sponsor profile is being processed...</p>
+                  <div className="text-center py-8">
+                    <p className="text-gray-600 mb-4">Your sponsor profile is being processed...</p>
                     <button
                       onClick={handleCreateSponsor}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                     >
-                      <PencilIcon className="w-5 h-5" />
                       Create Sponsor Profile
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="text-center group">
-                    <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
-                      <CurrencyDollarIcon className="w-10 h-10 text-purple-600" />
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
                     </div>
-                    <h3 className="font-semibold text-slate-900 mb-3 text-lg">Support Causes</h3>
-                    <p className="text-slate-600">Contribute to events and organizations that make a difference</p>
+                    <h3 className="font-semibold text-gray-900 mb-2">Support Causes</h3>
+                    <p className="text-sm text-gray-600">Contribute to events and organizations that make a difference</p>
                   </div>
-                  <div className="text-center group">
-                    <div className="w-20 h-20 bg-gradient-to-r from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
-                      <CheckCircleIcon className="w-10 h-10 text-blue-600" />
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
                     </div>
-                    <h3 className="font-semibold text-slate-900 mb-3 text-lg">Get Recognition</h3>
-                    <p className="text-slate-600">Receive acknowledgment and visibility for your contributions</p>
+                    <h3 className="font-semibold text-gray-900 mb-2">Get Recognition</h3>
+                    <p className="text-sm text-gray-600">Receive acknowledgment and visibility for your contributions</p>
                   </div>
-                  <div className="text-center group">
-                    <div className="w-20 h-20 bg-gradient-to-r from-emerald-100 to-emerald-200 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
-                      <BoltIcon className="w-10 h-10 text-emerald-600" />
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
-                    <h3 className="font-semibold text-slate-900 mb-3 text-lg">Track Impact</h3>
-                    <p className="text-slate-600">Monitor the impact of your sponsorships and contributions</p>
+                    <h3 className="font-semibold text-gray-900 mb-2">Track Impact</h3>
+                    <p className="text-sm text-gray-600">Monitor the impact of your sponsorships and contributions</p>
                   </div>
                 </div>
               </div>
@@ -280,8 +299,8 @@ export default function SponsorProfilePage() {
 
         {/* Sponsor Form Modal */}
         {showSponsorForm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white/95 backdrop-blur-sm rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <SponsorProfileForm
                 onSuccess={handleSponsorSuccess}
                 onCancel={handleSponsorCancel}
@@ -292,13 +311,12 @@ export default function SponsorProfilePage() {
         )}
 
         {/* Back Button */}
-        <div className={`mt-8 pt-6 border-t border-slate-200 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="mt-8 pt-6 border-t border-gray-200">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white px-6 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-md hover:shadow-lg"
           >
-            <ArrowLeftIcon className="w-5 h-5" />
-            Back
+            ← Back
           </button>
         </div>
       </div>

@@ -25,7 +25,42 @@ exports.getMessages = async (req, res) => {
         path: 'replyTo',
         select: 'message userId',
         populate: { path: 'userId', select: 'name username profileImage role' }
-      });
+      })
+      .lean(); // Convert to plain objects for easier manipulation
+
+    // Transform messages to handle deleted users consistently
+    messages = messages.map(msg => {
+      if (!msg.userId) {
+        // Use denormalized data for deleted users
+        return {
+          ...msg,
+          userId: {
+            _id: msg.userInfo?.userId || null,
+            name: msg.userInfo?.name || 'Deleted User',
+            username: msg.userInfo?.username || 'deleted_user',
+            role: msg.userInfo?.role || 'user',
+            profileImage: msg.userInfo?.avatar || null,
+            isDeleted: true
+          }
+        };
+      }
+      return msg;
+    });
+
+    // Handle replyTo messages for deleted users
+    messages = messages.map(msg => {
+      if (msg.replyTo && !msg.replyTo.userId) {
+        msg.replyTo.userId = {
+          _id: msg.replyTo.userInfo?.userId || null,
+          name: msg.replyTo.userInfo?.name || 'Deleted User',
+          username: msg.replyTo.userInfo?.username || 'deleted_user',
+          role: msg.replyTo.userInfo?.role || 'user',
+          profileImage: msg.replyTo.userInfo?.avatar || null,
+          isDeleted: true
+        };
+      }
+      return msg;
+    });
 
     // Reverse to oldest-to-newest for display
     messages = messages.reverse();
@@ -79,7 +114,21 @@ exports.pinMessage = async (req, res) => {
     messageToPin.isPinned = newPinStatus;
     await messageToPin.save();
 
-    const populatedMessage = await Message.findById(messageToPin._id).populate('userId', 'name username profileImage role');
+    const populatedMessage = await Message.findById(messageToPin._id)
+      .populate('userId', 'name username profileImage role')
+      .lean();
+
+    // Handle deleted users in pinned message
+    if (!populatedMessage.userId) {
+      populatedMessage.userId = {
+        _id: populatedMessage.userInfo?.userId || null,
+        name: populatedMessage.userInfo?.name || 'Deleted User',
+        username: populatedMessage.userInfo?.username || 'deleted_user',
+        role: populatedMessage.userInfo?.role || 'user',
+        profileImage: populatedMessage.userInfo?.avatar || null,
+        isDeleted: true
+      };
+    }
 
     res.json(populatedMessage);
 

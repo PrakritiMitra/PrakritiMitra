@@ -6,6 +6,14 @@ import { FaInstagram, FaLinkedin, FaTwitter, FaFacebook } from "react-icons/fa";
 import axiosInstance from "../api/axiosInstance";
 import EventCard from "../components/event/EventCard";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../utils/safeUserUtils";
 
 export default function UserProfilePage() {
   const { id } = useParams();
@@ -22,11 +30,22 @@ export default function UserProfilePage() {
     setError("");
     getUserById(id)
       .then((res) => {
-        setUser(res.data);
+        // Check if user data indicates a deleted account
+        const safeUserData = getSafeUserData(res.data);
+        if (safeUserData.isDeleted) {
+          setError("This user account has been deleted");
+          setLoading(false);
+          return;
+        }
+        setUser(safeUserData);
         setLoading(false);
       })
-      .catch(() => {
-        setError("User not found");
+      .catch((err) => {
+        if (err.response?.data?.error === 'ACCOUNT_DELETED') {
+          setError("This user account has been deleted");
+        } else {
+          setError("User not found");
+        }
         setLoading(false);
       });
   }, [id]);
@@ -80,7 +99,7 @@ export default function UserProfilePage() {
                 {getProfileImageUrl(user) ? (
                   <img
                     src={getProfileImageUrl(user)}
-                    alt={user.username}
+                    alt={getSafeUserName(user)}
                     className="w-24 h-24 rounded-full object-cover border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
                   />
                 ) : (
@@ -88,20 +107,20 @@ export default function UserProfilePage() {
                     <span className="text-3xl font-bold">{getAvatarInitial(user)}</span>
                   </div>
                 )}
-                <h1 className="text-3xl font-bold text-blue-800 mb-1 animate-fade-in-slow">{user.name}</h1>
-                <p className="text-lg text-blue-600 font-medium">{user.username ? `@${user.username}` : ''}</p>
-                <span className="text-blue-600 font-medium capitalize mb-1">{user.role === 'organizer' ? 'Event Organizer' : user.role}</span>
+                <h1 className="text-3xl font-bold text-blue-800 mb-1 animate-fade-in-slow">{getSafeUserName(user)}</h1>
+                <p className="text-lg text-blue-600 font-medium">{getUsernameDisplay(user)}</p>
+                <span className="text-blue-600 font-medium capitalize mb-1">{getSafeUserRole(user) === 'organizer' ? 'Event Organizer' : getSafeUserRole(user)}</span>
                 {user.position && <span className="text-gray-500 text-sm">{user.position}</span>}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <div className="mb-2">
                     <span className="font-semibold text-gray-700">Email:</span>
-                    <span className="ml-2 text-gray-600">{user.email}</span>
+                    <span className="ml-2 text-gray-600">{user.email || 'Not available'}</span>
                   </div>
                   <div className="mb-2">
                     <span className="font-semibold text-gray-700">Phone:</span>
-                    <span className="ml-2 text-gray-600">{user.phone}</span>
+                    <span className="ml-2 text-gray-600">{user.phone || 'Not available'}</span>
                   </div>
                   {user.city && (
                     <div className="mb-2">
@@ -189,7 +208,7 @@ export default function UserProfilePage() {
               {/* Events Created by this Organizer */}
               <div className="mt-10">
                 <div className="flex items-center mb-4 gap-4">
-                  <h2 className="text-2xl font-bold text-blue-700">Events Created by {user.username ? `@${user.username}` : user.name}</h2>
+                  <h2 className="text-2xl font-bold text-blue-700">Events Created by {getUsernameDisplay(user) || getSafeUserName(user)}</h2>
                   {organizations.length > 0 && (
                     <div>
                       <label htmlFor="orgDropdown" className="mr-2 font-medium text-gray-700">Organizations:</label>

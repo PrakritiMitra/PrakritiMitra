@@ -14,7 +14,7 @@ const api = axios.create({
 // Request interceptor to add auth token to requests
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,24 +32,25 @@ api.interceptors.response.use(
     const originalRequest = error.config;
     
     // If the error is 401 and we haven't tried to refresh the token yet
-    if (error.response.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
       try {
-        const response = await api.post('/auth/refresh-token');
-        const { token } = response.data;
+        const response = await refreshToken();
+        const { accessToken } = response;
         
-        localStorage.setItem('token', token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        localStorage.setItem('accessToken', accessToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
         
         // Retry the original request with the new token
-        originalRequest.headers['Authorization'] = `Bearer ${token}`;
+        originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
         return api(originalRequest);
-      } catch (error) {
+      } catch (refreshError) {
         // If refresh token fails, redirect to login
-        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         window.location.href = '/login';
-        return Promise.reject(error);
+        return Promise.reject(refreshError);
       }
     }
     
@@ -59,11 +60,23 @@ api.interceptors.response.use(
 
 export const login = async (credentials) => {
   const response = await api.post('/auth/login', credentials);
+  const { accessToken, refreshToken, user } = response.data;
+  
+  // Store both tokens
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  
   return response.data;
 };
 
 export const register = async (userData) => {
   const response = await api.post('/auth/register', userData);
+  const { accessToken, refreshToken, user } = response.data;
+  
+  // Store both tokens
+  localStorage.setItem('accessToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  
   return response.data;
 };
 
@@ -82,8 +95,18 @@ export const resetPassword = async ({ token, newPassword }) => {
   return response.data;
 };
 
-export const getCurrentUser = async () => {
-  const response = await api.get('/auth/me');
+export const refreshToken = async () => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) {
+    throw new Error('No refresh token available');
+  }
+  
+  const response = await api.post('/auth/refresh-token', { refreshToken });
+  const { accessToken, user } = response.data;
+  
+  // Update access token
+  localStorage.setItem('accessToken', accessToken);
+  
   return response.data;
 };
 
@@ -91,7 +114,18 @@ export const logout = async () => {
   try {
     await api.post('/auth/logout');
   } finally {
-    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+export const logoutAllDevices = async () => {
+  try {
+    await api.post('/auth/logout-all-devices');
+  } finally {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     delete api.defaults.headers.common['Authorization'];
   }
 };

@@ -28,18 +28,27 @@ const AccountLinkingModal = ({
   oauthData, 
   onLinkAccount,
   // Keep the prop for backward compatibility but don't use it
-  onCreateNewAccount 
+  onCreateNewAccount,
+  error
 }) => {
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState(''); // 'link' or 'create'
+  const [localError, setLocalError] = useState('');
 
   const handleLinkAccount = async () => {
     setLoading(true);
     setAction('link');
+    setLocalError('');
+    
     try {
       await onLinkAccount();
+      // If we get here, linking was successful
+      // The modal will be closed by the parent component
+      // No need to do anything here
     } catch (error) {
       console.error('Account linking failed:', error);
+      // The parent component will handle errors and set the error state
+      // We don't need to do anything here
     } finally {
       setLoading(false);
     }
@@ -48,8 +57,12 @@ const AccountLinkingModal = ({
   const handleClose = () => {
     setLoading(false);
     setAction('');
+    setLocalError('');
     onClose();
   };
+
+  // Use error from parent component if available, otherwise use local error
+  const displayError = error || localError;
 
   return (
     <Dialog 
@@ -137,6 +150,14 @@ const AccountLinkingModal = ({
             • All your existing data and activities will be preserved
           </Typography>
         </Alert>
+
+        {displayError && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              {displayError}
+            </Typography>
+          </Alert>
+        )}
 
       </DialogContent>
 

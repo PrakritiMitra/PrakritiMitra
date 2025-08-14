@@ -10,6 +10,14 @@ import { isEventPast, getRegistrationWithQuestionnaireStatus } from '../../utils
 import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../../utils/calendarUtils";
 import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
 import calendarEventEmitter from "../../utils/calendarEventEmitter";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../../utils/safeUserUtils";
 
 const VolunteerEventCard = ({ event }) => {
   const navigate = useNavigate();
@@ -22,7 +30,8 @@ const VolunteerEventCard = ({ event }) => {
     canAddToCalendar: false,
     canRemoveFromCalendar: false
   });
-  const user = JSON.parse(localStorage.getItem("user"));
+  const userData = JSON.parse(localStorage.getItem("user"));
+  const user = getSafeUserData(userData); // Get safe user data
 
   // Handle recurring event instances - use original event ID for API calls
   const getEffectiveEventId = (id) => {
@@ -36,8 +45,8 @@ const VolunteerEventCard = ({ event }) => {
   const effectiveEventId = getEffectiveEventId(event._id);
 
   // Check if user is removed or banned from this event
-  const isRemoved = event?.removedVolunteers?.includes(user?._id);
-  const isBanned = event?.bannedVolunteers?.includes(user?._id);
+  const isRemoved = event?.removedVolunteers?.includes(getSafeUserId(user));
+  const isBanned = event?.bannedVolunteers?.includes(getSafeUserId(user));
 
   useEffect(() => {
     const checkRegistrationAndQuestionnaire = async () => {
@@ -82,7 +91,7 @@ const VolunteerEventCard = ({ event }) => {
   // Check calendar status
   useEffect(() => {
     const checkCalendarStatus = async () => {
-      if (!user?._id || !effectiveEventId) return;
+      if (!getSafeUserId(user) || !effectiveEventId) return;
       
       try {
         const result = await checkWebsiteCalendarStatus(effectiveEventId);
@@ -94,7 +103,7 @@ const VolunteerEventCard = ({ event }) => {
       }
     };
     checkCalendarStatus();
-  }, [effectiveEventId, user?._id]);
+  }, [effectiveEventId, getSafeUserId(user)]);
 
   // Close calendar options when clicking outside
   useEffect(() => {

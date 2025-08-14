@@ -40,6 +40,16 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  recoveryInProgress: {
+    type: Boolean,
+    default: false,
+    select: false
+  },
+  recoveryTokenUsed: {
+    type: Boolean,
+    default: false,
+    select: false
+  },
 
   // Password reset fields
   resetPasswordToken: {
@@ -50,6 +60,44 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  resetPasswordAttempts: {
+    type: Number,
+    default: 0,
+    select: false
+  },
+  resetPasswordLockoutUntil: {
+    type: Date,
+    select: false
+  },
+
+  // Login security fields
+  loginAttempts: {
+    type: Number,
+    default: 0,
+    select: false
+  },
+  accountLockedUntil: {
+    type: Date,
+    select: false
+  },
+  lastLoginAt: {
+    type: Date,
+    select: false
+  },
+  lastPasswordChangeAt: {
+    type: Date,
+    default: Date.now,
+    select: false
+  },
+
+  // Session management
+  activeSessions: [{
+    tokenId: String,
+    deviceInfo: String,
+    ipAddress: String,
+    lastActivity: Date,
+    expiresAt: Date
+  }],
 
   // Store original authentication method for recovery
   originalAuthMethod: {
@@ -128,6 +176,13 @@ const userSchema = new mongoose.Schema({
     required: function() {
       // Date of birth is optional for OAuth users
       return !this.oauthProvider;
+    },
+    validate: {
+      validator: function(value) {
+        if (!value) return true; // Allow empty for OAuth users
+        return value <= new Date(); // Ensure date is not in the future
+      },
+      message: 'Date of birth cannot be in the future'
     }
   },
 
@@ -255,6 +310,17 @@ userSchema.index(
     partialFilterExpression: { 
       oauthProvider: { $exists: true },
       oauthId: { $exists: true }
+    } 
+  }
+);
+
+// Create a unique index for recovery tokens to prevent duplicates
+userSchema.index(
+  { recoveryToken: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      recoveryToken: { $exists: true }
     } 
   }
 );

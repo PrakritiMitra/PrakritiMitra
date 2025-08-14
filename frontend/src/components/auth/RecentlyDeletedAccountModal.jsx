@@ -1,5 +1,26 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Button, 
+  Box, 
+  Typography, 
+  Alert,
+  Divider,
+  Chip,
+  Paper
+} from '@mui/material';
+import { 
+  Warning as WarningIcon, 
+  Refresh as RefreshIcon, 
+  Star as StarIcon,
+  Cancel as CancelIcon,
+  AccessTime as TimeIcon,
+  Block as BlockIcon
+} from '@mui/icons-material';
 import { formatDate } from '../../utils/dateUtils';
 
 const RecentlyDeletedAccountModal = ({ 
@@ -7,13 +28,11 @@ const RecentlyDeletedAccountModal = ({
   onClose, 
   deletedAccount, 
   onProceedWithNewAccount,
-  email 
+  email,
+  remainingDays,
+  recoveryDeadline
 }) => {
   const navigate = useNavigate();
-
-  if (!isOpen) return null;
-
-  // Using the utility function instead of local formatDate
 
   const handleRecoverAccount = () => {
     onClose();
@@ -25,75 +44,253 @@ const RecentlyDeletedAccountModal = ({
     onProceedWithNewAccount();
   };
 
+  if (!deletedAccount) return null;
+
+  // Calculate remaining time
+  const now = new Date();
+  const deletedDate = new Date(deletedAccount.deletedAt);
+  const deadline = new Date(deletedDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+  const daysRemaining = Math.ceil((deadline - now) / (24 * 60 * 60 * 1000));
+  const hoursRemaining = Math.ceil((deadline - now) / (60 * 60 * 1000));
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-2xl mx-4 text-center">
-        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-        </div>
-        
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+    <Dialog 
+      open={isOpen} 
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          minHeight: '500px'
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        textAlign: 'center', 
+        pb: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 1
+      }}>
+        <WarningIcon sx={{ color: 'warning.main', fontSize: 28 }} />
+        <Typography variant="h5" component="span" sx={{ fontWeight: 'bold' }}>
           Account Recently Deleted
-        </h3>
-        
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 text-left">
-          <p className="text-sm text-orange-800 mb-3">
-            <strong>We found a recently deleted account with the email:</strong> {email}
-          </p>
+        </Typography>
+      </DialogTitle>
+
+      <DialogContent sx={{ pb: 2 }}>
+        {/* Critical Warning */}
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+            🚫 You cannot use this email address for 7 days!
+          </Typography>
+          <Typography variant="body2">
+            This email is temporarily blocked from creating new accounts until the recovery period expires.
+          </Typography>
+        </Alert>
+
+        {/* Account Details */}
+        <Paper elevation={1} sx={{ p: 3, mb: 3, bgcolor: 'grey.50' }}>
+          <Typography variant="h6" sx={{ mb: 2, color: 'text.primary', fontWeight: 'bold' }}>
+            📋 Deleted Account Information
+          </Typography>
           
-          <div className="space-y-2 text-sm text-orange-700">
-            <div><strong>Username:</strong> {deletedAccount.username}</div>
-            <div><strong>Name:</strong> {deletedAccount.name}</div>
-            <div><strong>Role:</strong> {deletedAccount.role}</div>
-            <div><strong>Deleted:</strong> {formatDate(deletedAccount.deletedAt)}</div>
-            {deletedAccount.deletionSequence > 1 && (
-              <div><strong>Deletion #:</strong> {deletedAccount.deletionSequence}</div>
-            )}
-          </div>
-        </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-800">
-            <strong>What would you like to do?</strong>
-          </p>
-          <p className="text-sm text-blue-700 mt-1">
-            You can recover your deleted account (with all your data) or create a completely new account.
-          </p>
-        </div>
-        
-        <div className="space-y-3">
-          {deletedAccount.canRecover && (
-            <button
-              onClick={handleRecoverAccount}
-              className="w-full bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition-colors font-medium"
-            >
-              🔄 Recover My Deleted Account
-            </button>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>Email:</strong>
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'medium', color: 'error.main' }}>
+                {email}
+              </Typography>
+            </Box>
+            
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>Username:</strong>
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                {deletedAccount.username}
+              </Typography>
+            </Box>
+            
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>Name:</strong>
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                {deletedAccount.name}
+              </Typography>
+            </Box>
+            
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>Role:</strong>
+              </Typography>
+              <Chip 
+                label={deletedAccount.role} 
+                color="primary" 
+                size="small" 
+                sx={{ textTransform: 'capitalize' }}
+              />
+            </Box>
+          </Box>
+          
+          {deletedAccount.deletionSequence > 1 && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'grey.300' }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Deletion #:</strong> {deletedAccount.deletionSequence}
+              </Typography>
+            </Box>
           )}
+        </Paper>
+
+        {/* Time Restrictions */}
+        <Paper elevation={1} sx={{ p: 3, mb: 3, bgcolor: 'warning.50', border: '1px solid', borderColor: 'warning.200' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <TimeIcon sx={{ color: 'warning.main' }} />
+            <Typography variant="h6" sx={{ color: 'warning.dark', fontWeight: 'bold' }}>
+              ⏰ Recovery Time Restrictions
+            </Typography>
+          </Box>
           
-          <button
-            onClick={handleProceedWithNew}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors font-medium"
-          >
-            ✨ Create New Account
-          </button>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>Account Deleted:</strong>
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                {formatDate(deletedDate)}
+              </Typography>
+            </Box>
+            
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>Recovery Deadline:</strong>
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 'medium', color: 'error.main' }}>
+                {formatDate(deadline)}
+              </Typography>
+            </Box>
+          </Box>
           
-          <button
-            onClick={onClose}
-            className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-200 transition-colors"
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+              <strong>⏳ Time Remaining:</strong> {daysRemaining > 0 ? `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}` : `${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''}`}
+            </Typography>
+          </Alert>
+          
+          <Typography variant="body2" color="text.secondary">
+            <strong>📅 Important:</strong> After {formatDate(deadline)}, you will no longer be able to recover this account, 
+            but you can use this email to create a new account.
+          </Typography>
+        </Paper>
+
+        {/* What You Can Do */}
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ fontWeight: 'medium', mb: 1 }}>
+            🤔 What would you like to do?
+          </Typography>
+          <Typography variant="body2">
+            You have two options during this 7-day recovery period:
+          </Typography>
+        </Alert>
+
+        {/* Options Explanation */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
+          <Paper elevation={1} sx={{ p: 2, bgcolor: 'success.50', border: '1px solid', borderColor: 'success.200' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.dark', mb: 1 }}>
+              ✅ Option 1: Recover Deleted Account
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              Get back all your data, events, and history. This is recommended if you want to keep your previous information.
+            </Typography>
+          </Paper>
+          
+          <Paper elevation={1} sx={{ p: 2, bgcolor: 'info.50', border: '1px solid', borderColor: 'info.200' }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'info.dark', mb: 1 }}>
+              ⏳ Option 2: Wait for Recovery Period
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+              Wait until {formatDate(deadline)} when you can use this email to create a completely new account.
+            </Typography>
+          </Paper>
+        </Box>
+
+        {/* Final Warning */}
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            <strong>🚫 Blocked:</strong> You cannot create a new account with email <strong>{email}</strong> until {formatDate(deadline)}.
+          </Typography>
+        </Alert>
+      </DialogContent>
+
+      <Divider sx={{ mx: 2 }} />
+      
+      <DialogActions sx={{ 
+        p: 3, 
+        gap: 2, 
+        flexDirection: 'column',
+        alignItems: 'stretch'
+      }}>
+        {deletedAccount.canRecover && (
+          <Button
+            onClick={handleRecoverAccount}
+            variant="contained"
+            color="success"
+            size="large"
+            startIcon={<RefreshIcon />}
+            fullWidth
+            sx={{ 
+              py: 1.5, 
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              textTransform: 'none'
+            }}
           >
-            Cancel
-          </button>
-        </div>
+            🔄 Recover My Deleted Account ({daysRemaining > 0 ? `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} left` : `${hoursRemaining} hour${hoursRemaining !== 1 ? 's' : ''} left`})
+          </Button>
+        )}
         
-        <div className="mt-6 text-xs text-gray-500">
-          <p><strong>Note:</strong> If you create a new account, it will be completely separate from your deleted account.</p>
-          <p>All your previous data, events, and history will remain with the deleted account.</p>
-        </div>
-      </div>
-    </div>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          color="primary"
+          size="large"
+          startIcon={<TimeIcon />}
+          fullWidth
+          sx={{ 
+            py: 1.5, 
+            fontSize: '1rem',
+            textTransform: 'none',
+            borderColor: 'primary.main',
+            color: 'primary.main'
+          }}
+        >
+          ⏳ Wait Until {formatDate(deadline)} (Use Different Email)
+        </Button>
+        
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          color="inherit"
+          size="large"
+          startIcon={<CancelIcon />}
+          fullWidth
+          sx={{ 
+            py: 1.5, 
+            fontSize: '1rem',
+            textTransform: 'none',
+            borderColor: 'grey.400',
+            color: 'grey.700'
+          }}
+        >
+          Cancel
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

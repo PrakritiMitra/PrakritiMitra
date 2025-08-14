@@ -6,8 +6,21 @@ const User = require('../models/user');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
+const generateToken = (userId, deviceInfo = 'unknown', ipAddress = 'unknown') => {
+  const tokenId = crypto.randomBytes(16).toString('hex');
+  const payload = { 
+    id: userId, 
+    tokenId,
+    deviceInfo,
+    ipAddress,
+    type: 'access'
+  };
+  
+  return {
+    accessToken: jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" }),
+    refreshToken: jwt.sign({ id: userId, tokenId, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: "7d" }),
+    tokenId
+  };
 };
 
 // Generate username from name
@@ -93,7 +106,7 @@ exports.googleCallback = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: 'ACCOUNT_DELETED',
-          message: 'This account has been deleted. Please recover your account to continue.',
+          message: '🚫 This account has been deleted. You can recover it within 7 days, or wait until the recovery period expires to use this email for a new account.',
           canRecover: true,
           recoveryToken,
           email: user.originalEmail || user.email
@@ -101,11 +114,27 @@ exports.googleCallback = async (req, res) => {
       }
       
       // User exists with OAuth and account is active - login
-      const authToken = generateToken(user._id);
+      // Generate tokens with device info
+      const ipAddress = req.ip || req.connection.remoteAddress;
+      const userAgent = req.get('User-Agent') || 'unknown';
+      const tokens = generateToken(user._id, userAgent, ipAddress);
+      
+      // Store session info
+      user.activeSessions.push({
+        tokenId: tokens.tokenId,
+        deviceInfo: userAgent,
+        ipAddress: ipAddress,
+        lastActivity: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      });
+      
+      await user.save();
+      
       return res.json({
         success: true,
         action: 'login',
-        token: authToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
         user: {
           _id: user._id,
           name: user.name,
@@ -150,7 +179,7 @@ exports.googleCallback = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: 'ACCOUNT_DELETED',
-          message: 'This account has been deleted. Please recover your account to continue.',
+          message: '🚫 This account has been deleted. You can recover it within 7 days, or wait until the recovery period expires to use this email for a new account.',
           canRecover: true,
           recoveryToken,
           email: user.originalEmail || user.email
@@ -177,6 +206,7 @@ exports.googleCallback = async (req, res) => {
             name,
             email,
             picture: validPicture,
+            oauthProvider: 'google',
             provider: 'google'
           },
           message: 'An account with this email already exists. Would you like to link your Google account?'
@@ -184,11 +214,27 @@ exports.googleCallback = async (req, res) => {
       }
       
       // If we get here, the account exists, is active, and has OAuth - log them in
-      const authToken = generateToken(user._id);
+      // Generate tokens with device info
+      const ipAddress = req.ip || req.connection.remoteAddress;
+      const userAgent = req.get('User-Agent') || 'unknown';
+      const tokens = generateToken(user._id, userAgent, ipAddress);
+      
+      // Store session info
+      user.activeSessions.push({
+        tokenId: tokens.tokenId,
+        deviceInfo: userAgent,
+        ipAddress: ipAddress,
+        lastActivity: new Date(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+      });
+      
+      await user.save();
+      
       return res.json({
         success: true,
         action: 'login',
-        token: authToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
         user: {
           _id: user._id,
           name: user.name,
@@ -202,6 +248,54 @@ exports.googleCallback = async (req, res) => {
     }
     
     // If we get here, it means the email doesn't exist in our system
+    // Check for recently deleted accounts with same email (within 7 days)
+    // Check both email and originalEmail fields since deleted accounts store original email in originalEmail
+    console.log(`🔍 [OAUTH_CALLBACK] Checking for recently deleted accounts with email: ${email}`);
+    
+    const recentlyDeletedAccount = await User.findOne({
+      $or: [
+        { email, isDeleted: true },
+        { originalEmail: email, isDeleted: true }
+      ],
+      deletedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Within 7 days
+    });
+
+    if (recentlyDeletedAccount) {
+      console.log(`🚫 [OAUTH_CALLBACK] Found recently deleted account for email: ${email}`, {
+        deletedAt: recentlyDeletedAccount.deletedAt,
+        originalEmail: recentlyDeletedAccount.originalEmail,
+        currentEmail: recentlyDeletedAccount.email,
+        deletionId: recentlyDeletedAccount.deletionId
+      });
+      
+      // Calculate remaining recovery time
+      const recoveryDeadline = new Date(recentlyDeletedAccount.deletedAt.getTime() + (7 * 24 * 60 * 60 * 1000));
+      const now = new Date();
+      const remainingTime = Math.ceil((recoveryDeadline - now) / (24 * 60 * 60 * 1000));
+      
+      console.log(`⏰ [OAUTH_CALLBACK] Recovery window: ${remainingTime} days remaining until ${recoveryDeadline.toISOString()}`);
+      
+      return res.status(409).json({
+        success: false,
+        code: 'RECENTLY_DELETED_ACCOUNT',
+        message: '🚫 This email address is temporarily blocked for 7 days due to a recently deleted account',
+        errorType: 'RECENTLY_DELETED_ACCOUNT',
+        deletedAccount: {
+          username: recentlyDeletedAccount.username,
+          name: recentlyDeletedAccount.name,
+          role: recentlyDeletedAccount.role,
+          deletedAt: recentlyDeletedAccount.deletedAt,
+          deletionSequence: recentlyDeletedAccount.deletionSequence,
+          canRecover: recentlyDeletedAccount.deletionId ? true : false
+        },
+        suggestion: `You can recover your deleted account within ${remainingTime} days, or wait until ${recoveryDeadline.toLocaleDateString()} to use this email for a new account.`,
+        recoveryDeadline: recoveryDeadline,
+        remainingDays: remainingTime
+      });
+    } else {
+      console.log(`✅ [OAUTH_CALLBACK] No recently deleted accounts found for email: ${email} - proceeding with OAuth flow`);
+    }
+
     // but we'll prevent creating a new account with OAuth if there's an existing email/password account
     // This is a safety check in case the email check above fails for some reason
     const existingEmailUser = await User.findOne({ email });
@@ -220,7 +314,8 @@ exports.googleCallback = async (req, res) => {
         oauthId,
         name,
         email,
-        picture: validPicture
+        picture: validPicture,
+        oauthProvider: 'google'
       }
     });
 
@@ -263,22 +358,43 @@ exports.completeOAuthRegistration = async (req, res) => {
     }
     
     // Check if there's a soft-deleted account with this email
+    // Check both email and originalEmail fields since deleted accounts store original email in originalEmail
+    console.log(`🔍 [COMPLETE_OAUTH_REGISTRATION] Checking for recently deleted accounts with email: ${email}`);
+    
     existingUser = await User.findOne({ 
-      email,
-      isDeleted: true 
+      $or: [
+        { email, isDeleted: true },
+        { originalEmail: email, isDeleted: true }
+      ]
     });
     
     if (existingUser) {
-      // Check if this is a recently deleted account (within 30 days)
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const isRecentlyDeleted = existingUser.deletedAt && existingUser.deletedAt > thirtyDaysAgo;
+      console.log(`🚫 [COMPLETE_OAUTH_REGISTRATION] Found deleted account for email: ${email}`, {
+        deletedAt: existingUser.deletedAt,
+        originalEmail: existingUser.originalEmail,
+        currentEmail: existingUser.email,
+        deletionId: existingUser.deletionId
+      });
+      
+      // Check if this is a recently deleted account (within 7 days)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const isRecentlyDeleted = existingUser.deletedAt && existingUser.deletedAt > sevenDaysAgo;
       
       if (isRecentlyDeleted) {
+        console.log(`⏰ [COMPLETE_OAUTH_REGISTRATION] Account was recently deleted (within 7 days) - blocking new registration`);
+        
+        // Calculate remaining recovery time
+        const recoveryDeadline = new Date(existingUser.deletedAt.getTime() + (7 * 24 * 60 * 60 * 1000));
+        const now = new Date();
+        const remainingTime = Math.ceil((recoveryDeadline - now) / (24 * 60 * 60 * 1000));
+        
+        console.log(`⏰ [COMPLETE_OAUTH_REGISTRATION] Recovery window: ${remainingTime} days remaining until ${recoveryDeadline.toISOString()}`);
+        
         // Return information about the recently deleted account
         return res.status(409).json({
           success: false,
           errorType: "RECENTLY_DELETED_ACCOUNT",
-          message: "Account with this email was recently deleted",
+          message: "🚫 This email address is temporarily blocked for 7 days due to a recently deleted account",
           deletedAccount: {
             username: existingUser.username,
             name: existingUser.name,
@@ -287,10 +403,13 @@ exports.completeOAuthRegistration = async (req, res) => {
             deletionSequence: existingUser.deletionSequence,
             canRecover: existingUser.deletionId ? true : false
           },
-          suggestion: "You can recover your deleted account or create a new one with a different email"
+          suggestion: `You can recover your deleted account within ${remainingTime} days, or wait until ${recoveryDeadline.toLocaleDateString()} to use this email for a new account.`,
+          recoveryDeadline: recoveryDeadline,
+          remainingDays: remainingTime
         });
       } else {
-        // Account was deleted more than 30 days ago, allow restoration
+        console.log(`✅ [COMPLETE_OAUTH_REGISTRATION] Account was deleted more than 7 days ago - allowing restoration`);
+        // Account was deleted more than 7 days ago, allow restoration
         existingUser.isDeleted = false;
         existingUser.deletedAt = undefined;
         existingUser.originalEmail = undefined;
@@ -307,13 +426,25 @@ exports.completeOAuthRegistration = async (req, res) => {
           existingUser.username = username.toLowerCase();
         }
         
+        // Generate tokens for automatic login
+        const tokens = generateToken(existingUser._id, 'oauth-restore', req.ip || req.connection.remoteAddress);
+        
+        // Add session to user
+        existingUser.activeSessions.push({
+          tokenId: tokens.tokenId,
+          deviceInfo: 'OAuth Account Restore',
+          ipAddress: req.ip || req.connection.remoteAddress,
+          lastActivity: new Date(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        });
+        
         await existingUser.save();
         
-        const token = generateToken(existingUser._id);
         return res.status(200).json({
           success: true,
-          message: 'Account restored successfully',
-          token,
+          message: 'Account restored successfully! Welcome back to PrakritiMitra.',
+          token: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           user: {
             _id: existingUser._id,
             name: existingUser.name,
@@ -359,13 +490,25 @@ exports.completeOAuthRegistration = async (req, res) => {
     // Create user
     const user = await User.create(userData);
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Generate tokens for automatic login
+    const tokens = generateToken(user._id, 'oauth-signup', req.ip || req.connection.remoteAddress);
+    
+    // Add session to user
+    user.activeSessions.push({
+      tokenId: tokens.tokenId,
+      deviceInfo: 'OAuth Signup',
+      ipAddress: req.ip || req.connection.remoteAddress,
+      lastActivity: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+    });
+    
+    await user.save();
 
     res.status(201).json({
       success: true,
-      message: 'Account created successfully',
-      token,
+      message: 'Account created successfully! Welcome to PrakritiMitra.',
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: {
         _id: user._id,
         name: user.name,
@@ -385,70 +528,60 @@ exports.completeOAuthRegistration = async (req, res) => {
 // Link OAuth to existing account
 exports.linkOAuthAccount = async (req, res) => {
   try {
-    const { userId, oauthId, name, email, picture } = req.body;
+    const { userId, oauthId, oauthProvider, oauthPicture } = req.body;
+
+    console.log('Account linking request:', {
+      userId,
+      oauthId,
+      oauthProvider,
+      oauthPicture,
+      body: req.body
+    });
 
     if (!userId || !oauthId) {
+      console.log('Missing required fields:', { userId: !!userId, oauthId: !!oauthId });
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
     // Find existing user
     const user = await User.findById(userId);
     if (!user) {
+      console.log('User not found:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
+
+    console.log('Found user:', {
+      userId: user._id,
+      email: user.email,
+      hasOAuth: !!user.oauthProvider
+    });
 
     // Check if OAuth ID is already linked to another account
     const existingOAuth = await User.findOne({ oauthProvider: 'google', oauthId });
     if (existingOAuth) {
+      console.log('OAuth ID already linked to another user:', oauthId);
       return res.status(400).json({ message: 'This Google account is already linked to another user' });
     }
 
-    // Preserve all existing user data and only add OAuth information
-    const existingData = {
-      name: user.name,
-      username: user.username,
-      email: user.email,
-      phone: user.phone,
-      password: user.password,
-      role: user.role,
-      dateOfBirth: user.dateOfBirth,
-      city: user.city,
-      gender: user.gender,
-      profileImage: user.profileImage,
-      interests: user.interests,
-      location: user.location,
-      organization: user.organization,
-      position: user.position,
-      pendingApproval: user.pendingApproval,
-      govtIdProofUrl: user.govtIdProofUrl,
-      emergencyPhone: user.emergencyPhone,
-      socials: user.socials,
-      aboutMe: user.aboutMe,
-      certificates: user.certificates,
-      sponsor: user.sponsor,
-      sponsoredEvents: user.sponsoredEvents,
-      isPhoneVerified: user.isPhoneVerified,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt
-    };
+    // Update user with OAuth information
+    user.oauthProvider = oauthProvider || 'google';
+    user.oauthId = oauthId;
+    user.oauthPicture = oauthPicture || null;
+    user.isEmailVerified = true; // Auto-verify email for OAuth users
 
-    // Update user with OAuth data while preserving existing data
-    Object.assign(user, existingData, {
-      oauthProvider: 'google',
-      oauthId: oauthId,
-      oauthPicture: picture || null,
-      isEmailVerified: true // Auto-verify email for OAuth users
+    console.log('Updating user with OAuth data:', {
+      oauthProvider: user.oauthProvider,
+      oauthId: user.oauthId,
+      hasPicture: !!user.oauthPicture
     });
 
     await user.save();
 
-    // Generate token
-    const token = generateToken(user._id);
+    console.log('Account linked successfully for user:', userId);
 
     res.json({
       success: true,
-      message: 'Google account linked successfully',
-      token,
+      message: 'Google account linked successfully. Please login to continue.',
       user: {
         _id: user._id,
         name: user.name,
@@ -461,7 +594,8 @@ exports.linkOAuthAccount = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Account linking failed' });
+    console.error('Account linking error:', error);
+    res.status(500).json({ message: 'Account linking failed: ' + error.message });
   }
 };
 
