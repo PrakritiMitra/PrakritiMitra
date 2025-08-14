@@ -10,6 +10,18 @@ import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
 import { OrganizationSponsorshipSection } from "../components/sponsor";
 import { formatDate } from "../utils/dateUtils";
+import { 
+  PlusIcon, 
+  Cog6ToothIcon, 
+  ClipboardDocumentListIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon,
+  GlobeAltIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  CalendarIcon
+} from '@heroicons/react/24/outline';
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -26,6 +38,9 @@ export default function OrganizationPage() {
   const [organizers, setOrganizers] = useState([]);
   const [organizersError, setOrganizersError] = useState("");
   const [showOrganizers, setShowOrganizers] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const [upcomingVisible, setUpcomingVisible] = useState(4);
+  const [pastVisible, setPastVisible] = useState(4);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
@@ -92,6 +107,9 @@ export default function OrganizationPage() {
         console.error("Error loading organization:", err);
       } finally {
         setLoading(false);
+        // Trigger animations
+        const timer = setTimeout(() => setIsVisible(true), 100);
+        return () => clearTimeout(timer);
       }
     };
 
@@ -140,31 +158,47 @@ export default function OrganizationPage() {
   const upcoming = events.filter((e) => new Date(e.startDateTime) >= now);
   const past = events.filter((e) => new Date(e.startDateTime) < now);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
+        <Navbar />
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 relative">
       <Navbar />
+      
       {/* Show Organizers Button - fixed top right */}
       {organizers.length > 0 && !organizersError && (
         <button
-          className={`fixed z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition
+          className={`fixed z-50 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200
             top-[calc(2cm+1.5rem)]
             ${showOrganizers ? 'right-[340px]' : 'right-8'}
           `}
           style={{ transition: 'right 0.3s cubic-bezier(0.4,0,0.2,1)' }}
           onClick={() => setShowOrganizers((prev) => !prev)}
         >
-          {showOrganizers ? 'Hide Organizers' : 'Show Organizers'}
+          <div className="flex items-center gap-2">
+            <UsersIcon className="w-5 h-5" />
+            {showOrganizers ? 'Hide Organizers' : 'Show Organizers'}
+          </div>
         </button>
       )}
+      
       {/* Organizers Drawer */}
       {organizers.length > 0 && !organizersError && (
         <div
-          className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizers ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`fixed top-0 right-0 h-full w-80 bg-white/90 backdrop-blur-sm shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizers ? 'translate-x-0' : 'translate-x-full'}`}
         >
-          <div className="flex items-center justify-between px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-blue-700">Organizers</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold bg-gradient-to-r from-blue-700 to-emerald-700 bg-clip-text text-transparent">Organizers</h2>
             <button
-              className="text-gray-500 hover:text-red-600 text-2xl font-bold"
+              className="text-slate-500 hover:text-red-600 text-2xl font-bold transition-colors duration-200"
               onClick={() => setShowOrganizers(false)}
               aria-label="Close organizers drawer"
             >
@@ -175,14 +209,14 @@ export default function OrganizationPage() {
             {organizers.map((org) => (
               <div
                 key={org.userId._id}
-                className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50"
+                className="flex items-center bg-white/70 backdrop-blur-sm rounded-xl shadow-md p-4 border border-white/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:bg-blue-50/50"
                 onClick={() => navigate(`/organizer/${org.userId._id}`)}
               >
                 <Avatar user={org.userId} size="lg" role="organizer" className="mr-4" />
                 <div className="flex flex-col">
-                  <span className="font-medium text-blue-800 text-lg">{org.userId.name}</span>
+                  <span className="font-semibold text-slate-900 text-lg">{org.userId.name}</span>
                   {org.userId.username && (
-                    <span className="text-sm text-blue-600">@{org.userId.username}</span>
+                    <span className="text-sm text-slate-600">@{org.userId.username}</span>
                   )}
                 </div>
               </div>
@@ -190,180 +224,254 @@ export default function OrganizationPage() {
           </div>
         </div>
       )}
-      <div className="pt-24 px-6 max-w-5xl mx-auto">
-        {loading ? (
-          <p>Loading...</p>
-        ) : organization ? (
+      
+      <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {organization ? (
           <>
-            <h1 className="text-3xl font-bold text-blue-700 mb-3">
-              {organization.name}
-            </h1>
-            <p className="text-gray-700 mb-2">{organization.description}</p>
+            {/* Header Section */}
+            <div className={`mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/20">
+                <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-4">
+                  {organization.name}
+                </h1>
+                <p className="text-slate-700 text-lg mb-4">{organization.description}</p>
 
-            {organization.website && (
-              <p className="text-sm mb-3">
-                <strong>Website:</strong>{" "}
-                <a
-                  href={organization.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-600 underline"
-                >
-                  {organization.website}
-                </a>
-              </p>
-            )}
+                <div className="flex flex-wrap gap-4 items-center">
+                  {organization.website && (
+                    <a
+                      href={organization.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                    >
+                      <GlobeAltIcon className="w-4 h-4" />
+                      Visit Website
+                    </a>
+                  )}
 
-            <p className="text-sm text-gray-500 mb-6">
-              Verified Status: {organization.verifiedStatus}
-            </p>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl">
+                    <ShieldCheckIcon className="w-4 h-4" />
+                    {organization.verifiedStatus}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Sponsorship Section */}
-            <OrganizationSponsorshipSection 
-              organizationId={id}
-              organization={organization}
-              isAdmin={isAdmin}
-            />
+            <div className={`mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <OrganizationSponsorshipSection 
+                organizationId={id}
+                organization={organization}
+                isAdmin={isAdmin}
+              />
+            </div>
 
             {/* Join status UI */}
             {user?.role === "organizer" && (
-              <div className="mb-6">
-                {isAdmin ? (
-                  <p className="text-green-600 font-medium">
-                    Joined as admin{" "}
-                    {memberEntry?.updatedAt &&
-                      `on ${formatDate(memberEntry.updatedAt)}`}
-                  </p>
-                ) : isMember ? (
-                  <p className="text-green-600 font-medium">
-                    Joined as member{" "}
-                    {memberEntry?.updatedAt &&
-                      `on ${formatDate(memberEntry.updatedAt)}`}
-                  </p>
-                ) : hasRequested ? (
-                  <p className="text-yellow-600 font-medium">
-                    Join request sent
-                  </p>
-                ) : (
-                  <button
-                    onClick={handleJoinRequest}
-                    disabled={joining}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                  >
-                    {joining ? "Sending..." : "Request to Join"}
-                  </button>
-                )}
+              <div className={`mb-8 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+                  {isAdmin ? (
+                    <div className="flex items-center gap-3 text-emerald-700">
+                      <CheckCircleIcon className="w-6 h-6" />
+                      <p className="font-semibold">
+                        Joined as admin{" "}
+                        {memberEntry?.updatedAt &&
+                          `on ${formatDate(memberEntry.updatedAt)}`}
+                      </p>
+                    </div>
+                  ) : isMember ? (
+                    <div className="flex items-center gap-3 text-emerald-700">
+                      <CheckCircleIcon className="w-6 h-6" />
+                      <p className="font-semibold">
+                        Joined as member{" "}
+                        {memberEntry?.updatedAt &&
+                          `on ${formatDate(memberEntry.updatedAt)}`}
+                      </p>
+                    </div>
+                  ) : hasRequested ? (
+                    <div className="flex items-center gap-3 text-amber-700">
+                      <ClockIcon className="w-6 h-6" />
+                      <p className="font-semibold">Join request sent</p>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleJoinRequest}
+                      disabled={joining}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50"
+                    >
+                      <UsersIcon className="w-5 h-5" />
+                      {joining ? "Sending..." : "Request to Join"}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
-            {(isAdmin || isMember) && (
-              <button
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4 mr-4"
-                onClick={() => setShowEventForm(true)}
-              >
-                + Create New Event
-              </button>
-            )}
-
-            {isAdmin && (
-              <>
-                <button
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mb-4 mr-4"
-                  onClick={() => navigate(`/organization/${id}/settings`)}
-                >
-                  ⚙️ Settings
-                </button>
-                <button
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 mb-4"
-                  onClick={() => navigate(`/organization/${id}/applications`)}
-                >
-                  📋 View Applications
-                </button>
-              </>
-            )}
-
-            {isAdmin && pendingRequests.length > 0 && (
-              <ul className="space-y-2">
-                {pendingRequests.map((req) => (
-                  <li
-                    key={req.userId._id}
-                    data-userid={req.userId._id}
-                    className="flex justify-between items-center bg-white border rounded p-3"
+            {/* Action Buttons */}
+            <div className={`mb-8 transition-all duration-1000 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="flex flex-wrap gap-4">
+                {(isAdmin || isMember) && (
+                  <button
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                    onClick={() => setShowEventForm(true)}
                   >
-                    <span className="flex items-center gap-3">
-                      {req.userId.profileImage ? (
-                        <img
-                          src={`http://localhost:5000/uploads/Profiles/${req.userId.profileImage}`}
-                          alt={req.userId.name}
-                          className="w-10 h-10 rounded-full object-cover border"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-lg font-bold text-blue-700">
-                          {req.userId.name?.[0]}
+                    <PlusIcon className="w-5 h-5" />
+                    Create New Event
+                  </button>
+                )}
+
+                {isAdmin && (
+                  <>
+                    <button
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                      onClick={() => navigate(`/organization/${id}/settings`)}
+                    >
+                      <Cog6ToothIcon className="w-5 h-5" />
+                      Settings
+                    </button>
+                    <button
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                      onClick={() => navigate(`/organization/${id}/applications`)}
+                    >
+                      <ClipboardDocumentListIcon className="w-5 h-5" />
+                      View Applications
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Pending Requests */}
+            {isAdmin && pendingRequests.length > 0 && (
+              <div className={`mb-8 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+                  <h3 className="text-xl font-semibold text-slate-900 mb-4">Pending Join Requests</h3>
+                  <div className="space-y-4">
+                    {pendingRequests.map((req) => (
+                      <div
+                        key={req.userId._id}
+                        data-userid={req.userId._id}
+                        className="flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:shadow-md transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-4">
+                          {req.userId.profileImage ? (
+                            <img
+                              src={`http://localhost:5000/uploads/Profiles/${req.userId.profileImage}`}
+                              alt={req.userId.name}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center text-lg font-bold text-white shadow-md">
+                              {req.userId.name?.[0]}
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-semibold text-slate-900">{req.userId.name}</p>
+                            <p className="text-sm text-slate-600">
+                              {req.userId.username ? `@${req.userId.username}` : ''} • {req.userId.email}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                      <span>
-                        {req.userId.name} {req.userId.username ? `(@${req.userId.username})` : ''} ({req.userId.email})
-                      </span>
-                    </span>
-                    <div className="space-x-2">
-                      <button
-                        className="text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                        onClick={() => handleApprove(req.userId._id)}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                        onClick={() => handleReject(req.userId._id)}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                        <div className="flex gap-2">
+                          <button
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                            onClick={() => handleApprove(req.userId._id)}
+                          >
+                            <CheckCircleIcon className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                            onClick={() => handleReject(req.userId._id)}
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Upcoming Events */}
-            <h2 className="text-xl font-semibold mt-8 mb-2 text-blue-700">
-              Upcoming Events
-            </h2>
-            {upcoming.length === 0 ? (
-              <p className="text-gray-500">No upcoming events.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {upcoming.map((e) => (
-                  <EventCard key={e._id} event={e} />
-                ))}
+            <div className={`mb-8 transition-all duration-1000 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-6 flex items-center gap-3">
+                  <CalendarIcon className="w-6 h-6" />
+                  Upcoming Events ({upcoming.length})
+                </h2>
+                {upcoming.length === 0 ? (
+                  <p className="text-slate-600 text-center py-8">No upcoming events.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {upcoming.slice(0, upcomingVisible).map((e) => (
+                      <EventCard key={e._id} event={e} />
+                    ))}
+                    {upcoming.length > upcomingVisible && (
+                      <button
+                        className="col-span-1 md:col-span-2 lg:col-span-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-emerald-700 transition-all duration-200"
+                        onClick={() => setUpcomingVisible(prev => prev + 4)}
+                      >
+                        Load More Upcoming Events
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Past Events */}
-            <h2 className="text-xl font-semibold mt-10 mb-2 text-gray-700">
-              Past Events
-            </h2>
-            {past.length === 0 ? (
-              <p className="text-gray-500">No past events.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {past.map((e) => (
-                  <EventCard key={e._id} event={e} />
-                ))}
+            <div className={`transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-6 flex items-center gap-3">
+                  <ClockIcon className="w-6 h-6" />
+                  Past Events ({past.length})
+                </h2>
+                {past.length === 0 ? (
+                  <p className="text-slate-600 text-center py-8">No past events.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {past.slice(0, pastVisible).map((e) => (
+                      <EventCard key={e._id} event={e} />
+                    ))}
+                    {past.length > pastVisible && (
+                      <button
+                        className="col-span-1 md:col-span-2 lg:col-span-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-xl shadow-lg hover:from-blue-700 hover:to-emerald-700 transition-all duration-200"
+                        onClick={() => setPastVisible(prev => prev + 4)}
+                      >
+                        Load More Past Events
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </>
         ) : (
-          <p>Organization not found.</p>
+          <div className="text-center py-16">
+            <div className="max-w-md mx-auto">
+              <div className="p-4 bg-gradient-to-r from-red-500 to-red-600 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                <XCircleIcon className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                Organization not found
+              </h3>
+              <p className="text-slate-600">
+                The organization you're looking for doesn't exist or has been removed.
+              </p>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Event creation modal */}
       {showEventForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-xl relative my-10 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-4xl relative my-10 max-h-[90vh] overflow-y-auto border border-white/20">
             <button
-              className="absolute top-4 right-8 text-gray-500 hover:text-red-600 text-[30px]"
+              className="absolute top-4 right-6 text-slate-500 hover:text-red-600 text-3xl font-bold transition-colors duration-200"
               onClick={() => setShowEventForm(false)}
             >
               ×

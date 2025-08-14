@@ -12,6 +12,21 @@ import { getEventReport, downloadReportAsPDF } from '../utils/reportUtils';
 import defaultImages from "../utils/eventTypeImages";
 import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../utils/calendarUtils";
 import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
+import {
+  BuildingOfficeIcon,
+  UserGroupIcon,
+  Cog6ToothIcon,
+  ClipboardDocumentListIcon,
+  GlobeAltIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  CalendarIcon,
+  MapPinIcon,
+  DocumentTextIcon,
+  XMarkIcon,
+  ArrowTopRightOnSquareIcon,
+  EyeIcon
+} from "@heroicons/react/24/outline";
 import calendarEventEmitter from "../utils/calendarEventEmitter";
 
 import useEventSlots from '../hooks/useEventSlots';
@@ -599,7 +614,7 @@ export default function VolunteerEventDetailsPage() {
   const eventImage = defaultImages[event.eventType?.toLowerCase()] || defaultImages["default"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-12 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 relative overflow-x-hidden">
       <Navbar />
 
       {/* Organizer Team Drawer & Button */}
@@ -642,15 +657,17 @@ export default function VolunteerEventDetailsPage() {
                   const displayText = orgUser.username ? `@${orgUser.username}` : displayName;
                   return (
                     <div key={orgUser._id} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${orgUser._id}`)}>
-                      <Avatar user={orgUser} size="lg" role="organizer" className="mr-4" />
-                      <div className="flex flex-col">
-                        <span className="font-medium text-blue-800 text-lg">{displayText}</span>
+                      <div className="flex-shrink-0 mr-4">
+                        <Avatar user={orgUser} size="lg" role="organizer" />
+                      </div>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="font-medium text-blue-800 text-lg truncate">{displayText}</span>
                         {orgUser.username && orgUser.name && (
-                          <span className="text-sm text-gray-600">{orgUser.name}</span>
+                          <span className="text-sm text-gray-600 truncate">{orgUser.name}</span>
                         )}
                       </div>
                       {isCreator && (
-                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
+                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold flex-shrink-0">Creator</span>
                       )}
                     </div>
                   );
@@ -708,11 +725,13 @@ export default function VolunteerEventDetailsPage() {
                 const displayText = vol.username ? `@${vol.username}` : displayName;
                 return (
                   <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
-                    <Avatar user={vol} size="lg" role="volunteer" className="mr-4" />
-                    <div className="flex flex-col">
-                      <span className="font-medium text-green-800 text-lg">{displayText}</span>
+                    <div className="flex-shrink-0 mr-4">
+                      <Avatar user={vol} size="lg" role="volunteer" />
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="font-medium text-green-800 text-lg truncate">{displayText}</span>
                       {vol.username && vol.name && (
-                        <span className="text-sm text-gray-600">{vol.name}</span>
+                        <span className="text-sm text-gray-600 truncate">{vol.name}</span>
                       )}
                     </div>
                   </div>
@@ -730,66 +749,79 @@ export default function VolunteerEventDetailsPage() {
       
       {/* LIVE badge */}
       {isLiveEvent && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow z-20 animate-pulse">LIVE</div>
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gradient-to-r from-red-600 to-red-700 text-white text-xs font-bold px-6 py-3 rounded-full shadow-lg z-20 animate-pulse border-2 border-white">
+          🔴 LIVE
+        </div>
       )}
 
-      <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+      <div className="pt-24 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Certificate Section */}
         {isPastEvent && isRegistered && (
-          <div className="mb-4 p-4 bg-blue-100 border border-blue-200 rounded-lg">
-            <h3 className="font-bold text-blue-800 mb-2">Your Certificate</h3>
+          <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl shadow-sm">
+            <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
+              <DocumentTextIcon className="w-5 h-5" />
+              Your Certificate
+            </h3>
             {myCertificateAssignment ? (
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {certificateGenerated ? (
-                  <a href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" download>Download Certificate</a>
+                  <a href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" download>
+                    📄 Download Certificate
+                  </a>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <button onClick={handleGenerateCertificate} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed" disabled={!canGenerateCertificate || isGeneratingCertificate}>
-                      {isGeneratingCertificate ? "Generating..." : "Generate Certificate"}
+                  <div className="flex flex-col gap-3">
+                    <button onClick={handleGenerateCertificate} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" disabled={!canGenerateCertificate || isGeneratingCertificate}>
+                      {isGeneratingCertificate ? "🔄 Generating..." : "🎖️ Generate Certificate"}
                     </button>
-                    {!questionnaireCompleted && <span className="text-sm text-red-600">Please complete the questionnaire to enable generation.</span>}
+                    {!questionnaireCompleted && <span className="text-sm text-red-600 flex items-center gap-1">⚠️ Please complete the questionnaire to enable generation.</span>}
                   </div>
                 )}
-                <span className="text-gray-700">Award: <b>{myCertificateAssignment?.award}</b></span>
+                <span className="text-gray-700 bg-white/60 px-4 py-2 rounded-lg">
+                  Award: <b className="text-blue-800">{myCertificateAssignment?.award}</b>
+                </span>
               </div>
             ) : (
               <div className="text-gray-600">
                 {!questionnaireCompleted ? (
-                  <span>Complete your questionnaire to be eligible for a certificate.</span>
+                  <span className="flex items-center gap-2">📝 Complete your questionnaire to be eligible for a certificate.</span>
                 ) : (
-                  <span>Certificate not available yet. The event organizer needs to assign awards.</span>
+                  <span className="flex items-center gap-2">⏳ Certificate not available yet. The event organizer needs to assign awards.</span>
                 )}
               </div>
             )}
           </div>
         )}
         
-        <button className="mb-4 text-blue-600 underline" onClick={() => navigate(-1)}>← Back</button>
+        <button className="mb-6 text-blue-600 hover:text-blue-800 underline transition-colors duration-200 flex items-center gap-2" onClick={() => navigate(-1)}>
+          <span className="text-xl">←</span> Back
+        </button>
 
         {/* Event Card */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 w-full">
-          <div className="relative w-full bg-gray-200 flex items-center justify-center" style={{ minHeight: '180px', maxHeight: '220px' }}>
-            <img src={eventImage} alt={event.eventType} className="w-full h-full object-cover object-center opacity-40 absolute top-0 left-0 z-0" />
-            <div className="absolute bottom-2 left-2 bg-white/80 px-3 py-1 rounded text-sm font-semibold text-blue-700 shadow z-20">{event.eventType || "Event"}</div>
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border border-white/20 w-full">
+          <div className="relative w-full bg-gradient-to-br from-blue-100 to-emerald-100 flex items-center justify-center" style={{ minHeight: '200px', maxHeight: '240px' }}>
+            <img src={eventImage} alt={event.eventType} className="w-full h-full object-cover object-center opacity-30 absolute top-0 left-0 z-0" />
+            <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-xl text-sm font-bold text-blue-700 shadow-lg z-20 border border-white/50">
+              {event.eventType || "Event"}
+            </div>
           </div>
 
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-blue-800">
+          <div className="p-8">
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6 mb-6">
+              <div className="flex-1">
+                <h1 className="text-3xl lg:text-4xl font-bold text-blue-800 mb-3">
                   {event.title}
                   {event.isRecurringInstance && (
-                    <span className="ml-3 text-lg bg-blue-100 text-blue-700 px-3 py-1 rounded">
+                    <span className="ml-3 text-lg bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 px-4 py-2 rounded-xl shadow-sm">
                       Instance #{event.recurringInstanceNumber}
                     </span>
                   )}
                 </h1>
                 {event.recurringEvent && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-sm bg-green-100 text-green-700 px-2 py-1 rounded">
-                      Recurring Event
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <span className="text-sm bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-700 px-3 py-2 rounded-xl shadow-sm font-medium">
+                      🔄 Recurring Event
                     </span>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 bg-white/60 px-3 py-2 rounded-lg">
                       {event.recurringType} - {event.recurringValue}
                     </span>
                   </div>
@@ -801,15 +833,15 @@ export default function VolunteerEventDetailsPage() {
                 <button
                   data-calendar-button
                   onClick={() => setShowCalendarOptions(!showCalendarOptions)}
-                  className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-110"
                   title="Add to Calendar"
                 >
-                  <FaCalendarPlus className="w-5 h-5" />
+                  <FaCalendarPlus className="w-6 h-6" />
                 </button>
                 
                 {/* Calendar Options Dropdown */}
                 {showCalendarOptions && (
-                  <div data-calendar-dropdown className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[220px] z-50">
+                  <div data-calendar-dropdown className="absolute top-full right-0 mt-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 p-3 min-w-[250px] z-50">
                     {/* Website Calendar Options */}
                     {calendarStatus.canAddToCalendar && (
                       <button
@@ -817,9 +849,9 @@ export default function VolunteerEventDetailsPage() {
                           handleAddToWebsiteCalendar();
                           setShowCalendarOptions(false);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 rounded-xl flex items-center gap-3 transition-all duration-200"
                       >
-                        <FaCalendarPlus className="w-4 h-4" />
+                        <FaCalendarPlus className="w-4 h-4 text-blue-600" />
                         Add to Website Calendar
                       </button>
                     )}
@@ -829,28 +861,28 @@ export default function VolunteerEventDetailsPage() {
                           handleRemoveFromWebsiteCalendar();
                           setShowCalendarOptions(false);
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-red-50 rounded-xl flex items-center gap-3 transition-all duration-200"
                       >
-                        <FaCalendarMinus className="w-4 h-4" />
+                        <FaCalendarMinus className="w-4 h-4 text-red-600" />
                         Remove from Website Calendar
                       </button>
                     )}
                     {calendarStatus.isRegistered && (
-                      <div className="px-3 py-2 text-sm text-gray-500 italic">
-                        Registered events are automatically in calendar
+                      <div className="px-4 py-3 text-sm text-gray-500 italic bg-gray-50 rounded-xl">
+                        ✅ Registered events are automatically in calendar
                       </div>
                     )}
                     
                     {/* External Calendar Options */}
-                    <div className="border-t border-gray-200 my-1"></div>
+                    <div className="border-t border-gray-200 my-2"></div>
                     <button
                       onClick={() => {
                         handleAddToCalendar();
                         setShowCalendarOptions(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-green-50 rounded-xl flex items-center gap-3 transition-all duration-200"
                     >
-                      <FaCalendarPlus className="w-4 h-4" />
+                      <FaCalendarPlus className="w-4 h-4 text-green-600" />
                       Add to Google Calendar
                     </button>
                     <button
@@ -858,9 +890,9 @@ export default function VolunteerEventDetailsPage() {
                         handleDownloadCalendar();
                         setShowCalendarOptions(false);
                       }}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
+                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 rounded-xl flex items-center gap-3 transition-all duration-200"
                     >
-                      <FaCalendarPlus className="w-4 h-4" />
+                      <FaCalendarPlus className="w-4 h-4 text-purple-600" />
                       Download .ics File
                     </button>
                   </div>
@@ -869,138 +901,256 @@ export default function VolunteerEventDetailsPage() {
             </div>
             
             {/* --- ACTION/STATUS SECTION --- */}
-            <div className="my-6 p-4 bg-gray-50 rounded-lg border text-center">
+            <div className="my-8 p-8 bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border border-gray-200 text-center shadow-sm">
               {/* Banned Status */}
               {isBanned && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                  🚫 You are banned from this event by the event creator. You cannot register.
+                <div className="bg-gradient-to-r from-red-50 to-red-100 border-2 border-red-300 text-red-700 px-6 py-4 rounded-xl mb-6 shadow-sm">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-2xl">🚫</span>
+                    <span className="font-bold">You are banned from this event</span>
+                  </div>
+                  <p className="text-sm">The event creator has banned you from participating.</p>
                 </div>
               )}
 
               {/* Removed Status */}
               {isRemoved && !isBanned && (
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                  ⚠️ You were removed from this event by an organizer. You can register again.
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-100 border-2 border-yellow-300 text-yellow-700 px-6 py-4 rounded-xl mb-6 shadow-sm">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="text-2xl">⚠️</span>
+                    <span className="font-bold">You were removed from this event</span>
+                  </div>
+                  <p className="text-sm">An organizer removed you, but you can register again.</p>
                 </div>
               )}
 
               {/* Entry QR Code */}
               {!hasCompletedEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
                 <div className="flex flex-col items-center">
-                  <h3 className="text-lg font-semibold mb-2">Your Entry QR Code</h3>
-                  <img src={`http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="border border-gray-300 p-2 w-64 h-64" />
-                  <p className="mt-3 text-blue-800 text-sm max-w-xs">Show this to the organizer at the event entrance.</p>
+                  <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">
+                    <span className="text-2xl">📱</span>
+                    Your Entry QR Code
+                  </h3>
+                  <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-blue-200">
+                    <img src={`http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="w-64 h-64" />
+                  </div>
+                  <p className="mt-4 text-blue-800 text-sm max-w-xs bg-white/60 px-4 py-2 rounded-lg">Show this to the organizer at the event entrance.</p>
                 </div>
               )}
 
               {/* Exit QR Generation & Display */}
               {!hasCompletedEvent && registrationDetails?.inTime && !registrationDetails?.outTime && (
                 !showExitQr ? (
-                  <button onClick={handleGenerateExitQr} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Generate Exit QR</button>
+                  <button onClick={handleGenerateExitQr} className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-8 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105">
+                    🚪 Generate Exit QR
+                  </button>
                 ) : exitQrPath && (
                   <div className="flex flex-col items-center">
-                    <h3 className="text-lg font-semibold mb-2">Your Exit QR Code</h3>
-                    <img src={`http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="border border-gray-300 p-2 w-64 h-64" />
-                    <p className="mt-3 text-blue-800 text-sm max-w-xs">Show this to the organizer at the exit to mark your out-time.</p>
+                    <h3 className="text-xl font-bold text-emerald-800 mb-4 flex items-center gap-2">
+                      <span className="text-2xl">🚪</span>
+                      Your Exit QR Code
+                    </h3>
+                    <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-emerald-200">
+                      <img src={`http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="w-64 h-64" />
+                    </div>
+                    <p className="mt-4 text-emerald-800 text-sm max-w-xs bg-white/60 px-4 py-2 rounded-lg">Show this to the organizer at the exit to mark your out-time.</p>
                   </div>
                 )
               )}
 
               {/* Registration Button - Only show if not banned */}
               {!isPastEvent && !isLiveEvent && !isRegistered && !isBanned && (availableSlots > 0 || unlimitedVolunteers) && (
-                <button onClick={() => setShowRegisterModal(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Register</button>
+                <button onClick={() => setShowRegisterModal(true)} className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-8 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105">
+                  🎯 Register for Event
+                </button>
               )}
               
               {/* Status Messages */}
-              {isPastEvent ? <p className="text-red-600 font-semibold">This event has ended.</p> : null}
-              {hasCompletedEvent && <p className="text-green-700 font-semibold">Thank you for attending! Your attendance is complete.</p>}
+              {isPastEvent && <p className="text-red-600 font-bold text-lg">⏰ This event has ended.</p>}
+              {hasCompletedEvent && <p className="text-emerald-700 font-bold text-lg">🎉 Thank you for attending! Your attendance is complete.</p>}
               
               {/* Questionnaire Button */}
               {isPastEvent && isRegistered && !questionnaireCompleted && (
-                <button onClick={() => setShowQuestionnaireModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" disabled={questionnaireSubmitting}>
-                  {questionnaireSubmitting ? 'Submitting...' : 'Complete Questionnaire'}
+                <button onClick={() => setShowQuestionnaireModal(true)} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" disabled={questionnaireSubmitting}>
+                  {questionnaireSubmitting ? '🔄 Submitting...' : '📝 Complete Questionnaire'}
                 </button>
               )}
-              {questionnaireCompleted && <p className="text-green-700 font-semibold mt-4">✅ Questionnaire completed!</p>}
+              {questionnaireCompleted && <p className="text-emerald-700 font-bold text-lg mt-4">✅ Questionnaire completed!</p>}
               
               {/* Withdraw Button */}
               {!hasCompletedEvent && isRegistered && !registrationDetails?.inTime && (
-                <button onClick={handleWithdrawRegistration} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4">Withdraw Registration</button>
+                <button onClick={handleWithdrawRegistration} className="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-3 rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 mt-4">
+                  ❌ Withdraw Registration
+                </button>
               )}
             </div>
 
             {/* Event Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
+                <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">
+                  <BuildingOfficeIcon className="w-6 h-6" />
+                  Event Details
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <BuildingOfficeIcon className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <p><span className="font-semibold text-gray-700">Organization:</span> {event.organization?.name || "N/A"}</p>
-                <p><span className="font-semibold text-gray-700">Location:</span> {event.location}</p>
-                <p><span className="font-semibold text-gray-700">Timing:</span> {`(${format(new Date(event.startDateTime), 'hh:mm a, d MMM yyyy')}) — (${format(new Date(event.endDateTime), 'hh:mm a, d MMM yyyy')})`}</p>
-                <p><span className="font-semibold text-gray-700">Type:</span> {event.eventType || "Not specified"}</p>
-                <p><span className="font-semibold text-gray-700">Volunteer Slots:</span> <span className={slotColor}>{slotMessage}</span></p>
+                      <span className="font-semibold text-gray-700">Organization:</span>
+                      <p className="text-gray-800">{event.organization?.name || "N/A"}</p>
               </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <MapPinIcon className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-gray-700">Description:</h3>
-                <p className="text-gray-700 mt-1">{event.description}</p>
+                      <span className="font-semibold text-gray-700">Location:</span>
+                      <p className="text-gray-800">{event.location}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CalendarIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-700">Timing:</span>
+                      <p className="text-gray-800">{`${format(new Date(event.startDateTime), 'hh:mm a, d MMM yyyy')} — ${format(new Date(event.endDateTime), 'hh:mm a, d MMM yyyy')}`}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Cog6ToothIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-700">Type:</span>
+                      <p className="text-gray-800">{event.eventType || "Not specified"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <UserGroupIcon className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-700">Volunteer Slots:</span>
+                      <p className={`font-medium ${slotColor}`}>{slotMessage}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 p-6 rounded-2xl border border-emerald-200">
+                <h3 className="text-xl font-bold text-emerald-800 mb-4 flex items-center gap-2">
+                  <DocumentTextIcon className="w-6 h-6" />
+                  Description
+                </h3>
+                <p className="text-gray-700 leading-relaxed">{event.description}</p>
               </div>
             </div>
 
             {/* Map Location */}
             {event.mapLocation?.lat && event.mapLocation?.lng && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Event Location Map</h3>
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">
+                  <MapPinIcon className="w-6 h-6" />
+                  Event Location Map
+                </h3>
+                <div className="bg-white p-4 rounded-2xl shadow-lg border border-gray-200">
                 <StaticMap 
                   key={`${event.mapLocation.lat}-${event.mapLocation.lng}-${event.mapLocation.address}`}
                   lat={event.mapLocation.lat} 
                   lng={event.mapLocation.lng} 
                 />
-                {event.mapLocation.address && <p className="text-gray-600 mt-2 text-sm">{event.mapLocation.address}</p>}
+                  {event.mapLocation.address && (
+                    <p className="text-gray-600 mt-3 text-sm bg-gray-50 px-3 py-2 rounded-lg">
+                      📍 {event.mapLocation.address}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
             
             {/* Logistics Section */}
-            <div className="border-t pt-6 mt-6">
-              <h2 className="text-xl font-semibold text-blue-700 mb-3">Volunteer Logistics</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
-                <p><span className="font-semibold">Water Provided:</span> {event.waterProvided ? "Yes" : "No"}</p>
-                <p><span className="font-semibold">Medical Support:</span> {event.medicalSupport ? "Yes" : "No"}</p>
-                <p><span className="font-semibold">Precautions:</span> {event.precautions || "None"}</p>
-                <p><span className="font-semibold">Instructions:</span> {event.instructions || "None"}</p>
+            <div className="border-t border-gray-200 pt-8 mt-8">
+              <h2 className="text-2xl font-bold text-blue-800 mb-6 flex items-center gap-2">
+                <ClipboardDocumentListIcon className="w-7 h-7" />
+                Volunteer Logistics
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
+                  <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
+                    <span className="text-xl">💧</span>
+                    Basic Amenities
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-700">Water Provided:</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${event.waterProvided ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {event.waterProvided ? "✅ Yes" : "❌ No"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-700">Medical Support:</span>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${event.medicalSupport ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {event.medicalSupport ? "✅ Yes" : "❌ No"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 p-6 rounded-2xl border border-emerald-200">
+                  <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2">
+                    <span className="text-xl">📋</span>
+                    Important Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="font-semibold text-gray-700 block mb-2">Precautions:</span>
+                      <p className="text-gray-800 bg-white/60 px-3 py-2 rounded-lg">{event.precautions || "None specified"}</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-700 block mb-2">Instructions:</span>
+                      <p className="text-gray-800 bg-white/60 px-3 py-2 rounded-lg">{event.instructions || "None specified"}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* AI Summary */}
-            <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded shadow">
-              <h2 className="text-xl font-bold text-yellow-700 mb-2">AI Event Summary</h2>
+            <div className="mt-8 p-8 bg-gradient-to-br from-yellow-50 to-amber-50 border-l-4 border-yellow-400 rounded-2xl shadow-lg">
+              <h2 className="text-2xl font-bold text-yellow-700 mb-4 flex items-center gap-2">
+                <span className="text-2xl">🤖</span>
+                AI Event Summary
+              </h2>
               {event.summary?.trim() ? (
-                <p className="text-gray-800 whitespace-pre-line">{event.summary}</p>
+                <div className="bg-white/60 p-6 rounded-xl border border-yellow-200">
+                  <p className="text-gray-800 whitespace-pre-line leading-relaxed">{event.summary}</p>
+                </div>
               ) : (
-                <p className="italic text-gray-500">Generating AI summary...</p>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mr-3"></div>
+                  <p className="italic text-gray-600">Generating AI summary...</p>
+                </div>
               )}
             </div>
 
             {/* AI Report */}
             {isPastEvent && isRegistered && (
-              <div className="mt-8 p-8 bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl shadow-lg">
-                <h2 className="text-2xl font-bold text-green-800 mb-6 text-center">AI Event Report</h2>
+              <div className="mt-8 p-8 bg-gradient-to-br from-green-50 via-blue-50 to-indigo-50 border border-green-200 rounded-2xl shadow-lg">
+                <h2 className="text-3xl font-bold text-green-800 mb-6 text-center flex items-center justify-center gap-3">
+                  <span className="text-3xl">📊</span>
+                  AI Event Report
+                </h2>
                 {reportLoading ? (
-                  <div className="flex items-center justify-center text-gray-600 py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mr-3"></div>
-                    Checking for available report...
+                  <div className="flex items-center justify-center text-gray-600 py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mr-4"></div>
+                    <span className="text-lg">Checking for available report...</span>
                   </div>
                 ) : eventReport ? (
-                  <div className="flex justify-center gap-4">
-                    <button onClick={handleViewReport} className="px-8 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md hover:shadow-lg">
+                  <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <button onClick={handleViewReport} className="px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105">
                       📄 View Report
                     </button>
-                    <button onClick={handleDownloadReport} className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">
+                    <button onClick={handleDownloadReport} className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105">
                       📥 Download PDF
                     </button>
                   </div>
                 ) : (
-                  <div className="text-center text-gray-600 py-8">
-                    <div className="text-4xl mb-2">📋</div>
-                    <p className="text-lg">No report available yet.</p>
-                    <p className="text-sm text-gray-500 mt-1">Reports are generated after event completion and questionnaire submission.</p>
+                  <div className="text-center text-gray-600 py-12">
+                    <div className="text-6xl mb-4">📋</div>
+                    <p className="text-xl font-semibold mb-2">No report available yet.</p>
+                    <p className="text-gray-500">Reports are generated after event completion and questionnaire submission.</p>
                   </div>
                 )}
               </div>
@@ -1009,8 +1159,11 @@ export default function VolunteerEventDetailsPage() {
             {/* Comments Section */}
             {isPastEvent && (
               <div className="mt-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold text-gray-800">Volunteer Feedback & Comments</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <span className="text-2xl">💬</span>
+                    Volunteer Feedback & Comments
+                  </h3>
                   <button
                     onClick={() => {
                       setShowComments(!showComments);
@@ -1018,45 +1171,42 @@ export default function VolunteerEventDetailsPage() {
                         fetchComments();
                       }
                     }}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
+                    className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white px-6 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                   >
-                    {showComments ? 'Hide Comments' : 'Show Comments'}
+                    {showComments ? '👁️ Hide Comments' : '👁️ Show Comments'}
                   </button>
                 </div>
                 
                 {showComments && (
-                  <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
                     {commentsLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                        <span className="ml-3 text-gray-600">Loading comments...</span>
+                      <div className="flex items-center justify-center py-12">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
+                        <span className="ml-4 text-gray-600 text-lg">Loading comments...</span>
                       </div>
                     ) : comments.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         {comments.map((comment, index) => (
-                          <div key={comment._id || index} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                            <div className="flex items-start space-x-3">
+                          <div key={comment._id || index} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                            <div className="flex items-start space-x-4">
                               <CommentAvatarAndName comment={comment} />
                               <div className="flex-1">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span
-                                    className="text-sm text-gray-500"
-                                  >
-                                    {format(new Date(comment.submittedAt), 'dd/MM/yyyy HH:mm')}
+                                <div className="flex items-center justify-between mb-3">
+                                  <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                                    📅 {format(new Date(comment.submittedAt), 'dd/MM/yyyy HH:mm')}
                                   </span>
                                 </div>
-                                <p className="text-gray-700 leading-relaxed">{comment.comment}</p>
+                                <p className="text-gray-700 leading-relaxed text-lg">{comment.comment}</p>
                               </div>
                             </div>
                           </div>
                         ))}
-
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <div className="text-gray-500 mb-2">💬</div>
-                        <p className="text-gray-600">No volunteer feedback available yet.</p>
-                        <p className="text-sm text-gray-500 mt-1">Comments will appear here once volunteers complete their questionnaires.</p>
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">💬</div>
+                        <p className="text-xl font-semibold text-gray-600 mb-2">No volunteer feedback available yet.</p>
+                        <p className="text-gray-500">Comments will appear here once volunteers complete their questionnaires.</p>
                       </div>
                     )}
                   </div>
@@ -1066,12 +1216,26 @@ export default function VolunteerEventDetailsPage() {
             
             {/* Image Carousel */}
             {hasImages && (
-              <div className="mt-10">
-                <h2 className="text-xl font-semibold text-blue-700 mb-2 text-center">Event Images</h2>
-                <div className="relative w-full max-w-4xl mx-auto bg-gray-100 flex items-center justify-center rounded-lg shadow-lg" style={{ minHeight: '420px', maxHeight: '520px' }}>
-                  <button onClick={handlePrev} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-blue-700 rounded-full shadow p-2 z-10">&#8592;</button>
-                  <img src={`${imageBaseUrl}${images[carouselIndex]}`} alt={`Event ${carouselIndex + 1}`} className="max-h-[420px] aspect-video rounded-lg border-4 border-white shadow-lg object-contain bg-white" style={{ maxWidth: '95%' }} />
-                  <button onClick={handleNext} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-blue-700 rounded-full shadow p-2 z-10">&#8594;</button>
+              <div className="mt-12">
+                <h2 className="text-3xl font-bold text-blue-800 mb-6 text-center flex items-center justify-center gap-3">
+                  <span className="text-3xl">📸</span>
+                  Event Images
+                </h2>
+                <div className="relative w-full max-w-5xl mx-auto bg-gradient-to-br from-gray-100 to-blue-100 flex items-center justify-center rounded-3xl shadow-2xl border border-white/20" style={{ minHeight: '480px', maxHeight: '580px' }}>
+                  <button onClick={handlePrev} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm hover:bg-white text-blue-700 rounded-full shadow-lg p-3 z-10 transition-all duration-300 hover:scale-110 hover:shadow-xl">
+                    <span className="text-xl">←</span>
+                  </button>
+                  <div className="bg-white p-4 rounded-2xl shadow-xl border-2 border-white/50">
+                    <img src={`${imageBaseUrl}${images[carouselIndex]}`} alt={`Event ${carouselIndex + 1}`} className="max-h-[440px] aspect-video rounded-xl object-contain bg-white" style={{ maxWidth: '90vw' }} />
+                  </div>
+                  <button onClick={handleNext} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm hover:bg-white text-blue-700 rounded-full shadow-lg p-3 z-10 transition-all duration-300 hover:scale-110 hover:shadow-xl">
+                    <span className="text-xl">→</span>
+                  </button>
+                  
+                  {/* Image counter */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium">
+                    {carouselIndex + 1} / {images.length}
+                  </div>
                 </div>
               </div>
             )}
@@ -1089,32 +1253,35 @@ export default function VolunteerEventDetailsPage() {
       
       {/* Loader for certificate generation */}
       {isGeneratingCertificate && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-8 flex items-center gap-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="text-lg font-semibold text-blue-700">Generating certificate...</span>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 flex items-center gap-6 border border-white/20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            <span className="text-xl font-semibold text-blue-700">🎖️ Generating certificate...</span>
           </div>
         </div>
       )}
 
       {/* FIX: Report Modal is now correctly placed outside other conditional blocks */}
       {showReportModal && eventReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setShowReportModal(false)}>
-          <div className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-blue-50 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-800">Event Report: {event.title}</h2>
-              <div className="flex gap-3">
-                <button onClick={handleDownloadReport} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowReportModal(false)}>
+          <div className="bg-white/95 backdrop-blur-md rounded-3xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-white/20" onClick={(e) => e.stopPropagation()}>
+            <div className="p-8 border-b border-gray-200 bg-gradient-to-r from-green-50 via-blue-50 to-indigo-50 flex justify-between items-center">
+              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                <span className="text-3xl">📊</span>
+                Event Report: {event.title}
+              </h2>
+              <div className="flex gap-4">
+                <button onClick={handleDownloadReport} className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105">
                   📥 Download PDF
                 </button>
-                <button onClick={() => setShowReportModal(false)} className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors shadow-md">
+                <button onClick={() => setShowReportModal(false)} className="px-8 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105">
                   ✕ Close
                 </button>
               </div>
             </div>
-            <div className="p-8 overflow-y-auto bg-gray-50">
+            <div className="p-8 overflow-y-auto bg-gradient-to-br from-gray-50 to-blue-50">
               <div 
-                className="prose prose-lg max-w-none bg-white p-8 rounded-lg shadow-sm"
+                className="prose prose-lg max-w-none bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-white/20"
                 style={{
                   fontFamily: 'Georgia, serif',
                   lineHeight: '1.8',
