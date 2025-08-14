@@ -29,6 +29,11 @@ export const getProfileImageUrl = (user) => {
     return user.oauthPicture;
   }
   
+  // Additional fallback: check for profilePicture field (some APIs use this)
+  if (user?.profilePicture) {
+    return user.profilePicture;
+  }
+  
   return null;
 };
 

@@ -26,6 +26,11 @@ const Avatar = ({
   const roleColor = getRoleColors(role);
   const borderClass = showBorder ? 'border-2' : '';
 
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development' && profileImageUrl) {
+    console.log('Avatar profile image URL:', profileImageUrl, 'for user:', user?.username || user?.name);
+  }
+
   const baseClasses = `rounded-full flex items-center justify-center overflow-hidden ${sizeClass} ${roleColor} ${borderClass} ${className}`;
 
   if (onClick) {
@@ -38,11 +43,21 @@ const Avatar = ({
           <img
             src={profileImageUrl}
             alt={user?.username || user?.name || 'User'}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover rounded-full"
+            onError={(e) => {
+              // If image fails to load, hide it and show the fallback
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+            onLoad={(e) => {
+              // Ensure the image is properly displayed
+              e.target.style.display = 'block';
+            }}
           />
-        ) : (
-          <span className="font-bold">{firstLetter}</span>
-        )}
+        ) : null}
+        <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+          {firstLetter}
+        </span>
       </div>
     );
   }
@@ -53,11 +68,21 @@ const Avatar = ({
         <img
           src={profileImageUrl}
           alt={user?.username || user?.name || 'User'}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover rounded-full"
+          onError={(e) => {
+            // If image fails to load, hide it and show the fallback
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'flex';
+          }}
+          onLoad={(e) => {
+            // Ensure the image is properly displayed
+            e.target.style.display = 'block';
+          }}
         />
-      ) : (
-        <span className="font-bold">{firstLetter}</span>
-      )}
+      ) : null}
+      <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+        {firstLetter}
+      </span>
     </div>
   );
 };

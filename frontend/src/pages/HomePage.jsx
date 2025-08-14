@@ -6,7 +6,16 @@ import Footer from '../components/layout/Footer';
 import { getUserCounts } from '../api/auth';
 import { getOrganizationCount } from '../api/organization';
 import { getEventCount } from '../api/event';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ChevronDownIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { 
+  UsersIcon, 
+  ShieldCheckIcon, 
+  SparklesIcon, 
+  GlobeAltIcon,
+  HeartIcon,
+  ClockIcon,
+  ChartBarIcon
+} from '@heroicons/react/24/outline';
 
 export default function HomePage() {
   const [stats, setStats] = useState({
@@ -17,6 +26,7 @@ export default function HomePage() {
   });
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -24,10 +34,8 @@ export default function HomePage() {
   useEffect(() => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
-      // Clear the message from location state to prevent showing it again on refresh
       window.history.replaceState({}, document.title);
       
-      // Auto-dismiss the message after 10 seconds
       const timer = setTimeout(() => {
         setSuccessMessage('');
       }, 10000);
@@ -35,6 +43,12 @@ export default function HomePage() {
       return () => clearTimeout(timer);
     }
   }, [location.state]);
+
+  // Animation on scroll
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Get user from localStorage
   const user = React.useMemo(() => {
@@ -83,142 +97,189 @@ export default function HomePage() {
     }
   }
 
+  // Animated counter component
+  const AnimatedCounter = ({ value, suffix = '', duration = 2000 }) => {
+    const [count, setCount] = useState(0);
+    
+    useEffect(() => {
+      let startTime = null;
+      const animate = (currentTime) => {
+        if (!startTime) startTime = currentTime;
+        const progress = Math.min((currentTime - startTime) / duration, 1);
+        setCount(Math.floor(progress * value));
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      requestAnimationFrame(animate);
+    }, [value, duration]);
+
+    return <span>{count}{suffix}</span>;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 overflow-hidden">
       <Navbar />
       
       {/* Success Message */}
       {successMessage && (
-        <div className="bg-green-50 border-l-4 border-green-400 p-4">
-          <div className="flex">
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-emerald-50 border border-emerald-200 rounded-xl p-4 shadow-lg max-w-md mx-4">
+          <div className="flex items-center">
             <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-green-700">
-                {successMessage}
-              </p>
-            </div>
-            <div className="ml-auto pl-3">
-              <div className="-mx-1.5 -my-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSuccessMessage('')}
-                  className="inline-flex rounded-md p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600"
-                >
-                  <span className="sr-only">Dismiss</span>
-                  <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-                </button>
+              <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
             </div>
+            <div className="ml-3 flex-1">
+              <p className="text-sm font-medium text-emerald-800">{successMessage}</p>
+            </div>
+            <button
+              onClick={() => setSuccessMessage('')}
+              className="ml-3 text-emerald-400 hover:text-emerald-600 transition-colors"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}
 
       {/* Hero Section */}
-      <section className="pt-20 pb-16 px-4 min-h-screen flex flex-col justify-between">
-        <div className="max-w-7xl mx-auto flex-1 flex flex-col justify-center">
+      <section className="relative pt-24 pb-20 px-4 min-h-screen flex items-center">
+        {/* Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+          <div className="absolute top-40 right-10 w-72 h-72 bg-green-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto w-full">
           <div className="text-center">
-            <div className="mb-8">
-              <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-6">
-                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+            {/* Badge */}
+            <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-100 to-emerald-100 text-slate-700 rounded-full text-sm font-semibold mb-8 shadow-lg border border-white/50 backdrop-blur-sm">
+                <svg className="w-4 h-4 mr-2 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
                 Environmental Conservation Platform
+                <ChevronDownIcon className="w-4 h-4 ml-2 text-slate-500" />
               </div>
             </div>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-              Welcome to{' '}
-              <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                PrakritiMitra
+            {/* Main Heading */}
+            <h1 className={`text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold mb-8 leading-tight transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+              <span className="bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent">
+                Prakriti
+              </span>
+              <span className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                Mitra
               </span>
             </h1>
 
-            <p className="text-xl sm:text-2xl text-gray-600 max-w-4xl mx-auto mb-10 leading-relaxed">
-              Join hands with environmentalists across the globe to protect and preserve our planet. Volunteer for impactful initiatives or organize your own events using our comprehensive environmental conservation platform.
+            {/* Subtitle */}
+            <p className={`text-xl sm:text-2xl lg:text-3xl text-slate-600 max-w-4xl mx-auto mb-12 leading-relaxed font-light transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+              Join hands with environmentalists across the globe to protect and preserve our planet. 
+              <span className="font-medium text-slate-700"> Volunteer for impactful initiatives or organize your own events</span> using our comprehensive environmental conservation platform.
             </p>
 
-            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
+            {/* CTA Buttons */}
+            <div className={`flex flex-col sm:flex-row justify-center gap-6 mb-16 transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               {user && dashboardLink ? (
                 <a
                   href={dashboardLink}
-                  className="px-8 py-4 bg-gradient-to-r from-green-600 to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg"
+                  className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg overflow-hidden"
                 >
-                  Go to Dashboard
+                  <span className="relative z-10 flex items-center justify-center">
+                    Go to Dashboard
+                    <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-700 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </a>
               ) : (
                 <>
                   <a
                     href="/signup"
-                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg"
+                    className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg overflow-hidden"
                   >
-                    Join as Volunteer/Organizer
+                    <span className="relative z-10 flex items-center justify-center">
+                      Join as Volunteer/Organizer
+                      <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-emerald-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </a>
                   <a
                     href="/login"
-                    className="px-8 py-4 bg-white text-blue-700 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg border-2 border-blue-200 hover:border-blue-300"
+                    className="group px-8 py-4 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg border-2 border-slate-200 hover:border-slate-300"
                   >
-                    Already Registered? Login
+                    <span className="flex items-center justify-center">
+                      Already Registered? Login
+                      <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </span>
                   </a>
                 </>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Background decoration */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-          <div className="absolute top-40 right-10 w-72 h-72 bg-green-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+            {/* Scroll Indicator */}
+            <div className={`flex flex-col items-center transition-all duration-1000 delay-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+              <span className="text-sm text-slate-500 mb-2">Scroll to explore</span>
+              <div className="w-6 h-10 border-2 border-slate-300 rounded-full flex justify-center">
+                <div className="w-1 h-3 bg-slate-400 rounded-full mt-2 animate-bounce"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-white">
+      <section className="py-24 px-4 bg-white/50 backdrop-blur-sm relative">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose PrakritiMitra?</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-6">
+              Why Choose{' '}
+              <span className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+                PrakritiMitra
+              </span>
+              ?
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
               Our platform unites environmental enthusiasts, volunteers, and organizations to create sustainable impact worldwide
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+            {/* Feature Card 1 */}
+            <div className="group bg-gradient-to-br from-blue-50 to-blue-100/50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-blue-200/50 backdrop-blur-sm hover:-translate-y-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <UsersIcon className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Community Building</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Connect with like-minded individuals and organizations dedicated to environmental conservation
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Community Building</h3>
+              <p className="text-slate-600 leading-relaxed">
+                Connect with like-minded individuals and organizations dedicated to environmental conservation. Build lasting relationships and networks.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            {/* Feature Card 2 */}
+            <div className="group bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-emerald-200/50 backdrop-blur-sm hover:-translate-y-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <ShieldCheckIcon className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Verified Organizations</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Work with certified and verified environmental organizations with proven track records
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Verified Organizations</h3>
+              <p className="text-slate-600 leading-relaxed">
+                Work with certified and verified environmental organizations with proven track records and transparent operations.
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+            {/* Feature Card 3 */}
+            <div className="group bg-gradient-to-br from-purple-50 to-purple-100/50 p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 border border-purple-200/50 backdrop-blur-sm hover:-translate-y-2">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <SparklesIcon className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">AI-Powered Platform</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Leverage advanced technology to match volunteers with the perfect environmental initiatives
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">AI-Powered Platform</h3>
+              <p className="text-slate-600 leading-relaxed">
+                Leverage advanced technology to match volunteers with the perfect environmental initiatives and track impact.
               </p>
             </div>
           </div>
@@ -226,67 +287,113 @@ export default function HomePage() {
       </section>
 
       {/* Statistics Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-blue-600 to-green-600">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Our Impact</h2>
-            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+      <section className="py-24 px-4 bg-gradient-to-br from-slate-900 via-blue-900 to-emerald-900 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }}></div>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">Our Impact</h2>
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto leading-relaxed">
               Together, we're making a real difference in Mumbai's environmental conservation
             </p>
           </div>
 
-          <div className="flex justify-between items-center max-w-6xl mx-auto">
-            <div className="text-center flex-1">
-              <div className="text-4xl font-bold text-white mb-2">
-                {loading ? '...' : `${stats.volunteerCount}+`}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-8">
+            {/* Stat 1 */}
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <UsersIcon className="w-10 h-10 text-white" />
               </div>
-              <div className="text-blue-100">Active Volunteers</div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="text-4xl font-bold text-white mb-2">
-                {loading ? '...' : `${stats.organizerCount}+`}
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                {loading ? '...' : <AnimatedCounter value={stats.volunteerCount} suffix="+" />}
               </div>
-              <div className="text-blue-100">Active Organizers</div>
+              <div className="text-blue-100 font-medium">Active Volunteers</div>
             </div>
-            <div className="text-center flex-1">
-              <div className="text-4xl font-bold text-white mb-2">
-                {loading ? '...' : `${stats.organizationCount}+`}
+
+            {/* Stat 2 */}
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <GlobeAltIcon className="w-10 h-10 text-white" />
               </div>
-              <div className="text-blue-100">Organizations</div>
-            </div>
-            <div className="text-center flex-1">
-              <div className="text-4xl font-bold text-white mb-2">
-                {loading ? '...' : `${stats.eventCount}+`}
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                {loading ? '...' : <AnimatedCounter value={stats.organizerCount} suffix="+" />}
               </div>
-              <div className="text-blue-100">Events Completed</div>
+              <div className="text-blue-100 font-medium">Active Organizers</div>
             </div>
-            <div className="text-center flex-1">
-              <div className="text-4xl font-bold text-white mb-2">10K+</div>
-              <div className="text-blue-100">KG Waste Collected</div>
+
+            {/* Stat 3 */}
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <HeartIcon className="w-10 h-10 text-white" />
+              </div>
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                {loading ? '...' : <AnimatedCounter value={stats.organizationCount} suffix="+" />}
+              </div>
+              <div className="text-blue-100 font-medium">Organizations</div>
+            </div>
+
+            {/* Stat 4 */}
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <ClockIcon className="w-10 h-10 text-white" />
+              </div>
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                {loading ? '...' : <AnimatedCounter value={stats.eventCount} suffix="+" />}
+              </div>
+              <div className="text-blue-100 font-medium">Events Completed</div>
+            </div>
+
+            {/* Stat 5 */}
+            <div className="text-center group">
+              <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl flex items-center justify-center mb-4 mx-auto group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <ChartBarIcon className="w-10 h-10 text-white" />
+              </div>
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                <AnimatedCounter value={10} suffix="K+" />
+              </div>
+              <div className="text-blue-100 font-medium">KG Waste Collected</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gray-50">
+      <section className="py-24 px-4 bg-gradient-to-br from-slate-50 to-blue-50 relative">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">Ready to Make a Difference?</h2>
-          <p className="text-xl text-gray-600 mb-10">
-            Join thousands of volunteers and organizations working together to preserve Mumbai's natural beauty
+          <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-6">
+            Ready to Make a{' '}
+            <span className="bg-gradient-to-r from-emerald-600 to-blue-600 bg-clip-text text-transparent">
+              Difference
+            </span>
+            ?
+          </h2>
+          <p className="text-xl text-slate-600 mb-12 leading-relaxed">
+            Join thousands of volunteers and organizations working together to preserve Mumbai's natural beauty and create a sustainable future for generations to come.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-6">
             <a
               href="/signup"
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg"
+              className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg overflow-hidden"
             >
-              Get Started Today
+              <span className="relative z-10 flex items-center justify-center">
+                Get Started Today
+                <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-700 to-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </a>
             <a
               href="/login"
-              className="px-8 py-4 bg-white text-blue-700 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg border-2 border-blue-200 hover:border-blue-300"
+              className="group px-8 py-4 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 font-semibold text-lg border-2 border-slate-200 hover:border-slate-300"
             >
-              Sign In
+              <span className="flex items-center justify-center">
+                Sign In
+                <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </span>
             </a>
           </div>
         </div>
@@ -295,6 +402,5 @@ export default function HomePage() {
       {/* Footer */}
       <Footer />
     </div>
-
   );
 }

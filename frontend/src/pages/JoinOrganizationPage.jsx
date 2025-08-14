@@ -4,11 +4,22 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import { useNavigate } from "react-router-dom";
+import { 
+  BuildingOfficeIcon,
+  ClockIcon,
+  XCircleIcon,
+  CheckCircleIcon,
+  ArrowRightIcon,
+  GlobeAltIcon,
+  ShieldCheckIcon,
+  UsersIcon
+} from '@heroicons/react/24/outline';
 
 export default function JoinOrganizationPage() {
   const [organizations, setOrganizations] = useState([]);
   const [pendingOrgIds, setPendingOrgIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
@@ -69,6 +80,9 @@ export default function JoinOrganizationPage() {
       console.error("❌ Failed to load organizations:", err);
     } finally {
       setLoading(false);
+      // Trigger animations
+      const timer = setTimeout(() => setIsVisible(true), 100);
+      return () => clearTimeout(timer);
     }
   };
 
@@ -119,65 +133,197 @@ export default function JoinOrganizationPage() {
     }
   };
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending': return <ClockIcon className="w-4 h-4" />;
+      case 'rejected': return <XCircleIcon className="w-4 h-4" />;
+      default: return <BuildingOfficeIcon className="w-4 h-4" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
+        <Navbar />
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 pt-20 ">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
       <Navbar />
-      <h1 className="text-2xl font-bold mb-4 px-6">Explore Organizations</h1>
-      {loading ? (
-        <p>Loading...</p>
-      ) : organizations.length === 0 ? (
-        <p>No new organizations available to join.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 mb-10">
-          {organizations.map((org) => (
-            <div
-              key={org._id}
-              className="bg-white border p-4 rounded shadow hover:shadow-md transition"
-              style={{ cursor: 'pointer' }}
-              onClick={() => navigate(`/organizations/${org._id}`)}
-            >
-              <h3 className="text-lg font-semibold text-blue-700">
-                {org.name}
-              </h3>
-              <p className="text-sm text-gray-600">{org.description}</p>
-              <div className="mt-3">
-                {org.status === "pending" ? (
-                  <>
-                    <p className="text-sm text-yellow-600 font-medium">
-                      Approval Pending
-                    </p>
-                    <button
-                      className="ml-2 px-3 py-1 text-white bg-red-600 rounded hover:bg-red-700 text-sm"
-                      onClick={(e) => { e.stopPropagation(); handleWithdrawRequest(org._id); }}
-                    >
-                      Withdraw Join
-                    </button>
-                  </>
-                ) : org.status === "rejected" ? (
-                  <>
-                    <p className="text-sm text-red-600 font-medium">
-                      Request Rejected
-                    </p>
-                    <button
-                      className="ml-2 px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 text-sm"
-                      onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
-                    >
-                      Reapply to Join
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="px-3 py-1 text-white bg-blue-600 rounded hover:bg-blue-700 text-sm"
-                    onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
-                  >
-                    Request to Join
-                  </button>
-                )}
+      
+      <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Header Section */}
+        <div className={`mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="text-center">
+            <div className="p-4 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+              <BuildingOfficeIcon className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-4">
+              Explore Organizations
+            </h1>
+            <p className="text-slate-600 text-lg max-w-2xl mx-auto">
+              Discover and join environmental organizations to participate in events and make a positive impact.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                <BuildingOfficeIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-600">Available Organizations</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations.length}</p>
               </div>
             </div>
-          ))}
+          </div>
+
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl">
+                <ClockIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-600">Pending Requests</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations.filter(org => org.status === 'pending').length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl">
+                <ShieldCheckIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-600">Verified Orgs</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations.filter(org => org.verifiedStatus === 'verified').length}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Content Section */}
+        <div className={`transition-all duration-1000 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          {organizations.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="max-w-md mx-auto">
+                <div className="p-4 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+                  <BuildingOfficeIcon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                  No organizations available
+                </h3>
+                <p className="text-slate-600 mb-6">
+                  All available organizations have been joined or you're already a member of them.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {organizations.map((org, index) => (
+                <div
+                  key={org._id}
+                  className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer group ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                  style={{ animationDelay: `${index * 100}ms` }}
+                  onClick={() => navigate(`/organizations/${org._id}`)}
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-lg">
+                          <BuildingOfficeIcon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 transition-colors duration-200">
+                            {org.name}
+                          </h3>
+                          {org.verifiedStatus && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <ShieldCheckIcon className="w-3 h-3 text-emerald-600" />
+                              <span className="text-xs text-emerald-600 font-medium">
+                                {org.verifiedStatus}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <ArrowRightIcon className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all duration-200" />
+                    </div>
+                    
+                    <p className="text-slate-600 text-sm mb-4 line-clamp-2">
+                      {org.description}
+                    </p>
+
+                    {org.website && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                        <GlobeAltIcon className="w-3 h-3" />
+                        <span className="truncate">{org.website}</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {org.status === "pending" ? (
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor('pending')}`}>
+                            {getStatusIcon('pending')}
+                            Approval Pending
+                          </span>
+                          <button
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); handleWithdrawRequest(org._id); }}
+                          >
+                            <XCircleIcon className="w-3 h-3" />
+                            Withdraw
+                          </button>
+                        </div>
+                      ) : org.status === "rejected" ? (
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor('rejected')}`}>
+                            {getStatusIcon('rejected')}
+                            Request Rejected
+                          </span>
+                          <button
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                            onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
+                          >
+                            <CheckCircleIcon className="w-3 h-3" />
+                            Reapply
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                          onClick={(e) => { e.stopPropagation(); handleJoinRequest(org._id); }}
+                        >
+                          <UsersIcon className="w-4 h-4" />
+                          Request to Join
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

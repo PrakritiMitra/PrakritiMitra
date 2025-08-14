@@ -4,6 +4,26 @@ import { updateProfile, deleteAccount } from "../api/auth";
 import { getMyOrganization } from "../api/organization";
 import Navbar from "../components/layout/Navbar";
 import { formatDate } from "../utils/dateUtils";
+import {
+  UserIcon,
+  CameraIcon,
+  IdentificationIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+  ExclamationTriangleIcon,
+  TrashIcon,
+  ArrowLeftIcon,
+  ShieldCheckIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  CalendarIcon,
+  UsersIcon,
+  GlobeAltIcon,
+  LockClosedIcon,
+  KeyIcon
+} from "@heroicons/react/24/outline";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -21,6 +41,7 @@ export default function ProfilePage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   const navigate = useNavigate();
 
@@ -71,6 +92,9 @@ export default function ProfilePage() {
         console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
+        // Trigger animations
+        const timer = setTimeout(() => setIsVisible(true), 100);
+        return () => clearTimeout(timer);
       }
     };
 
@@ -266,19 +290,12 @@ export default function ProfilePage() {
     }
   };
 
-
   if (loading) {
     return (
-      <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-            <div className="space-y-4">
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
+        <Navbar />
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
@@ -286,12 +303,12 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Profile Not Found</h1>
-            <p className="text-gray-600">Please log in to view your profile.</p>
+            <h1 className="text-2xl font-bold text-slate-900 mb-4">Profile Not Found</h1>
+            <p className="text-slate-600">Please log in to view your profile.</p>
           </div>
         </div>
       </div>
@@ -299,15 +316,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-          <div className="flex justify-between items-center">
+        <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex items-center space-x-6">
               <div className="flex flex-col items-center space-y-2">
-                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-4 border-blue-200">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center overflow-hidden border-4 border-blue-200 shadow-lg">
                   {user.profileImage ? (
                     <img
                       src={`http://localhost:5000/uploads/Profiles/${user.profileImage}?k=${refreshKey}`}
@@ -315,7 +332,7 @@ export default function ProfilePage() {
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
                       {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
@@ -339,35 +356,37 @@ export default function ProfilePage() {
                     </a>
                   )
                 ) : (
-                  <span className="text-gray-400 text-xs mt-2">No Govt ID uploaded</span>
+                  <span className="text-slate-400 text-xs mt-2">No Govt ID uploaded</span>
                 )}
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent">{user.name}</h1>
                 <p className="text-lg text-blue-600 font-medium">{user.username ? `@${user.username}` : ''}</p>
-                <p className="text-gray-600 capitalize">{user.role === "organizer" ? "Event Organizer" : "Volunteer"}</p>
+                <p className="text-slate-600 capitalize">{user.role === "organizer" ? "Event Organizer" : "Volunteer"}</p>
                 {organization && (
                   <p className="text-sm text-blue-600 font-medium">{organization.name}</p>
                 )}
               </div>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => setEditing(!editing)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ${
                   editing 
-                    ? 'bg-gray-500 text-white hover:bg-gray-600 shadow-md' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                    ? 'bg-gradient-to-r from-slate-600 to-slate-700 text-white hover:from-slate-700 hover:to-slate-800' 
+                    : 'bg-gradient-to-r from-blue-600 to-emerald-600 text-white hover:from-blue-700 hover:to-emerald-700'
                 }`}
               >
+                {editing ? <XMarkIcon className="w-5 h-5" /> : <PencilIcon className="w-5 h-5" />}
                 {editing ? 'Cancel' : 'Edit Profile'}
               </button>
               {editing && (
                 <button
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50"
                 >
+                  <CheckIcon className="w-5 h-5" />
                   {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               )}
@@ -375,47 +394,45 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in transition-all duration-700">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Profile Photo Section */}
           {editing && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-500 hover:shadow-lg hover:scale-105 animate-fade-in flex flex-col gap-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center animate-fade-in">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 animate-bounce">
-                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+            <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mr-3">
+                  <CameraIcon className="w-5 h-5 text-white" />
                 </div>
                 Profile Photo
               </h2>
-              <div className="flex items-center space-x-6 animate-fade-in">
-                <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-4 border-blue-200 shadow-lg transition-transform duration-500 hover:scale-110">
+              <div className="flex items-center space-x-6">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center overflow-hidden border-4 border-blue-200 shadow-lg transition-transform duration-500 hover:scale-110">
                   {profileImagePreview ? (
                     <img
                       src={profileImagePreview}
                       alt="Profile Preview"
-                      className="w-24 h-24 rounded-full object-cover animate-fade-in"
+                      className="w-24 h-24 rounded-full object-cover"
                     />
                   ) : user.profileImage ? (
                     <img
                       src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
                       alt="Profile"
-                      className="w-24 h-24 rounded-full object-cover animate-fade-in"
+                      className="w-24 h-24 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="text-3xl font-bold text-blue-600">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
                       {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
                     </div>
                   )}
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Change Profile Photo</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Change Profile Photo</label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Recommended: Square image, max 2MB</p>
+                  <p className="text-xs text-slate-500 mt-1">Recommended: Square image, max 2MB</p>
                   {user.profileImage && !removeProfileImage && (
                     <button
                       type="button"
@@ -428,57 +445,55 @@ export default function ProfilePage() {
                 </div>
               </div>
               {/* Govt ID Proof Section */}
-              <div className="mt-8 animate-fade-in">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center animate-pulse">
-                  <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center mr-2 animate-bounce">
-                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-slate-900 mb-2 flex items-center">
+                  <div className="w-7 h-7 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mr-2">
+                    <IdentificationIcon className="w-4 h-4 text-white" />
                   </div>
                   Govt ID Proof
                 </h3>
-                <div className="flex items-center gap-6 animate-fade-in">
+                <div className="flex items-center gap-6">
                   {govtIdPreview ? (
                     <div>
-                      <span className="block text-xs text-gray-500 mb-1">Preview:</span>
+                      <span className="block text-xs text-slate-500 mb-1">Preview:</span>
                       <img
                         src={govtIdPreview}
                         alt="Govt ID Preview"
-                        className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
+                        className="w-32 h-20 object-contain border rounded shadow-md"
                       />
                     </div>
                   ) : user.govtIdProofUrl ? (
                     <div>
-                      <span className="block text-xs text-gray-500 mb-1">Current:</span>
+                      <span className="block text-xs text-slate-500 mb-1">Current:</span>
                       {user.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                         <img
                           src={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}`}
                           alt="Govt ID"
-                          className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
+                          className="w-32 h-20 object-contain border rounded shadow-md"
                         />
                       ) : (
                         <a
                           href={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 underline text-sm animate-fade-in"
+                          className="text-blue-600 underline text-sm"
                         >
                           View Govt ID
                         </a>
                       )}
                     </div>
                   ) : (
-                    <span className="text-gray-400 text-sm">No Govt ID uploaded</span>
+                    <span className="text-slate-400 text-sm">No Govt ID uploaded</span>
                   )}
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Change Govt ID Proof</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Change Govt ID Proof</label>
                     <input
                       type="file"
                       accept="image/*,application/pdf"
                       onChange={handleGovtIdChange}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Accepted: Image/PDF, max 5MB</p>
+                    <p className="text-xs text-slate-500 mt-1">Accepted: Image/PDF, max 5MB</p>
                     {user.govtIdProofUrl && !removeGovtIdProof && (
                       <button
                         type="button"
@@ -496,44 +511,42 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Personal Information */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-300 hover:shadow-md hover:scale-[1.01] animate-fade-in">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+            <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center mr-3">
+                  <UserIcon className="w-5 h-5 text-white" />
                 </div>
                 Personal Information
               </h2>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
                       disabled={!editing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Username</label>
                     <input
                       type="text"
                       name="username"
                       value={formData.username}
                       onChange={handleChange}
                       disabled={!editing}
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors ${
-                        usernameError ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors ${
+                        usernameError ? 'border-red-500' : 'border-slate-300'
                       }`}
                       placeholder="username"
                     />
                     {editing && (
                       <p className={`text-xs mt-1 ${
-                        usernameError ? 'text-red-500' : 'text-gray-500'
+                        usernameError ? 'text-red-500' : 'text-slate-500'
                       }`}>
                         {usernameError || 'Username can only contain letters, numbers, and underscores'}
                       </p>
@@ -542,24 +555,27 @@ export default function ProfilePage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4" />
+                      Date of Birth
+                    </label>
                     <input
                       type="date"
                       name="dateOfBirth"
                       value={formData.dateOfBirth}
                       onChange={handleChange}
                       disabled={!editing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
                     <select
                       name="gender"
                       value={formData.gender}
                       onChange={handleChange}
                       disabled={!editing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                     >
                       <option value="">Select Gender</option>
                       <option value="male">Male</option>
@@ -569,19 +585,22 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                    <MapPinIcon className="w-4 h-4" />
+                    City
+                  </label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
                     disabled={!editing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
                 {/* About Me moved here */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">About Me</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">About Me</label>
                   <textarea
                     name="aboutMe"
                     value={formData.aboutMe}
@@ -589,54 +608,61 @@ export default function ProfilePage() {
                     disabled={!editing}
                     rows={6}
                     placeholder="Tell us about yourself, your interests, and what drives you to make a difference..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors resize-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors resize-none"
                   />
                 </div>
               </div>
             </div>
 
             {/* Contact Details */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-300 hover:shadow-md hover:scale-[1.01] animate-fade-in">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+            <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 transition-all duration-1000 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center mr-3">
+                  <PhoneIcon className="w-5 h-5 text-white" />
                 </div>
                 Contact Details
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                    <EnvelopeIcon className="w-4 h-4" />
+                    Email
+                  </label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
                     disabled={!editing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                    <PhoneIcon className="w-4 h-4" />
+                    Phone
+                  </label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
                     disabled={!editing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Phone</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                    <ShieldCheckIcon className="w-4 h-4" />
+                    Emergency Phone
+                  </label>
                   <input
                     type="tel"
                     name="emergencyPhone"
                     value={formData.emergencyPhone}
                     onChange={handleChange}
                     disabled={!editing}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
               </div>
@@ -646,29 +672,27 @@ export default function ProfilePage() {
           {/* Account Information & Socials */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Account Information */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-300 hover:shadow-md hover:scale-[1.01]">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+            <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mr-3">
+                  <ShieldCheckIcon className="w-5 h-5 text-white" />
                 </div>
                 Account Information
               </h2>
               <div className="space-y-4">
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="font-medium text-gray-700">Role:</span>
-                  <span className="text-gray-900 capitalize font-semibold">{user.role}</span>
+                <div className="flex justify-between py-3 border-b border-slate-200">
+                  <span className="font-medium text-slate-700">Role:</span>
+                  <span className="text-slate-900 capitalize font-semibold">{user.role}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="font-medium text-gray-700">Member Since:</span>
-                  <span className="text-gray-900">
+                <div className="flex justify-between py-3 border-b border-slate-200">
+                  <span className="font-medium text-slate-700">Member Since:</span>
+                  <span className="text-slate-900">
                     {formatDate(user.createdAt)}
                   </span>
                 </div>
                 {organization && (
-                  <div className="flex justify-between py-3 border-b border-gray-100">
-                    <span className="font-medium text-gray-700">Organization:</span>
+                  <div className="flex justify-between py-3 border-b border-slate-200">
+                    <span className="font-medium text-slate-700">Organization:</span>
                     <span className="text-blue-600 font-semibold">{organization.name}</span>
                   </div>
                 )}
@@ -676,18 +700,16 @@ export default function ProfilePage() {
             </div>
 
             {/* Socials */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-300 hover:shadow-md hover:scale-[1.01]">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2" />
-                  </svg>
+            <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 transition-all duration-1000 delay-600 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-pink-600 rounded-xl flex items-center justify-center mr-3">
+                  <GlobeAltIcon className="w-5 h-5 text-white" />
                 </div>
                 Social Media
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Instagram</label>
                   <input
                     type="url"
                     name="socials.instagram"
@@ -695,11 +717,11 @@ export default function ProfilePage() {
                     onChange={handleChange}
                     disabled={!editing}
                     placeholder="https://instagram.com/username"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">LinkedIn</label>
                   <input
                     type="url"
                     name="socials.linkedin"
@@ -707,11 +729,11 @@ export default function ProfilePage() {
                     onChange={handleChange}
                     disabled={!editing}
                     placeholder="https://linkedin.com/in/username"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Twitter</label>
                   <input
                     type="url"
                     name="socials.twitter"
@@ -719,11 +741,11 @@ export default function ProfilePage() {
                     onChange={handleChange}
                     disabled={!editing}
                     placeholder="https://twitter.com/username"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Facebook</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Facebook</label>
                   <input
                     type="url"
                     name="socials.facebook"
@@ -731,29 +753,27 @@ export default function ProfilePage() {
                     onChange={handleChange}
                     disabled={!editing}
                     placeholder="https://facebook.com/username"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* About Me & Change Password */}
-          {/* This block is now replaced by the above two sections */}
-
           {/* Change Password */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 transform transition duration-300 hover:shadow-md hover:scale-[1.01]">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-              <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
-                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
+          <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 transition-all duration-1000 delay-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <h2 className="text-xl font-semibold text-slate-900 mb-6 flex items-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center mr-3">
+                <LockClosedIcon className="w-5 h-5 text-white" />
               </div>
               Change Password
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                  <KeyIcon className="w-4 h-4" />
+                  New Password
+                </label>
                 <input
                   type="password"
                   name="newPassword"
@@ -761,11 +781,14 @@ export default function ProfilePage() {
                   onChange={handleChange}
                   disabled={!editing}
                   placeholder="Enter new password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-2">
+                  <KeyIcon className="w-4 h-4" />
+                  Confirm New Password
+                </label>
                 <input
                   type="password"
                   name="confirmPassword"
@@ -773,7 +796,7 @@ export default function ProfilePage() {
                   onChange={handleChange}
                   disabled={!editing}
                   placeholder="Confirm new password"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors"
                 />
               </div>
               {formData.newPassword && formData.confirmPassword && formData.newPassword !== formData.confirmPassword && (
@@ -784,52 +807,52 @@ export default function ProfilePage() {
         </form>
 
         {/* Account Deletion Section */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center mr-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+        <div className={`mt-8 pt-6 border-t border-slate-200 transition-all duration-1000 delay-800 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <h2 className="text-xl font-semibold text-slate-800 mb-4 flex items-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center mr-2">
+              <TrashIcon className="w-5 h-5 text-white" />
             </div>
             Delete Account
           </h2>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-slate-600 mb-4">
             Permanently delete your account and all associated data. This action cannot be undone.
           </p>
           <button
             onClick={() => setShowDeleteDialog(true)}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
+            <TrashIcon className="w-4 h-4" />
             Delete My Account
           </button>
         </div>
 
         {/* Back Button */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
+        <div className={`mt-8 pt-6 border-t border-slate-200 transition-all duration-1000 delay-900 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <button
             onClick={() => navigate(-1)}
-            className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white px-6 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
-            ← Back
+            <ArrowLeftIcon className="w-5 h-5" />
+            Back
           </button>
         </div>
 
         {/* Delete Account Confirmation Dialog */}
         {showDeleteDialog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Delete Your Account</h3>
-              <p className="text-gray-700 mb-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/95 backdrop-blur-sm rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/20">
+              <h3 className="text-xl font-semibold text-slate-900 mb-4">Delete Your Account</h3>
+              <p className="text-slate-700 mb-4">
                 This will permanently delete your account and all associated data. This action cannot be undone.
               </p>
-              <p className="text-sm text-gray-600 mb-4">
-                Type <span className="font-mono bg-gray-100 px-2 py-1 rounded">delete my account</span> to confirm:
+              <p className="text-sm text-slate-600 mb-4">
+                Type <span className="font-mono bg-slate-100 px-2 py-1 rounded">delete my account</span> to confirm:
               </p>
               <input
                 type="text"
                 value={deleteConfirmation}
                 onChange={(e) => setDeleteConfirmation(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md mb-4"
+                className="w-full p-2 border border-slate-300 rounded-lg mb-4"
                 placeholder="Type 'delete my account' to confirm"
               />
               <div className="flex justify-end space-x-3">
@@ -838,7 +861,7 @@ export default function ProfilePage() {
                     setShowDeleteDialog(false);
                     setDeleteConfirmation('');
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
                   disabled={isDeleting}
                 >
                   Cancel
@@ -846,9 +869,9 @@ export default function ProfilePage() {
                 <button
                   onClick={handleDeleteAccount}
                   disabled={isDeleting || deleteConfirmation.toLowerCase() !== 'delete my account'}
-                  className={`px-4 py-2 text-white rounded-md ${
+                  className={`px-4 py-2 text-white rounded-lg transition-colors ${
                     deleteConfirmation.toLowerCase() === 'delete my account' 
-                      ? 'bg-red-600 hover:bg-red-700' 
+                      ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800' 
                       : 'bg-red-300 cursor-not-allowed'
                   }`}
                 >
