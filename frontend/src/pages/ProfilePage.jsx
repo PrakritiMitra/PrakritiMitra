@@ -4,6 +4,14 @@ import { updateProfile, deleteAccount } from "../api/auth";
 import { getMyOrganization } from "../api/organization";
 import Navbar from "../components/layout/Navbar";
 import { formatDate } from "../utils/dateUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../utils/safeUserUtils";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -33,10 +41,20 @@ export default function ProfilePage() {
       return;
     }
 
+    // Check if user data indicates a deleted account
+    const safeUserData = getSafeUserData(userData);
+    if (safeUserData.isDeleted) {
+      // Redirect to login if user account is deleted
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login");
+      return;
+    }
+
     const fetchData = async () => {
       try {
         // Fetch organization details if user is an organizer
-        if (userData.role === "organizer") {
+        if (safeUserData.role === "organizer") {
           try {
             const orgResponse = await getMyOrganization();
             if (orgResponse.data && orgResponse.data._id) {
@@ -47,22 +65,22 @@ export default function ProfilePage() {
           }
         }
 
-        setUser(userData);
+        setUser(safeUserData);
         setFormData({
-          name: userData.name || "",
-          username: userData.username || "",
-          email: userData.email || "",
-          phone: userData.phone || "",
-          emergencyPhone: userData.emergencyPhone || "",
-          dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth).toISOString().split('T')[0] : "",
-          city: userData.city || "",
-          gender: userData.gender || "",
-          aboutMe: userData.aboutMe || "",
+          name: safeUserData.name || "",
+          username: safeUserData.username || "",
+          email: safeUserData.email || "",
+          phone: safeUserData.phone || "",
+          emergencyPhone: safeUserData.emergencyPhone || "",
+          dateOfBirth: safeUserData.dateOfBirth ? new Date(safeUserData.dateOfBirth).toISOString().split('T')[0] : "",
+          city: safeUserData.city || "",
+          gender: safeUserData.gender || "",
+          aboutMe: safeUserData.aboutMe || "",
           socials: {
-            instagram: userData.socials?.instagram || "",
-            linkedin: userData.socials?.linkedin || "",
-            twitter: userData.socials?.twitter || "",
-            facebook: userData.socials?.facebook || "",
+            instagram: safeUserData.socials?.instagram || "",
+            linkedin: safeUserData.socials?.linkedin || "",
+            twitter: safeUserData.socials?.twitter || "",
+            facebook: safeUserData.socials?.facebook || "",
           },
           newPassword: "",
           confirmPassword: "",
@@ -298,6 +316,9 @@ export default function ProfilePage() {
     );
   }
 
+  // Get safe user data for display
+  const safeUser = getSafeUserData(user);
+
   return (
     <div className="h-screen overflow-y-auto bg-gray-50 pt-16 px-4">
       <Navbar />
@@ -308,29 +329,29 @@ export default function ProfilePage() {
             <div className="flex items-center space-x-6">
               <div className="flex flex-col items-center space-y-2">
                 <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-4 border-blue-200">
-                  {user.profileImage ? (
+                  {safeUser.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}?k=${refreshKey}`}
+                      src={`http://localhost:5000/uploads/Profiles/${safeUser.profileImage}?k=${refreshKey}`}
                       alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   ) : (
                     <div className="text-2xl font-bold text-blue-600">
-                      {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
+                      {getSafeUserName(safeUser).charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
                 {/* Govt ID Proof */}
-                {user.govtIdProofUrl ? (
-                  user.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                {safeUser.govtIdProofUrl ? (
+                  safeUser.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}?k=${refreshKey}`}
+                      src={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}?k=${refreshKey}`}
                       alt="Govt ID"
                       className="w-20 h-14 object-contain border rounded shadow-md mt-2"
                     />
                   ) : (
                     <a
-                      href={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}?k=${refreshKey}`}
+                      href={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}?k=${refreshKey}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline text-xs mt-2"
@@ -343,9 +364,9 @@ export default function ProfilePage() {
                 )}
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{user.name}</h1>
-                <p className="text-lg text-blue-600 font-medium">{user.username ? `@${user.username}` : ''}</p>
-                <p className="text-gray-600 capitalize">{user.role === "organizer" ? "Event Organizer" : "Volunteer"}</p>
+                <h1 className="text-3xl font-bold text-gray-900">{getSafeUserName(safeUser)}</h1>
+                <p className="text-lg text-blue-600 font-medium">{getUsernameDisplay(safeUser)}</p>
+                <p className="text-gray-600 capitalize">{getSafeUserRole(safeUser) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
                 {organization && (
                   <p className="text-sm text-blue-600 font-medium">{organization.name}</p>
                 )}
@@ -395,15 +416,15 @@ export default function ProfilePage() {
                       alt="Profile Preview"
                       className="w-24 h-24 rounded-full object-cover animate-fade-in"
                     />
-                  ) : user.profileImage ? (
+                  ) : safeUser.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${user.profileImage}`}
+                      src={`http://localhost:5000/uploads/Profiles/${safeUser.profileImage}`}
                       alt="Profile"
                       className="w-24 h-24 rounded-full object-cover animate-fade-in"
                     />
                   ) : (
                     <div className="text-3xl font-bold text-blue-600">
-                      {(user.username || user.name) ? (user.username || user.name).charAt(0).toUpperCase() : "U"}
+                      {getSafeUserName(safeUser).charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -447,18 +468,18 @@ export default function ProfilePage() {
                         className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
                       />
                     </div>
-                  ) : user.govtIdProofUrl ? (
+                  ) : safeUser.govtIdProofUrl ? (
                     <div>
                       <span className="block text-xs text-gray-500 mb-1">Current:</span>
-                      {user.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                      {safeUser.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                         <img
-                          src={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}`}
+                          src={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}`}
                           alt="Govt ID"
                           className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
                         />
                       ) : (
                         <a
-                          href={`http://localhost:5000/uploads/Profiles/${user.govtIdProofUrl}`}
+                          href={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 underline text-sm animate-fade-in"
@@ -549,8 +570,14 @@ export default function ProfilePage() {
                       value={formData.dateOfBirth}
                       onChange={handleChange}
                       disabled={!editing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors"
+                      max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors ${
+                        editing && new Date(formData.dateOfBirth) > new Date() ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     />
+                    {editing && new Date(formData.dateOfBirth) > new Date() && (
+                      <p className="text-red-500 text-xs mt-1">Date of birth cannot be in the future</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
@@ -658,12 +685,12 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <div className="flex justify-between py-3 border-b border-gray-100">
                   <span className="font-medium text-gray-700">Role:</span>
-                  <span className="text-gray-900 capitalize font-semibold">{user.role}</span>
+                  <span className="text-gray-900 capitalize font-semibold">{getSafeUserRole(safeUser)}</span>
                 </div>
                 <div className="flex justify-between py-3 border-b border-gray-100">
                   <span className="font-medium text-gray-700">Member Since:</span>
                   <span className="text-gray-900">
-                    {formatDate(user.createdAt)}
+                    {formatDate(safeUser.createdAt)}
                   </span>
                 </div>
                 {organization && (

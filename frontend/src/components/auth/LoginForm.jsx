@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import {
   TextField,
   Button,
@@ -8,19 +9,25 @@ import {
   Typography,
   Alert,
   Divider,
+  CircularProgress,
+  Snackbar,
+  IconButton,
 } from '@mui/material';
+import { Close as CloseIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon } from '@mui/icons-material';
 import GoogleOAuthButton from './GoogleOAuthButton';
 import RoleSelectionModal from './RoleSelectionModal';
 import OAuthRegistrationForm from './OAuthRegistrationForm';
 import AccountLinkingModal from './AccountLinkingModal';
-import { googleOAuthCallback, linkOAuthAccount, completeOAuthRegistration } from '../../api/oauth';
+import { googleOAuthCallback, completeOAuthRegistration, linkOAuthAccount } from '../../api/oauth';
 import { Link } from 'react-router-dom';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState(0);
   
   // OAuth states
   const [oauthData, setOauthData] = useState(null);
@@ -32,10 +39,15 @@ export default function LoginForm() {
 
   const navigate = useNavigate();
 
+  const clearMessages = () => {
+    setError('');
+    setSuccess('');
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    clearMessages();
     
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', {
@@ -43,19 +55,31 @@ export default function LoginForm() {
         password,
       });
 
-      localStorage.setItem('token', res.data.token);
+      // Handle new token structure
+      const token = res.data.accessToken || res.data.token;
+      localStorage.setItem('token', token);
+      if (res.data.refreshToken) {
+        localStorage.setItem('refreshToken', res.data.refreshToken);
+      }
       localStorage.setItem('user', JSON.stringify(res.data.user));
+
+      setSuccess('🎉 Login successful! Redirecting...');
+      setLoginAttempts(0);
 
       // Dispatch custom event to notify other components about user data update
       window.dispatchEvent(new CustomEvent('userDataUpdated', {
         detail: { user: res.data.user }
       }));
 
-      if (res.data.user.role === 'organizer') {
-        navigate('/organizer/dashboard');
-      } else {
-        navigate('/volunteer/dashboard');
-      }
+      // Redirect after showing success message
+      setTimeout(() => {
+        if (res.data.user.role === 'organizer') {
+          navigate('/organizer/dashboard');
+        } else {
+          navigate('/volunteer/dashboard');
+        }
+      }, 1500);
+
     } catch (err) {
       // Check if it's a deleted account error
       if (err.response?.data?.code === 'ACCOUNT_DELETED') {
@@ -70,8 +94,91 @@ export default function LoginForm() {
             </Link>
           </div>
         );
+      } else if (err.response?.status === 423) {
+        // Account locked
+        setError(
+          <div>
+            <p className="text-red-600 mb-2">🔒 {err.response.data.message}</p>
+            <p className="text-sm text-gray-600">
+              Please wait before trying again or contact support if this persists.
+            </p>
+          </div>
+        );
+      } else if (err.response?.data?.isOAuthUser) {
+        // OAuth user trying to login with password
+        setError(
+          <div>
+            <p className="text-red-600 mb-2">🔐 {err.response.data.message}</p>
+            <p className="text-sm text-gray-600">
+              Use the "Sign in with Google" button below instead.
+            </p>
+          </div>
+        );
       } else {
-        setError(err.response?.data?.message || 'Login failed');
+        setLoginAttempts(prev => prev + 1);
+        const remainingAttempts = 5 - loginAttempts - 1;
+        
+        // Handle specific error codes for better user experience
+        const errorCode = err.response?.data?.errorCode;
+        let errorMessage = 'Login failed';
+        let errorDetails = '';
+        
+        if (errorCode === 'EMAIL_NOT_FOUND') {
+          errorMessage = '📧 Email not found';
+          errorDetails = (
+            <div>
+              <p>No account exists with this email address. Please check your email or</p>
+              <Link 
+                to="/signup" 
+                className="text-blue-600 hover:text-blue-500 underline text-sm"
+              >
+                create a new account
+              </Link>
+            </div>
+          );
+        } else if (errorCode === 'INVALID_PASSWORD') {
+          errorMessage = '🔐 Incorrect password';
+          errorDetails = (
+            <div>
+              <p>The password you entered is incorrect. Please try again or</p>
+              <Link 
+                to="/forgot-password" 
+                className="text-blue-600 hover:text-blue-500 underline text-sm"
+              >
+                click here to reset your password
+              </Link>
+            </div>
+          );
+        } else if (errorCode === 'OAUTH_ACCOUNT') {
+          errorMessage = '🔐 OAuth account detected';
+          errorDetails = 'This account was created with Google. Please use "Sign in with Google" instead.';
+        } else {
+          // Fallback to generic message
+          errorMessage = `❌ ${err.response?.data?.message || 'Login failed'}`;
+        }
+        
+        if (remainingAttempts > 0) {
+          setError(
+            <div>
+              <p className="text-red-600 mb-2">{errorMessage}</p>
+              {errorDetails && (
+                <p className="text-sm text-gray-600 mb-2">{errorDetails}</p>
+              )}
+              <p className="text-sm text-gray-600">
+                {remainingAttempts} login attempt{remainingAttempts !== 1 ? 's' : ''} remaining before account lockout.
+              </p>
+            </div>
+          );
+        } else {
+          setError(
+            <div>
+              <p className="text-red-600 mb-2">🔒 Account locked due to too many failed attempts</p>
+              <p className="text-sm text-gray-600">
+                Please wait 30 minutes before trying again or contact support.
+              </p>
+            </div>
+          );
+        }
       }
     } finally {
       setLoading(false);
@@ -80,14 +187,18 @@ export default function LoginForm() {
 
   const handleGoogleOAuth = async (token) => {
     setLoading(true);
-    setError('');
+    clearMessages();
     
     try {
       const response = await googleOAuthCallback(token);
       
       if (response.action === 'login') {
         // User exists with OAuth - login directly
-        localStorage.setItem('token', response.token);
+        const token = response.accessToken || response.token;
+        localStorage.setItem('token', token);
+        if (response.refreshToken) {
+          localStorage.setItem('refreshToken', response.refreshToken);
+        }
         localStorage.setItem('user', JSON.stringify(response.user));
         
         // Dispatch custom event to notify other components about user data update
@@ -95,11 +206,17 @@ export default function LoginForm() {
           detail: { user: response.user }
         }));
         
-        if (response.user.role === 'organizer') {
-          navigate('/organizer/dashboard');
-        } else {
-          navigate('/volunteer/dashboard');
-        }
+        setSuccess('🎉 OAuth login successful! Redirecting...');
+        setLoginAttempts(0);
+
+        // Redirect after showing success message
+        setTimeout(() => {
+          if (response.user.role === 'organizer') {
+            navigate('/organizer/dashboard');
+          } else {
+            navigate('/volunteer/dashboard');
+          }
+        }, 1500);
       } else if (response.action === 'link_account') {
         // User exists with email but no OAuth - show linking modal
         setOauthData(response.oauthData);
@@ -124,6 +241,33 @@ export default function LoginForm() {
             </Link>
           </div>
         );
+      } else if (error.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
+        // Handle recently deleted account error from OAuth callback
+        const deletedAccount = error.response.data.deletedAccount;
+        const remainingDays = error.response.data.remainingDays;
+        
+        setError(
+          <div>
+            <p className="text-red-600 mb-2">{error.response.data.message}</p>
+            <p className="text-sm text-gray-600 mb-2">
+              Account: {deletedAccount.username} ({deletedAccount.role})
+            </p>
+            <p className="text-sm text-gray-600 mb-2">
+              {error.response.data.suggestion}
+            </p>
+            <div className="space-y-2">
+              <Link 
+                to="/recover-account" 
+                className="block text-blue-600 hover:text-blue-500 underline text-sm"
+              >
+                🔄 Recover your deleted account
+              </Link>
+              <p className="text-xs text-gray-500">
+                You cannot create a new account with this email until the recovery period expires
+              </p>
+            </div>
+          </div>
+        );
       } else {
         setError(error.message || 'OAuth authentication failed');
       }
@@ -140,24 +284,19 @@ export default function LoginForm() {
 
   const handleRegistrationComplete = async (userData) => {
     setLoading(true);
-    setError('');
+    clearMessages();
     
     try {
       const response = await completeOAuthRegistration(userData);
       
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Show success message
+      toast.success('🎉 OAuth registration completed! Please login to continue.');
       
-      // Dispatch custom event to notify other components about user data update
-      window.dispatchEvent(new CustomEvent('userDataUpdated', {
-        detail: { user: response.user }
-      }));
-      
-      if (response.user.role === 'organizer') {
-        navigate('/organizer/dashboard');
-      } else {
-        navigate('/volunteer/dashboard');
-      }
+      // Redirect to login page instead of auto-login
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+
     } catch (error) {
       // Check if it's a recently deleted account error
       if (error.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
@@ -195,29 +334,67 @@ export default function LoginForm() {
 
   const handleLinkAccount = async () => {
     try {
+      // Test toast first
+      toast.info('🔄 Linking account...');
+      
+      console.log('Linking account with data:', {
+        userId: existingUser._id,
+        oauthId: oauthData.oauthId,
+        oauthProvider: oauthData.oauthProvider,
+        oauthPicture: oauthData.picture
+      });
+
       const response = await linkOAuthAccount({
         userId: existingUser._id,
         oauthId: oauthData.oauthId,
-        name: oauthData.name,
-        email: oauthData.email,
-        picture: oauthData.picture || null
+        oauthProvider: oauthData.oauthProvider,
+        oauthPicture: oauthData.picture
       });
       
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      console.log('Account linking response:', response);
       
-      // Dispatch custom event to notify other components about user data update
-      window.dispatchEvent(new CustomEvent('userDataUpdated', {
-        detail: { user: response.user }
-      }));
+      // Show success message
+      toast.success('🎉 Account linked successfully! Please login to continue.');
       
-      if (response.user.role === 'organizer') {
-        navigate('/organizer/dashboard');
-      } else {
-        navigate('/volunteer/dashboard');
-      }
+      // Clear any previous errors
+      setError('');
+      
+      // Close the modal
+      setShowLinkingModal(false);
+      
+      // Clear OAuth data
+      setOauthData(null);
+      setExistingUser(null);
+      
+      // Redirect to login page instead of auto-login
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+
     } catch (error) {
-      setError(error.message || 'Account linking failed');
+      console.error('Account linking error:', error);
+      
+      let errorMessage = 'Account linking failed';
+      
+      if (error.response?.status === 400) {
+        errorMessage = error.response.data.message || 'Invalid request data';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'User not found';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error during account linking';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error - please check your connection';
+      } else if (error.code === 'ERR_BAD_REQUEST') {
+        errorMessage = 'Bad request - please try again';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error toast
+      toast.error(`❌ ${errorMessage}`);
+      
+      // Set error in state for the modal to display
+      setError(`❌ ${errorMessage}`);
     }
   };
 
@@ -244,8 +421,40 @@ export default function LoginForm() {
         </Typography>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+                onClick={() => clearMessages()}
+              >
+                <CloseIcon fontSize="inherit" />
+              </IconButton>
+            }
+          >
             {error}
+          </Alert>
+        )}
+
+        {success && (
+          <Alert
+            severity="success"
+            sx={{ mb: 2 }}
+            action={
+              <IconButton
+                aria-label="close"
+                color="inherit"
+                size="small"
+                onClick={() => clearMessages()}
+              >
+                <CloseIcon fontSize="inherit" />
+              </IconButton>
+            }
+          >
+            {success}
           </Alert>
         )}
 
@@ -257,6 +466,7 @@ export default function LoginForm() {
           fullWidth
           required
           margin="normal"
+          disabled={loading}
         />
 
         <TextField
@@ -267,6 +477,7 @@ export default function LoginForm() {
           fullWidth
           required
           margin="normal"
+          disabled={loading}
         />
 
         <Button
@@ -277,7 +488,11 @@ export default function LoginForm() {
           sx={{ mt: 2 }}
           disabled={loading}
         >
-          {loading ? 'Logging in...' : 'Login'}
+          {loading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            'Login'
+          )}
         </Button>
 
         <Box sx={{ textAlign: 'center', mt: 3 }}>
@@ -348,10 +563,15 @@ export default function LoginForm() {
       {/* Account Linking Modal */}
       <AccountLinkingModal
         open={showLinkingModal}
-        onClose={() => setShowLinkingModal(false)}
+        onClose={() => {
+          setShowLinkingModal(false);
+          setError(''); // Clear error when modal closes
+        }}
         existingUser={existingUser}
         oauthData={oauthData}
         onLinkAccount={handleLinkAccount}
+        onCreateNewAccount={handleCreateNewAccount}
+        error={error}
       />
     </>
   );

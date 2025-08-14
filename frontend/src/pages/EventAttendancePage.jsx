@@ -9,6 +9,24 @@ import axiosInstance from "../api/axiosInstance"; // <-- Use axiosInstance
 import { useRef } from 'react';
 import { FaPencilAlt } from 'react-icons/fa';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getEmailDisplay, 
+  getPhoneDisplay,
+  canNavigateToUser,
+  getSafeUserId,
+  getSafeUserName,
+  // Attendance-specific utilities
+  getAttendanceUserData,
+  getAttendanceDisplayName,
+  getAttendanceUsernameDisplay,
+  getAttendanceEmailDisplay,
+  getAttendancePhoneDisplay,
+  getAttendanceProfileImageUrl,
+  getAttendanceAvatarInitial
+} from "../utils/safeUserUtils";
 
 export default function EventAttendancePage() {
   const { eventId } = useParams();
@@ -276,40 +294,53 @@ export default function EventAttendancePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {organizers.map((obj) => (
-                        <tr key={obj.user?._id || obj._id} className="text-center">
-                          <td className="p-2 border">
-                            {getProfileImageUrl(obj.user) ? (
-                              <img
-                                src={getProfileImageUrl(obj.user)}
-                                alt={obj.user ? obj.user.username : 'Organizer'}
-                                className="w-10 h-10 rounded-full object-cover mx-auto"
+                      {organizers.map((obj) => {
+                        // Use attendance-specific utilities for attendance records
+                        const attendanceUser = getAttendanceUserData(obj.user);
+                        const canNavigate = canNavigateToUser(obj.user);
+                        
+                        return (
+                          <tr key={obj.user?._id || obj._id} className="text-center">
+                            <td className="p-2 border">
+                              {getAttendanceProfileImageUrl(attendanceUser) ? (
+                                <img
+                                  src={getAttendanceProfileImageUrl(attendanceUser)}
+                                  alt={getAttendanceDisplayName(attendanceUser)}
+                                  className="w-10 h-10 rounded-full object-cover mx-auto"
+                                />
+                              ) : (
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors(attendanceUser.role)}`}>
+                                  <span className="text-sm font-bold">{getAttendanceAvatarInitial(attendanceUser)}</span>
+                                </div>
+                              )}
+                            </td>
+                            <td className={`p-2 border ${attendanceUser.isDeleted ? 'text-gray-500' : ''}`}>
+                              {getAttendanceUsernameDisplay(attendanceUser)}
+                            </td>
+                            <td className={`p-2 border ${attendanceUser.isDeleted ? 'text-gray-500' : ''}`}>
+                              {getAttendanceEmailDisplay(attendanceUser)}
+                            </td>
+                            <td className={`p-2 border ${attendanceUser.isDeleted ? 'text-gray-500' : ''}`}>
+                              {getAttendancePhoneDisplay(attendanceUser)}
+                            </td>
+                            <td className="p-2 border">
+                              <input
+                                type="checkbox"
+                                checked={!!obj.hasAttended}
+                                onChange={e => handleOrganizerAttendance(obj.user._id, e.target.checked)}
+                                disabled={attendanceUser.isDeleted}
                               />
-                            ) : (
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors('organizer')}`}>
-                                <span className="text-sm font-bold">{getAvatarInitial(obj.user)}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-2 border">{obj.user ? (obj.user.username ? `@${obj.user.username}` : obj.user.name) : '-'}</td>
-                          <td className="p-2 border">{obj.user ? obj.user.email : '-'}</td>
-                          <td className="p-2 border">{obj.user && obj.user.phone ? obj.user.phone : '-'}</td>
-                          <td className="p-2 border">
-                            <input
-                              type="checkbox"
-                              checked={!!obj.hasAttended}
-                              onChange={e => handleOrganizerAttendance(obj.user._id, e.target.checked)}
-                            />
-                          </td>
-                          <td className="p-2 border">
-                            {obj.hasAttended ? (
-                              <span className="text-green-700 font-bold">Attended</span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="p-2 border">
+                              {obj.hasAttended ? (
+                                <span className="text-green-700 font-bold">Attended</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -334,30 +365,40 @@ export default function EventAttendancePage() {
                 <tbody>
                   {volunteers.map((v) => {
                     const editState = volunteerEdit[v.registrationId] || {};
+                    // Use attendance-specific utilities for attendance records
+                    const attendanceVolunteer = getAttendanceUserData(v);
+                    const canNavigate = canNavigateToUser(v);
+                    
                     return (
                       <tr key={v._id} className="text-center">
                         <td className="p-2 border">
-                          {getProfileImageUrl(v) ? (
+                          {getAttendanceProfileImageUrl(attendanceVolunteer) ? (
                             <img
-                              src={getProfileImageUrl(v)}
-                              alt={v.username}
+                              src={getAttendanceProfileImageUrl(attendanceVolunteer)}
+                              alt={getAttendanceDisplayName(attendanceVolunteer)}
                               className="w-10 h-10 rounded-full object-cover mx-auto"
                             />
                           ) : (
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors('volunteer')}`}>
-                              <span className="text-sm font-bold">{getAvatarInitial(v)}</span>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors(attendanceVolunteer.role)}`}>
+                              <span className="text-sm font-bold">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
                             </div>
                           )}
                         </td>
-                        <td className="p-2 border">{v.username ? `@${v.username}` : v.name}</td>
-                        <td className="p-2 border">{v.email}</td>
-                        <td className="p-2 border">{v.phone || '-'}</td>
+                        <td className={`p-2 border ${attendanceVolunteer.isDeleted ? 'text-gray-500' : ''}`}>
+                          {getAttendanceDisplayName(attendanceVolunteer)}
+                        </td>
+                        <td className={`p-2 border ${attendanceVolunteer.isDeleted ? 'text-gray-500' : ''}`}>
+                          {getAttendanceEmailDisplay(attendanceVolunteer)}
+                        </td>
+                        <td className={`p-2 border ${attendanceVolunteer.isDeleted ? 'text-gray-500' : ''}`}>
+                          {getAttendancePhoneDisplay(attendanceVolunteer)}
+                        </td>
                         <td className="p-2 border">
                           <input
                             type="checkbox"
                             checked={!!v.hasAttended}
                             onChange={e => handleVolunteerAttendance(v.registrationId, e.target.checked)}
-                            disabled={!!v.inTime}
+                            disabled={attendanceVolunteer.isDeleted}
                           />
                         </td>
                         <td className="p-2 border">
@@ -367,60 +408,22 @@ export default function EventAttendancePage() {
                             <span className="text-gray-400">-</span>
                           )}
                         </td>
-                        {/* In-Time column */}
-                        <td className="p-2 border align-top">
-                          <div className="flex items-center gap-2">
-                            <span>{formatDateTime(v.inTime)}</span>
-                            <button
-                              className="ml-1 p-1 text-gray-500 hover:text-blue-600 focus:outline-none"
-                              title="Edit In-Time"
-                              onClick={() => setVolunteerEdit(prev => ({ ...prev, [v.registrationId]: { type: 'in', value: v.inTime ? new Date(v.inTime).toISOString().slice(0,16) : '' } }))}
-                              style={{ background: 'none', border: 'none' }}
-                            >
-                              <FaPencilAlt size={14} />
-                            </button>
-                          </div>
-                          {editState.type === 'in' && (
-                            <div className="mt-2 flex flex-col gap-1">
-                              <input
-                                type="datetime-local"
-                                value={editState.value}
-                                onChange={e => setVolunteerEdit(prev => ({ ...prev, [v.registrationId]: { type: 'in', value: e.target.value } }))}
-                                className="border rounded px-2 py-1"
-                              />
-                              <div className="flex gap-2 mt-1">
-                                <button onClick={() => handleVolunteerTimeSave(v.registrationId, 'in')} className="bg-blue-600 text-white px-2 py-1 rounded text-sm">Save</button>
-                                <button onClick={() => setVolunteerEdit(prev => ({ ...prev, [v.registrationId]: undefined }))} className="bg-gray-300 text-gray-800 px-2 py-1 rounded text-sm">Cancel</button>
-                              </div>
-                            </div>
+                        <td className="p-2 border">
+                          {v.inTime ? (
+                            <span className="text-green-700 font-bold">
+                              {new Date(v.inTime).toLocaleTimeString()}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
-                        {/* Out-Time column */}
-                        <td className="p-2 border align-top">
-                          <div className="flex items-center gap-2">
-                            <span>{formatDateTime(v.outTime)}</span>
-                            <button
-                              className="ml-1 p-1 text-gray-500 hover:text-blue-600 focus:outline-none"
-                              title="Edit Out-Time"
-                              onClick={() => setVolunteerEdit(prev => ({ ...prev, [v.registrationId]: { type: 'out', value: v.outTime ? new Date(v.outTime).toISOString().slice(0,16) : '' } }))}
-                              style={{ background: 'none', border: 'none' }}
-                            >
-                              <FaPencilAlt size={14} />
-                            </button>
-                          </div>
-                          {editState.type === 'out' && (
-                            <div className="mt-2 flex flex-col gap-1">
-                              <input
-                                type="datetime-local"
-                                value={editState.value}
-                                onChange={e => setVolunteerEdit(prev => ({ ...prev, [v.registrationId]: { type: 'out', value: e.target.value } }))}
-                                className="border rounded px-2 py-1"
-                              />
-                              <div className="flex gap-2 mt-1">
-                                <button onClick={() => handleVolunteerTimeSave(v.registrationId, 'out')} className="bg-blue-600 text-white px-2 py-1 rounded text-sm">Save</button>
-                                <button onClick={() => setVolunteerEdit(prev => ({ ...prev, [v.registrationId]: undefined }))} className="bg-gray-300 text-gray-800 px-2 py-1 rounded text-sm">Cancel</button>
-                              </div>
-                            </div>
+                        <td className="p-2 border">
+                          {v.outTime ? (
+                            <span className="text-green-700 font-bold">
+                              {new Date(v.outTime).toLocaleTimeString()}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
                           )}
                         </td>
                       </tr>

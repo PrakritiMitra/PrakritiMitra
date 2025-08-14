@@ -2,12 +2,38 @@ const axios = require('axios');
 const Event = require('../models/event');
 const Registration = require('../models/registration');
 
+// Helper function to get safe user data for reports
+const getSafeUserDataForReports = (user) => {
+  if (!user) {
+    return {
+      name: 'Unknown User',
+      username: 'unknown_user',
+      email: 'unknown@email.com'
+    };
+  }
+  
+  // If user is deleted but has actual data, preserve the actual data
+  if (user.isDeleted) {
+    return {
+      name: user.name || 'Deleted User',
+      username: user.username || 'deleted_user',
+      email: user.email || 'deleted@email.com'
+    };
+  }
+  
+  return {
+    name: user.name || 'Unknown User',
+    username: user.username || 'unknown_user',
+    email: user.email || 'unknown@email.com'
+  };
+};
+
 // Check if event is eligible for report generation (50% questionnaires completed)
 const checkReportEligibility = async (req, res) => {
   try {
     const { eventId } = req.params;
     
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email');
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email isDeleted');
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
@@ -52,9 +78,9 @@ const generateEventReport = async (req, res) => {
     const userId = req.user._id;
 
     const event = await Event.findById(eventId)
-      .populate('organizerTeam.user', 'name username email role')
+      .populate('organizerTeam.user', 'name username email role isDeleted')
       .populate('organization', 'name')
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email isDeleted');
 
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
@@ -95,26 +121,32 @@ const generateEventReport = async (req, res) => {
       lastGeneratedAt = event.report.generatedAt;
     }
 
-    // Fetch organizer questionnaires (completed ones)
+    // Fetch organizer questionnaires (completed ones) with safe user data
     let organizerQuestionnaires = event.organizerTeam
       .filter(org => org.questionnaire.completed)
-      .map(org => ({
-        organizerName: org.user.name,
-        answers: org.questionnaire.answers,
-        submittedAt: org.questionnaire.submittedAt
-      }));
+      .map(org => {
+        const safeUserData = getSafeUserDataForReports(org.user);
+        return {
+          organizerName: safeUserData.name,
+          answers: org.questionnaire.answers,
+          submittedAt: org.questionnaire.submittedAt
+        };
+      });
 
-    // Fetch volunteer questionnaires (completed ones)
+    // Fetch volunteer questionnaires (completed ones) with safe user data
     const volunteerRegistrations = await Registration.find({
       eventId,
       'questionnaire.completed': true
-    }).populate('volunteerId', 'name username email');
+    }).populate('volunteerId', 'name username email isDeleted');
 
-    let volunteerQuestionnaires = volunteerRegistrations.map(reg => ({
-      volunteerName: reg.volunteerId.name,
-      answers: reg.questionnaire.answers,
-      submittedAt: reg.questionnaire.submittedAt
-    }));
+    let volunteerQuestionnaires = volunteerRegistrations.map(reg => {
+      const safeUserData = getSafeUserDataForReports(reg.volunteerId);
+      return {
+        volunteerName: safeUserData.name,
+        answers: reg.questionnaire.answers,
+        submittedAt: reg.questionnaire.submittedAt
+      };
+    });
 
     // If this is an update, filter to only include new questionnaires submitted after last generation
     if (isUpdate && lastGeneratedAt) {
@@ -126,6 +158,10 @@ const generateEventReport = async (req, res) => {
       );
     }
 
+    // Get safe event creator data
+    const safeCreatorData = getSafeUserDataForReports(event.createdBy);
+    const safeOrganizationData = event.organization ? { name: event.organization.name } : { name: 'N/A' };
+
     // Construct comprehensive prompt for GroqCloud
     const reportPrompt = `
 ${isUpdate ? 'UPDATE' : 'Generate'} a comprehensive, professional NGO event report for the following environmental conservation event. ${isUpdate ? 'This is an UPDATE to an existing report - focus on new feedback and changes since the last report generation.' : 'This report should be detailed, well-structured, and suitable for stakeholders, donors, and the public.'}
@@ -136,7 +172,7 @@ EVENT DETAILS:
 - Description: ${event.description}
 - Location: ${event.location}
         - Date: ${new Date(event.startDateTime).toLocaleDateString('en-GB')} to ${new Date(event.endDateTime).toLocaleDateString('en-GB')}
-- Organization: ${event.organization?.name || 'N/A'}
+- Organization: ${safeOrganizationData.name}
 - Total Registered Volunteers: ${totalVolunteers}
 - Total Organizers: ${totalOrganizers}
 
@@ -242,7 +278,7 @@ const getEventReport = async (req, res) => {
     const { eventId } = req.params;
     
     const event = await Event.findById(eventId)
-      .populate('report.generatedBy', 'name email')
+      .populate('report.generatedBy', 'name email isDeleted')
       .select('report title eventType startDateTime endDateTime');
 
     if (!event) {
@@ -253,8 +289,18 @@ const getEventReport = async (req, res) => {
       return res.status(404).json({ message: 'Report not generated yet' });
     }
 
+    // Get safe user data for report generator
+    const safeGeneratorData = getSafeUserDataForReports(event.report.generatedBy);
+
     res.json({
-      report: event.report,
+      report: {
+        ...event.report.toObject(),
+        generatedBy: {
+          _id: event.report.generatedBy?._id,
+          name: safeGeneratorData.name,
+          email: safeGeneratorData.email
+        }
+      },
       eventTitle: event.title,
       eventType: event.eventType,
       eventDate: event.startDateTime

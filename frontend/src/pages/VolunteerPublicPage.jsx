@@ -5,6 +5,13 @@ import axiosInstance from "../api/axiosInstance";
 import EventCard from "../components/event/EventCard";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 import { formatDate } from "../utils/dateUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName, 
+  getSafeUserRole 
+} from "../utils/safeUserUtils";
 
 export default function VolunteerPublicPage() {
   const { id } = useParams();
@@ -20,11 +27,22 @@ export default function VolunteerPublicPage() {
     setError("");
     axiosInstance.get(`/api/users/${id}`)
       .then(res => {
-        setVolunteer(res.data);
+        // Check if user data indicates a deleted account
+        const safeVolunteerData = getSafeUserData(res.data);
+        if (safeVolunteerData.isDeleted) {
+          setError("This volunteer account has been deleted");
+          setLoading(false);
+          return;
+        }
+        setVolunteer(safeVolunteerData);
         setLoading(false);
       })
-      .catch(() => {
-        setError("Volunteer not found");
+      .catch((err) => {
+        if (err.response?.data?.error === 'ACCOUNT_DELETED') {
+          setError("This volunteer account has been deleted");
+        } else {
+          setError("Volunteer not found");
+        }
         setLoading(false);
       });
   }, [id]);
@@ -75,7 +93,7 @@ export default function VolunteerPublicPage() {
                 {getProfileImageUrl(volunteer) ? (
                   <img
                     src={getProfileImageUrl(volunteer)}
-                    alt={volunteer.name}
+                    alt={getSafeUserName(volunteer)}
                     className="w-24 h-24 rounded-full object-cover border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
                   />
                 ) : (
@@ -83,7 +101,7 @@ export default function VolunteerPublicPage() {
                     <span className="text-3xl font-bold">{getAvatarInitial(volunteer)}</span>
                   </div>
                 )}
-                <h1 className="text-3xl font-bold text-green-800 mb-1 animate-fade-in-slow">{volunteer.name}</h1>
+                <h1 className="text-3xl font-bold text-green-800 mb-1 animate-fade-in-slow">{getSafeUserName(volunteer)}</h1>
                 <span className="text-green-600 font-medium capitalize mb-1">Volunteer</span>
                 {volunteer.city && <span className="text-gray-500 text-sm">{volunteer.city}</span>}
               </div>
@@ -91,11 +109,11 @@ export default function VolunteerPublicPage() {
                 <div>
                   <div className="mb-2">
                     <span className="font-semibold text-gray-700">Email:</span>
-                    <span className="ml-2 text-gray-600">{volunteer.email}</span>
+                    <span className="ml-2 text-gray-600">{volunteer.email || 'Not available'}</span>
                   </div>
                   <div className="mb-2">
                     <span className="font-semibold text-gray-700">Phone:</span>
-                    <span className="ml-2 text-gray-600">{volunteer.phone}</span>
+                    <span className="ml-2 text-gray-600">{volunteer.phone || 'Not available'}</span>
                   </div>
                   {volunteer.city && (
                     <div className="mb-2">

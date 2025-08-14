@@ -22,34 +22,52 @@ import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap';
 import Avatar from "../components/common/Avatar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole,
+  canNavigateToUser 
+} from "../utils/safeUserUtils";
 
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
   const navigate = useNavigate();
   
   const handleClick = () => {
-    if (comment.volunteer?._id) {
+    if (comment.volunteer?._id && canNavigateToUser(comment.volunteer)) {
       navigate(`/volunteer/${comment.volunteer._id}`);
     }
   };
 
+  // Get safe volunteer data
+  const safeVolunteer = getSafeUserData(comment.volunteer);
+
   return (
     <div 
-      className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+      className={`flex items-center space-x-3 p-2 rounded transition-colors ${
+        canNavigateToUser(safeVolunteer) 
+          ? 'cursor-pointer hover:bg-gray-50' 
+          : 'cursor-default opacity-75'
+      }`}
       onClick={handleClick}
     >
-      {getProfileImageUrl(comment.volunteer) ? (
+      {getProfileImageUrl(safeVolunteer) ? (
         <img 
-          src={getProfileImageUrl(comment.volunteer)} 
-          alt={comment.volunteer?.name} 
+          src={getProfileImageUrl(safeVolunteer)} 
+          alt={getSafeUserName(safeVolunteer)} 
           className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
         />
       ) : (
         <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 ${getRoleColors('volunteer')}`}>
-          <span className="text-sm font-bold">{getAvatarInitial(comment.volunteer)}</span>
+          <span className="text-sm font-bold">{getAvatarInitial(safeVolunteer)}</span>
         </div>
       )}
-      <span className="font-medium text-green-800">{comment.volunteer?.username ? `@${comment.volunteer.username}` : comment.volunteer?.name}</span>
+      <span className={`font-medium ${safeVolunteer.isDeleted ? 'text-gray-500' : 'text-green-800'}`}>
+        {getUsernameDisplay(safeVolunteer) || getSafeUserName(safeVolunteer)}
+      </span>
     </div>
   );
 };
@@ -69,7 +87,8 @@ export default function VolunteerEventDetailsPage() {
   // UI Interaction state
   const [showExitQr, setShowExitQr] = useState(false);
   const [exitQrPath, setExitQrPath] = useState(null);
-  const user = JSON.parse(localStorage.getItem("user"));
+  const userData = JSON.parse(localStorage.getItem("user"));
+  const user = getSafeUserData(userData); // Get safe user data
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
 
   // Carousel state
@@ -115,8 +134,8 @@ export default function VolunteerEventDetailsPage() {
   const { availableSlots, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
 
   // Check if user is removed or banned from this event
-  const isRemoved = event?.removedVolunteers?.includes(user?._id);
-  const isBanned = event?.bannedVolunteers?.includes(user?._id);
+  const isRemoved = event?.removedVolunteers?.includes(getSafeUserId(user));
+  const isBanned = event?.bannedVolunteers?.includes(getSafeUserId(user));
 
   // User-friendly slot message with color
   let slotMessage = '';
@@ -184,7 +203,7 @@ export default function VolunteerEventDetailsPage() {
   // Check calendar status
   useEffect(() => {
     const checkCalendarStatus = async () => {
-      if (!user?._id || !event?._id) return;
+      if (!getSafeUserId(user) || !event?._id) return;
       
       try {
         const result = await checkWebsiteCalendarStatus(event._id);
@@ -197,7 +216,7 @@ export default function VolunteerEventDetailsPage() {
     };
     
     checkCalendarStatus();
-  }, [event?._id, user?._id]);
+  }, [event?._id, getSafeUserId(user)]);
 
   // Poll for AI summary if it's missing
   useEffect(() => {
@@ -232,7 +251,7 @@ export default function VolunteerEventDetailsPage() {
 
   // Check user's registration status on load
   useEffect(() => {
-    if (event?._id && user?._id) {
+    if (event?._id && getSafeUserId(user)) {
       axiosInstance.get(`/api/registrations/event/${event._id}/my-registration`)
         .then(res => {
           if (res.data.registered) {
@@ -261,7 +280,7 @@ export default function VolunteerEventDetailsPage() {
           }
         });
     }
-  }, [event?._id, user?._id, event?.endDateTime]);
+  }, [event?._id, getSafeUserId(user), event?.endDateTime]);
 
   // Poll for attendance `inTime` if user is registered but hasn't been scanned in
   useEffect(() => {
@@ -402,7 +421,7 @@ export default function VolunteerEventDetailsPage() {
   };
 
   const handleGenerateCertificate = async () => {
-    if (!canGenerateCertificate) {
+    if (!isRegistered || !questionnaireCompleted || !event?._id) {
       alert('You are not eligible to generate a certificate at this time.');
       return;
     }
@@ -516,12 +535,13 @@ export default function VolunteerEventDetailsPage() {
   const isLiveEvent = new Date(event.startDateTime) <= now && now < new Date(event.endDateTime);
   const hasCompletedEvent = !!(registrationDetails?.inTime && registrationDetails?.outTime);
 
-  const myCertificateAssignment = event?.certificates?.find(
-    cert => (cert.user?._id || cert.user) === user?._id
-  );
+  // Filter certificates for current user
+  const userCertificates = event?.certificates?.filter(
+    cert => (getSafeUserId(cert.user) || cert.user) === getSafeUserId(user)
+  ) || [];
   
-  const canGenerateCertificate = isPastEvent && isRegistered && questionnaireCompleted && myCertificateAssignment && myCertificateAssignment.role === 'volunteer' && !myCertificateAssignment.filePath;
-  const certificateGenerated = myCertificateAssignment && myCertificateAssignment.filePath;
+  const canGenerateCertificate = isPastEvent && isRegistered && questionnaireCompleted && userCertificates.length > 0 && userCertificates[0].role === 'volunteer' && !userCertificates[0].filePath;
+  const certificateGenerated = userCertificates.length > 0 && userCertificates[0].filePath;
 
   const eventImage = defaultImages[event.eventType?.toLowerCase()] || defaultImages["default"];
 
@@ -557,23 +577,23 @@ export default function VolunteerEventDetailsPage() {
             <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
               {organizerTeam
                 .filter(obj => {
-                  if (!obj.user?._id) return false;
+                  if (!getSafeUserId(obj.user)) return false;
                   const orgUser = obj.user;
-                  const displayName = orgUser.username || orgUser.name || '';
+                  const displayName = getSafeUserName(orgUser) || getUsernameDisplay(orgUser) || '';
                   return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
                 })
                 .map(obj => {
                   const orgUser = obj.user;
-                  const isCreator = orgUser._id === event.createdBy._id;
-                  const displayName = orgUser.username || orgUser.name || 'User';
-                  const displayText = orgUser.username ? `@${orgUser.username}` : displayName;
+                  const isCreator = getSafeUserId(orgUser) === event.createdBy._id;
+                  const displayName = getSafeUserName(orgUser) || getUsernameDisplay(orgUser) || 'User';
+                  const displayText = getSafeUserName(orgUser) ? `@${getSafeUserName(orgUser)}` : displayName;
                   return (
-                    <div key={orgUser._id} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${orgUser._id}`)}>
+                    <div key={getSafeUserId(orgUser)} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${getSafeUserId(orgUser)}`)}>
                       <Avatar user={orgUser} size="lg" role="organizer" className="mr-4" />
                       <div className="flex flex-col">
                         <span className="font-medium text-blue-800 text-lg">{displayText}</span>
-                        {orgUser.username && orgUser.name && (
-                          <span className="text-sm text-gray-600">{orgUser.name}</span>
+                        {getSafeUserName(orgUser) && getSafeUserRole(orgUser) === 'organizer' && (
+                          <span className="text-sm text-gray-600">{getSafeUserRole(orgUser)}</span>
                         )}
                       </div>
                       {isCreator && (
@@ -583,9 +603,9 @@ export default function VolunteerEventDetailsPage() {
                   );
                 })}
               {organizerTeam.filter(obj => {
-                if (!obj.user?._id) return false;
+                if (!getSafeUserId(obj.user)) return false;
                 const orgUser = obj.user;
-                const displayName = orgUser.username || orgUser.name || '';
+                const displayName = getSafeUserName(orgUser) || getUsernameDisplay(orgUser) || '';
                 return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
               }).length === 0 && organizerSearchTerm && (
                 <div className="text-gray-500 text-center py-4">No organizers found matching "{organizerSearchTerm}"</div>
@@ -627,19 +647,19 @@ export default function VolunteerEventDetailsPage() {
           ) : (
             volunteers
               .filter(vol => {
-                const displayName = vol.username || vol.name || '';
+                const displayName = getSafeUserName(vol) || getUsernameDisplay(vol) || '';
                 return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
               })
               .map(vol => {
-                const displayName = vol.username || vol.name || 'User';
-                const displayText = vol.username ? `@${vol.username}` : displayName;
+                const displayName = getSafeUserName(vol) || getUsernameDisplay(vol) || 'User';
+                const displayText = getSafeUserName(vol) ? `@${getSafeUserName(vol)}` : displayName;
                 return (
-                  <div key={vol._id} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${vol._id}`)}>
+                  <div key={getSafeUserId(vol)} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${getSafeUserId(vol)}`)}>
                     <Avatar user={vol} size="lg" role="volunteer" className="mr-4" />
                     <div className="flex flex-col">
                       <span className="font-medium text-green-800 text-lg">{displayText}</span>
-                      {vol.username && vol.name && (
-                        <span className="text-sm text-gray-600">{vol.name}</span>
+                      {getSafeUserName(vol) && getSafeUserRole(vol) === 'volunteer' && (
+                        <span className="text-sm text-gray-600">{getSafeUserRole(vol)}</span>
                       )}
                     </div>
                   </div>
@@ -647,7 +667,7 @@ export default function VolunteerEventDetailsPage() {
               })
           )}
           {volunteers.filter(vol => {
-            const displayName = vol.username || vol.name || '';
+            const displayName = getSafeUserName(vol) || getUsernameDisplay(vol) || '';
             return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
           }).length === 0 && volunteerSearchTerm && volunteers.length > 0 && (
             <div className="text-gray-500 text-center py-4">No volunteers found matching "{volunteerSearchTerm}"</div>
@@ -665,10 +685,10 @@ export default function VolunteerEventDetailsPage() {
         {isPastEvent && isRegistered && (
           <div className="mb-4 p-4 bg-blue-100 border border-blue-200 rounded-lg">
             <h3 className="font-bold text-blue-800 mb-2">Your Certificate</h3>
-            {myCertificateAssignment ? (
+            {userCertificates.length > 0 ? (
               <div className="flex items-center gap-4">
                 {certificateGenerated ? (
-                  <a href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" download>Download Certificate</a>
+                  <a href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" download>Download Certificate</a>
                 ) : (
                   <div className="flex flex-col gap-2">
                     <button onClick={handleGenerateCertificate} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed" disabled={!canGenerateCertificate || isGeneratingCertificate}>
@@ -677,7 +697,7 @@ export default function VolunteerEventDetailsPage() {
                     {!questionnaireCompleted && <span className="text-sm text-red-600">Please complete the questionnaire to enable generation.</span>}
                   </div>
                 )}
-                <span className="text-gray-700">Award: <b>{myCertificateAssignment?.award}</b></span>
+                <span className="text-gray-700">Award: <b>{userCertificates[0]?.award}</b></span>
               </div>
             ) : (
               <div className="text-gray-600">

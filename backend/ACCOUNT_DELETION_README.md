@@ -76,7 +76,7 @@ Add these to your `.env` file:
 
 ```
 # Account deletion settings
-ACCOUNT_RETENTION_DAYS=30  # Days to keep soft-deleted accounts
+ACCOUNT_RETENTION_DAYS=7   # Days to keep soft-deleted accounts
 ```
 
 ## Maintenance

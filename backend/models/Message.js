@@ -97,6 +97,21 @@ messageSchema.pre('save', async function(next) {
       this.isUserDeleted = true;
     }
     
+    // Ensure userInfo is always populated for consistency
+    if (this.userId && !this.userInfo) {
+      const User = mongoose.model('User');
+      const user = await User.findById(this.userId).select('name profileImage role');
+      
+      if (user) {
+        this.userInfo = {
+          userId: user._id,
+          name: user.name,
+          avatar: user.profileImage,
+          role: user.role
+        };
+      }
+    }
+    
     next();
   } catch (error) {
     next(error);

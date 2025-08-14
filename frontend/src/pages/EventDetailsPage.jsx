@@ -4,6 +4,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  canNavigateToUser, 
+  getSafeUserId,
+  getSafeUserName 
+} from "../utils/safeUserUtils";
 import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/event";
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
@@ -22,30 +30,36 @@ import { completeEvent } from "../api/recurringEvents";
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
   const navigate = useNavigate();
+  const safeVolunteer = getSafeUserData(comment.volunteer);
+  const canNavigate = canNavigateToUser(comment.volunteer);
   
   const handleClick = () => {
-    if (comment.volunteer?._id) {
-      navigate(`/volunteer/${comment.volunteer._id}`);
+    if (canNavigate) {
+      navigate(`/volunteer/${getSafeUserId(comment.volunteer)}`);
     }
   };
 
   return (
     <div 
-      className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+      className={`flex items-center space-x-3 p-2 rounded transition-colors ${
+        canNavigate ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default opacity-75'
+      }`}
       onClick={handleClick}
     >
-      {getProfileImageUrl(comment.volunteer) ? (
+      {getProfileImageUrl(safeVolunteer) ? (
         <img 
-          src={getProfileImageUrl(comment.volunteer)} 
-          alt={comment.volunteer?.name} 
+          src={getProfileImageUrl(safeVolunteer)} 
+          alt={getSafeUserName(safeVolunteer)} 
           className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
         />
       ) : (
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 ${getRoleColors('volunteer')}`}>
-          <span className="text-sm font-bold">{getAvatarInitial(comment.volunteer)}</span>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 ${getRoleColors(safeVolunteer.role)}`}>
+          <span className="text-sm font-bold">{getAvatarInitial(safeVolunteer)}</span>
         </div>
       )}
-      <span className="font-medium text-green-800">{comment.volunteer?.username ? `@${comment.volunteer.username}` : comment.volunteer?.name}</span>
+      <span className={`font-medium ${safeVolunteer.isDeleted ? 'text-gray-600' : 'text-green-800'}`}>
+        {getDisplayName(safeVolunteer)}
+      </span>
     </div>
   );
 };
@@ -921,30 +935,39 @@ export default function EventDetailsPage() {
                 })
                 .map((obj) => {
                   const user = obj.user;
+                  const safeUser = getSafeUserData(user);
                   const isThisUserCreator = user._id === event.createdBy._id;
-                  const displayName = user.username || user.name || 'User';
-                  const displayText = user.username ? `@${user.username}` : displayName;
+                  const displayName = getDisplayName(safeUser);
+                  const displayText = getUsernameDisplay(safeUser);
+                  const canNavigate = canNavigateToUser(user);
+                  
                   return (
                     <div
                       key={user._id}
-                      className={`group relative bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isThisUserCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`}
-                      onClick={() => navigate(`/organizer/${user._id}`)}
+                      className={`group relative bg-gray-50 rounded-lg shadow p-3 border mb-2 ${
+                        isThisUserCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''
+                      } ${
+                        canNavigate ? 'hover:shadow-md transition cursor-pointer hover:bg-blue-50' : 'opacity-75 cursor-default'
+                      }`}
+                      onClick={() => canNavigate && navigate(`/organizer/${getSafeUserId(user)}`)}
                     >
-                      {getProfileImageUrl(user) ? (
+                      {getProfileImageUrl(safeUser) ? (
                         <img
-                          src={getProfileImageUrl(user)}
-                          alt={displayName}
+                          src={getProfileImageUrl(safeUser)}
+                          alt={getSafeUserName(safeUser)}
                           className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
                         />
                       ) : (
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-4 ${getRoleColors('organizer')}`}>
-                          <span className="text-lg font-bold">{getAvatarInitial(user)}</span>
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-4 ${getRoleColors(safeUser.role)}`}>
+                          <span className="text-lg font-bold">{getAvatarInitial(safeUser)}</span>
                         </div>
                       )}
                       <div className="flex flex-col">
-                        <span className="font-medium text-blue-800 text-lg">{displayText}</span>
-                        {user.username && user.name && (
-                          <span className="text-sm text-gray-600">{user.name}</span>
+                        <span className={`font-medium text-lg ${
+                          safeUser.isDeleted ? 'text-gray-600' : 'text-blue-800'
+                        }`}>{displayText}</span>
+                        {safeUser.username && safeUser.name && !safeUser.isDeleted && (
+                          <span className="text-sm text-gray-600">{safeUser.name}</span>
                         )}
                       </div>
                       {isThisUserCreator && (
@@ -952,7 +975,7 @@ export default function EventDetailsPage() {
                       )}
                       
                       {/* Action buttons - shown on hover (only for non-creator organizers, and only visible to event creator) */}
-                      {!isThisUserCreator && isCreator && (
+                      {!isThisUserCreator && isCreator && !safeUser.isDeleted && (
                         <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
                           <div className="flex gap-2 justify-center">
                             {/* Remove button - only available to creator */}
@@ -1012,27 +1035,40 @@ export default function EventDetailsPage() {
                       return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
                     })
                     .map((org) => {
-                      const displayName = org.username || org.name || 'User';
-                      const displayText = org.username ? `@${org.username}` : displayName;
+                      const safeOrg = getSafeUserData(org);
+                      const displayName = getDisplayName(safeOrg);
+                      const displayText = getUsernameDisplay(safeOrg);
+                      const canNavigate = canNavigateToUser(org);
+                      
                       return (
                         <div
                           key={org._id}
                           className="bg-red-50 rounded-lg shadow p-3 border border-red-200"
                         >
                           <div 
-                            className="flex items-center justify-between cursor-pointer"
-                            onClick={() => navigate(`/organizer/${org._id}`)}
+                            className={`flex items-center justify-between ${
+                              canNavigate ? 'cursor-pointer' : 'cursor-default opacity-75'
+                            }`}
+                            onClick={() => canNavigate && navigate(`/organizer/${getSafeUserId(org)}`)}
                           >
                             <div className="flex items-center flex-1">
-                              <img
-                                src={org.profileImage ? `http://localhost:5000/uploads/Profiles/${org.profileImage}` : '/images/default-profile.jpg'}
-                                alt={displayName}
-                                className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
-                              />
+                              {getProfileImageUrl(safeOrg) ? (
+                                <img
+                                  src={getProfileImageUrl(safeOrg)}
+                                  alt={getSafeUserName(safeOrg)}
+                                  className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
+                                />
+                              ) : (
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-red-400 mr-4 ${getRoleColors(safeOrg.role)}`}>
+                                  <span className="text-lg font-bold">{getAvatarInitial(safeOrg)}</span>
+                                </div>
+                              )}
                               <div className="flex flex-col">
-                                <span className="font-medium text-red-800 text-lg">{displayText}</span>
-                                {org.username && org.name && (
-                                  <span className="text-sm text-gray-600">{org.name}</span>
+                                <span className={`font-medium text-lg ${
+                                  safeOrg.isDeleted ? 'text-gray-600' : 'text-red-800'
+                                }`}>{displayText}</span>
+                                {safeOrg.username && safeOrg.name && !safeOrg.isDeleted && (
+                                  <span className="text-sm text-gray-600">{safeOrg.name}</span>
                                 )}
                               </div>
                             </div>
@@ -1346,15 +1382,29 @@ export default function EventDetailsPage() {
                 const user = r.user;
                 if (!user) return null; // Skip if user is null
                 
-                const userId = user._id || user;
-                const name = user.username ? `@${user.username}` : user.name || user.email || userId;
-                const profileImage = user.profileImage ? `http://localhost:5000/uploads/Profiles/${user.profileImage}` : '/images/default-profile.jpg';
+                const safeUser = getSafeUserData(user);
+                const userId = getSafeUserId(user) || user._id || user;
+                const name = getDisplayName(safeUser);
+                const canNavigate = canNavigateToUser(user);
+                
                 return (
                   <li key={userId} className="flex items-center gap-4 mb-2">
-                    <img src={profileImage} alt={name} className="w-10 h-10 rounded-full object-cover border" />
+                    {getProfileImageUrl(safeUser) ? (
+                      <img 
+                        src={getProfileImageUrl(safeUser)} 
+                        alt={getSafeUserName(safeUser)} 
+                        className="w-10 h-10 rounded-full object-cover border" 
+                      />
+                    ) : (
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${getRoleColors(safeUser.role)}`}>
+                        <span className="text-sm font-bold">{getAvatarInitial(safeUser)}</span>
+                      </div>
+                    )}
                     <span
-                      className="font-medium text-blue-700 underline cursor-pointer"
-                      onClick={() => navigate(`/organizer/${userId}`)}
+                      className={`font-medium underline ${
+                        canNavigate ? 'text-blue-700 cursor-pointer' : 'text-gray-500 cursor-default'
+                      }`}
+                      onClick={() => canNavigate && navigate(`/organizer/${userId}`)}
                     >
                       {name}
                     </span>

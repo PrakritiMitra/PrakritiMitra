@@ -60,7 +60,6 @@ export default function CreateEventPage() {
             <p className="mt-2 text-gray-600">Loading organizations...</p>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -85,7 +84,6 @@ export default function CreateEventPage() {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -160,7 +158,6 @@ export default function CreateEventPage() {
         )}
       </div>
 
-      <Footer />
     </div>
   );
 } 

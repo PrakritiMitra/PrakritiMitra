@@ -58,7 +58,32 @@ const initializeSocket = (io) => {
             path: 'replyTo',
             select: 'message userId',
             populate: { path: 'userId', select: 'name username profileImage role' }
-          });
+          })
+          .lean();
+
+        // Handle deleted users in new messages
+        if (!populatedMessage.userId) {
+          populatedMessage.userId = {
+            _id: populatedMessage.userInfo?.userId || null,
+            name: populatedMessage.userInfo?.name || 'Deleted User',
+            username: populatedMessage.userInfo?.username || 'deleted_user',
+            role: populatedMessage.userInfo?.role || 'user',
+            profileImage: populatedMessage.userInfo?.avatar || null,
+            isDeleted: true
+          };
+        }
+
+        // Handle replyTo messages for deleted users
+        if (populatedMessage.replyTo && !populatedMessage.replyTo.userId) {
+          populatedMessage.replyTo.userId = {
+            _id: populatedMessage.replyTo.userInfo?.userId || null,
+            name: populatedMessage.replyTo.userInfo?.name || 'Deleted User',
+            username: populatedMessage.replyTo.userInfo?.username || 'deleted_user',
+            role: populatedMessage.replyTo.userInfo?.role || 'user',
+            profileImage: populatedMessage.replyTo.userInfo?.avatar || null,
+            isDeleted: true
+          };
+        }
 
         io.to(`event:${eventId}`).emit('receiveMessage', populatedMessage);
       } catch (err) {
@@ -116,7 +141,21 @@ const initializeSocket = (io) => {
 
         await message.save();
         
-        const populatedMessage = await Message.findById(messageId).populate('userId', 'name username profileImage role');
+        const populatedMessage = await Message.findById(messageId)
+          .populate('userId', 'name username profileImage role')
+          .lean();
+
+        // Handle deleted users in reaction updates
+        if (!populatedMessage.userId) {
+          populatedMessage.userId = {
+            _id: populatedMessage.userInfo?.userId || null,
+            name: populatedMessage.userInfo?.name || 'Deleted User',
+            username: populatedMessage.userInfo?.username || 'deleted_user',
+            role: populatedMessage.userInfo?.role || 'user',
+            profileImage: populatedMessage.userInfo?.avatar || null,
+            isDeleted: true
+          };
+        }
 
         io.to(`event:${eventId}`).emit('messageReactionUpdate', populatedMessage);
       } catch (err) {
@@ -161,7 +200,32 @@ const initializeSocket = (io) => {
             path: 'replyTo',
             select: 'message userId',
             populate: { path: 'userId', select: 'name username profileImage role' }
-          });
+          })
+          .lean();
+
+        // Handle deleted users in edited messages
+        if (!populatedMessage.userId) {
+          populatedMessage.userId = {
+            _id: populatedMessage.userInfo?.userId || null,
+            name: populatedMessage.userInfo?.name || 'Deleted User',
+            username: populatedMessage.userInfo?.username || 'deleted_user',
+            role: populatedMessage.userInfo?.role || 'user',
+            profileImage: populatedMessage.userInfo?.avatar || null,
+            isDeleted: true
+          };
+        }
+
+        // Handle replyTo messages for deleted users
+        if (populatedMessage.replyTo && !populatedMessage.replyTo.userId) {
+          populatedMessage.replyTo.userId = {
+            _id: populatedMessage.replyTo.userInfo?.userId || null,
+            name: populatedMessage.replyTo.userInfo?.name || 'Deleted User',
+            username: populatedMessage.replyTo.userInfo?.username || 'deleted_user',
+            role: populatedMessage.replyTo.userInfo?.role || 'user',
+            profileImage: populatedMessage.replyTo.userInfo?.avatar || null,
+            isDeleted: true
+          };
+        }
 
         io.to(`event:${eventId}`).emit('messageEdited', populatedMessage);
       } catch (err) {

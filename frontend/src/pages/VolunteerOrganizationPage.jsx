@@ -5,6 +5,14 @@ import { useParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import VolunteerEventCard from "../components/volunteer/VolunteerEventCard";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../utils/safeUserUtils";
 
 export default function VolunteerOrganizationPage() {
   const { id } = useParams();
@@ -22,8 +30,26 @@ export default function VolunteerOrganizationPage() {
           axiosInstance.get(`/events/organization/${id}`),
         ]);
 
+        // Process events to handle deleted users
+        const processedEvents = eventRes.data.map(event => {
+          // Handle createdBy field
+          if (event.createdBy) {
+            event.createdBy = getSafeUserData(event.createdBy);
+          }
+          
+          // Handle organizerTeam field
+          if (event.organizerTeam) {
+            event.organizerTeam = event.organizerTeam.map(org => ({
+              ...org,
+              user: getSafeUserData(org.user)
+            }));
+          }
+          
+          return event;
+        });
+
         setOrganization(orgRes.data);
-        setEvents(eventRes.data);
+        setEvents(processedEvents);
       } catch (err) {
         console.error("Error loading organization:", err);
       } finally {
@@ -58,7 +84,7 @@ export default function VolunteerOrganizationPage() {
                 <a
                   href={organization.website}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="text-blue-600 underline"
                 >
                   {organization.website}
@@ -99,7 +125,7 @@ export default function VolunteerOrganizationPage() {
             )}
           </>
         ) : (
-          <p>Organization not found.</p>
+          <p className="text-center text-gray-600">Organization not found.</p>
         )}
       </div>
     </div>

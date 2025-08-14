@@ -7,6 +7,14 @@ import { getMyOrganization } from "../../api/organization";
 import { ChevronDown, LogOut, User } from "react-feather";
 import { motion, AnimatePresence } from "framer-motion";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../../utils/safeUserUtils";
 
 export default function Navbar() {
   const { pathname } = useLocation();
@@ -150,7 +158,9 @@ export default function Navbar() {
 
   const getUserDisplayName = () => {
     if (!user) return "User";
-    return user.username || user.name || "User";
+    const safeUser = getSafeUserData(user);
+    if (safeUser.isDeleted) return "Deleted User";
+    return safeUser.username ? `@${safeUser.username}` : safeUser.name || "User";
   };
 
   return (
@@ -236,7 +246,7 @@ export default function Navbar() {
                                       {getProfileImageUrl(user) ? (
                                         <img
                                           src={getProfileImageUrl(user)}
-                                          alt={displayName}
+                                          alt={getSafeUserName(user)}
                                           className="w-12 h-12 rounded-full object-cover border-2 border-green-400 mr-3"
                                         />
                                       ) : (
@@ -247,7 +257,7 @@ export default function Navbar() {
                                       <div className="flex flex-col flex-1">
                                         <span className="font-medium text-base text-green-800">{displayText}</span>
                                         {user.username && user.name && (
-                                          <span className="text-sm text-gray-600">{user.name}</span>
+                                          <span className="text-sm text-gray-600">{getSafeUserName(user)}</span>
                                         )}
                                         <span className="text-xs text-gray-500 capitalize">volunteer</span>
                                       </div>
@@ -590,7 +600,7 @@ export default function Navbar() {
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(user?.role || 'user')}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(getSafeUserRole(user))}`}>
                         <span className="text-sm font-bold">{getAvatarInitial(user)}</span>
                       </div>
                     )}

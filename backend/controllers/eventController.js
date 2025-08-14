@@ -745,8 +745,8 @@ exports.withdrawJoinRequest = async (req, res) => {
 exports.getOrganizerTeam = async (req, res) => {
   try {
     const eventId = req.params.eventId;
-    // Populate the user field inside organizerTeam
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email phone profileImage');
+    // Populate the user field inside organizerTeam including isDeleted flag
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email phone profileImage isDeleted');
     if (!event) return res.status(404).json({ message: 'Event not found' });
     
     // Initialize organizerTeam if it doesn't exist (for old events)
@@ -754,11 +754,55 @@ exports.getOrganizerTeam = async (req, res) => {
       event.organizerTeam = [];
     }
     
+    // Transform organizer team to handle deleted users gracefully
+    const transformedOrganizerTeam = event.organizerTeam.map(obj => {
+      if (!obj.user) {
+        // Handle case where user might be null
+        return {
+          ...obj,
+          user: {
+            _id: null,
+            name: 'Unknown User',
+            username: 'unknown',
+            email: 'unknown@email.com',
+            phone: 'N/A',
+            profileImage: null,
+            isDeleted: true
+          }
+        };
+      }
+      
+      // Check if user is deleted (this would be set by the user deletion process)
+      if (obj.user.isDeleted) {
+        return {
+          ...obj,
+          user: {
+            _id: obj.user._id,
+            name: obj.user.name || 'Deleted User',
+            username: obj.user.username || 'deleted_user',
+            email: obj.user.email || 'deleted@user.com',
+            phone: obj.user.phone || 'N/A',
+            profileImage: obj.user.profileImage || null,
+            isDeleted: true
+          }
+        };
+      }
+      
+      // Active user
+      return {
+        ...obj,
+        user: {
+          ...obj.user.toObject(),
+          isDeleted: false
+        }
+      };
+    });
+    
     // If ?full=1, return full objects (for attendance), else just user info
     if (req.query.full === '1') {
-      res.status(200).json({ organizerTeam: event.organizerTeam });
+      res.status(200).json({ organizerTeam: transformedOrganizerTeam });
     } else {
-      res.status(200).json({ organizerTeam: event.organizerTeam.map(obj => obj.user).filter(Boolean) });
+      res.status(200).json({ organizerTeam: transformedOrganizerTeam.map(obj => obj.user).filter(Boolean) });
     }
   } catch (err) {
     console.error('❌ Failed to fetch organizer team:', err);
@@ -915,7 +959,7 @@ exports.generateCertificate = async (req, res) => {
     const userId = req.user._id;
     
     // Find the event and populate necessary fields
-    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email profileImage');
+    const event = await Event.findById(eventId).populate('organizerTeam.user', 'name username email profileImage isDeleted');
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
     }
@@ -962,11 +1006,15 @@ exports.generateCertificate = async (req, res) => {
       }
     }
     
-    // Get user details
+    // Get user details with safe fallbacks
     const user = await require('../models/user').findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    
+    // Get safe user data for certificate generation
+    const safeUserName = user.isDeleted ? (user.name || 'Deleted User') : (user.name || user.email || 'Unknown User');
+    const safeUserEmail = user.isDeleted ? (user.email || 'deleted@email.com') : (user.email || 'unknown@email.com');
     
     // Determine template name based on award and role
     let templateName = 'participation';
@@ -982,17 +1030,17 @@ exports.generateCertificate = async (req, res) => {
       else if (award !== 'Participation') templateName = 'organizer_custom_award';
     }
     
-    // Generate the certificate
+    // Generate the certificate with safe user data
     const { filePath, certificateId } = await generateCertificate({
-      participantName: user.name || user.email,
+      participantName: safeUserName,
       eventName: event.title,
-              eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString('en-GB') : '',
+      eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString('en-GB') : '',
       eventLocation: event.location || '',
       awardTitle: award,
       templateName,
       organizationLogo: '/public/images/default-logo.png', // Update as needed
       signatureImage: '/public/images/default-signature.png', // Update as needed
-              issueDate: new Date().toLocaleDateString('en-GB'),
+      issueDate: new Date().toLocaleDateString('en-GB'),
       verificationUrl: 'https://yourdomain.com/verify-certificate/'
     });
     
@@ -1016,7 +1064,7 @@ exports.generateCertificate = async (req, res) => {
         filePath,
         issuedAt: new Date(),
         verificationUrl: `https://yourdomain.com/verify-certificate/${certificateId}`,
-        name: user.name || user.email,
+        name: safeUserName,
         profileImage: user.profileImage || ''
       };
     }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
+import { getSafeUserData, getSafeUserName } from '../../utils/safeUserUtils';
 
 const Avatar = ({ 
   user, 
@@ -9,6 +10,9 @@ const Avatar = ({
   onClick = null,
   role = 'user' // 'user', 'volunteer', 'organizer', 'sponsor'
 }) => {
+  // Get safe user data to handle deleted users
+  const safeUser = getSafeUserData(user);
+  
   // Size classes
   const sizeClasses = {
     xs: 'w-6 h-6 text-xs',
@@ -20,8 +24,8 @@ const Avatar = ({
     '3xl': 'w-24 h-24 text-3xl'
   };
 
-  const profileImageUrl = getProfileImageUrl(user);
-  const firstLetter = getAvatarInitial(user);
+  const profileImageUrl = getProfileImageUrl(safeUser);
+  const firstLetter = getAvatarInitial(safeUser);
   const sizeClass = sizeClasses[size] || sizeClasses.md;
   const roleColor = getRoleColors(role);
   const borderClass = showBorder ? 'border-2' : '';
@@ -37,7 +41,7 @@ const Avatar = ({
         {profileImageUrl ? (
           <img
             src={profileImageUrl}
-            alt={user?.username || user?.name || 'User'}
+            alt={getSafeUserName(safeUser)}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -52,7 +56,7 @@ const Avatar = ({
       {profileImageUrl ? (
         <img
           src={profileImageUrl}
-          alt={user?.username || user?.name || 'User'}
+          alt={getSafeUserName(safeUser)}
           className="w-full h-full object-cover"
         />
       ) : (

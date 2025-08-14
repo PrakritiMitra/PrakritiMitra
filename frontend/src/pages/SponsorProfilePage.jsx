@@ -4,6 +4,14 @@ import { sponsorAPI } from "../api";
 import { SponsorProfileForm, SponsorProfileDisplay } from "../components/sponsor";
 import Navbar from "../components/layout/Navbar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { 
+  getSafeUserData, 
+  getDisplayName, 
+  getUsernameDisplay, 
+  getSafeUserName,
+  getSafeUserId,
+  getSafeUserRole 
+} from "../utils/safeUserUtils";
 
 export default function SponsorProfilePage() {
   const [user, setUser] = useState(null);
@@ -23,7 +31,17 @@ export default function SponsorProfilePage() {
       return;
     }
 
-    setUser(userData);
+    // Check if user data indicates a deleted account
+    const safeUserData = getSafeUserData(userData);
+    if (safeUserData.isDeleted) {
+      // Redirect to login if user account is deleted
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      navigate("/login");
+      return;
+    }
+
+    setUser(safeUserData);
     setLoading(false);
 
     // Fetch sponsor profile if user is a sponsor
@@ -158,9 +176,9 @@ export default function SponsorProfilePage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Sponsor Profile</h1>
-                <p className="text-lg text-purple-600 font-medium">{user.name}</p>
-                <p className="text-gray-600">{user.username ? `@${user.username}` : ''}</p>
-                <p className="text-sm text-gray-500 capitalize">{user.role === "organizer" ? "Event Organizer" : "Volunteer"}</p>
+                <p className="text-lg text-purple-600 font-medium">{getSafeUserName(user)}</p>
+                <p className="text-gray-600">{getUsernameDisplay(user)}</p>
+                <p className="text-sm text-gray-500 capitalize">{getSafeUserRole(user) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
               </div>
             </div>
             <div className="flex space-x-3">

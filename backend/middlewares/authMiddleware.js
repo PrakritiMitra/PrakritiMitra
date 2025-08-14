@@ -17,25 +17,61 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      // Find user including soft-deleted ones
-      const user = await User.findOne({ _id: decoded.id })
+      // Verify token type
+      if (decoded.type !== 'access') {
+        return res.status(401).json({ 
+          success: false,
+          message: 'Invalid token type' 
+        });
+      }
+      
+      // Find user including soft-deleted ones and verify session
+      const user = await User.findOne({ 
+        _id: decoded.id,
+        'activeSessions.tokenId': decoded.tokenId
+      })
         .select('-password')
         .lean();
       
       if (!user) {
         return res.status(401).json({ 
           success: false,
-          message: 'Not authorized, user not found' 
+          message: 'Not authorized, user not found or session invalid' 
+        });
+      }
+      
+      // Check if session is expired
+      const session = user.activeSessions.find(s => s.tokenId === decoded.tokenId);
+      if (!session || session.expiresAt < new Date()) {
+        return res.status(401).json({ 
+          success: false,
+          message: 'Session expired, please login again' 
         });
       }
       
       // Attach user and deletion status to request
       req.user = user;
       req.isDeleted = user.isDeleted || false;
+      req.sessionId = decoded.tokenId;
       
       return next();
     } catch (error) {
       console.error('Auth error:', error);
+      
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ 
+          success: false,
+          message: 'Token expired, please login again' 
+        });
+      }
+      
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ 
+          success: false,
+          message: 'Invalid token' 
+        });
+      }
+      
       return res.status(401).json({ 
         success: false,
         message: 'Not authorized, token failed' 

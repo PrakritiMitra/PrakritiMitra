@@ -122,11 +122,14 @@ const OAuthRegistrationForm = ({ open, onClose, oauthData, role, onSubmit, onBac
         username: formData.username.toLowerCase(),
       };
 
+      // Call onSubmit and keep loading state active
+      // The loading state will be managed by the parent component
       onSubmit(userData);
+      // Note: Don't set loading to false here - let the parent component handle it
+      // after successful login and navigation
     } catch (error) {
       setError(error.message || 'Registration failed');
-    } finally {
-      setLoading(false);
+      setLoading(false); // Only reset loading on error
     }
   };
 

@@ -74,7 +74,6 @@ const RecoverAccountPage = () => {
             </div>
           </div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -149,7 +148,6 @@ const RecoverAccountPage = () => {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 };

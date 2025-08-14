@@ -87,7 +87,7 @@ export default function VolunteerDashboard() {
           {activeTab === "organizations" && <VolunteerOrganizationsTab />}
         </div>
       </div>
-
+      <Footer />
     </div>
   );
 }

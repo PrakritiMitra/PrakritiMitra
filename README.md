@@ -30,3 +30,5 @@ PrakritiMitra is an environmental conservation platform that connects volunteers
 - Event creation and management
 - Volunteer registration and event participation
 - Dashboard for organizers and volunteers
+- Account recovery system with 7-day window
+- Email blocking for deleted accounts during recovery period

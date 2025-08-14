@@ -375,15 +375,52 @@ exports.getVolunteersForEvent = async (req, res) => {
                !removedVolunteerIds.includes(volunteerId) && 
                !bannedVolunteerIds.includes(volunteerId);
       })
-      .map(r => ({
-        ...r.volunteerId.toObject(),
-        hasAttended: r.hasAttended,
-        registrationId: r._id,
-        inTime: r.inTime,
-        outTime: r.outTime,
-        exitQrToken: r.exitQrToken,
-        isOrganizerTeam: false,
-      }));
+      .map(r => {
+        // Handle deleted users gracefully
+        let volunteerData = {};
+        
+        if (r.isUserDeleted && r.volunteerInfo) {
+          // Use anonymized data for deleted users
+          volunteerData = {
+            _id: r.volunteerInfo.userId,
+            name: r.volunteerInfo.name,
+            username: r.volunteerInfo.username,
+            email: r.volunteerInfo.email,
+            phone: r.volunteerInfo.phone,
+            profileImage: r.volunteerInfo.profileImage,
+            role: r.volunteerInfo.role,
+            isDeleted: true
+          };
+        } else if (r.volunteerId) {
+          // Use actual user data for active users
+          volunteerData = {
+            ...r.volunteerId.toObject(),
+            isDeleted: false
+          };
+        } else {
+          // Fallback for edge cases
+          volunteerData = {
+            _id: 'unknown',
+            name: 'Unknown User',
+            username: 'unknown',
+            email: 'unknown@email.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer',
+            isDeleted: true
+          };
+        }
+        
+        return {
+          ...volunteerData,
+          hasAttended: r.hasAttended,
+          registrationId: r._id,
+          inTime: r.inTime,
+          outTime: r.outTime,
+          exitQrToken: r.exitQrToken,
+          isOrganizerTeam: false,
+        };
+      });
     res.json(volunteers);
   } catch (err) {
     res.status(500).json({ message: 'Server error fetching volunteers', error: err });
