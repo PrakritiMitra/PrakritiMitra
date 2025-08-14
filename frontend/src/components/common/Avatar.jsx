@@ -30,6 +30,11 @@ const Avatar = ({
   const roleColor = getRoleColors(role);
   const borderClass = showBorder ? 'border-2' : '';
 
+  // Debug logging in development
+  if (process.env.NODE_ENV === 'development' && profileImageUrl) {
+    console.log('Avatar profile image URL:', profileImageUrl, 'for user:', user?.username || user?.name);
+  }
+
   const baseClasses = `rounded-full flex items-center justify-center overflow-hidden ${sizeClass} ${roleColor} ${borderClass} ${className}`;
 
   if (onClick) {
@@ -43,10 +48,12 @@ const Avatar = ({
             src={profileImageUrl}
             alt={getSafeUserName(safeUser)}
             className="w-full h-full object-cover"
+
           />
-        ) : (
-          <span className="font-bold">{firstLetter}</span>
-        )}
+        ) : null}
+        <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+          {firstLetter}
+        </span>
       </div>
     );
   }
@@ -58,10 +65,12 @@ const Avatar = ({
           src={profileImageUrl}
           alt={getSafeUserName(safeUser)}
           className="w-full h-full object-cover"
+
         />
-      ) : (
-        <span className="font-bold">{firstLetter}</span>
-      )}
+      ) : null}
+      <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+        {firstLetter}
+      </span>
     </div>
   );
 };

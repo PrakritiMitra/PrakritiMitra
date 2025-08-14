@@ -944,39 +944,37 @@ export default function EventDetailsPage() {
                   return (
                     <div
                       key={user._id}
-                      className={`group relative bg-gray-50 rounded-lg shadow p-3 border mb-2 ${
-                        isThisUserCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''
-                      } ${
-                        canNavigate ? 'hover:shadow-md transition cursor-pointer hover:bg-blue-50' : 'opacity-75 cursor-default'
-                      }`}
+                      className={`group relative bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 mb-3 transform hover:scale-[1.02] ${isThisUserCreator ? 'border-2 border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50 shadow-md' : ''}`}
                       onClick={() => canNavigate && navigate(`/organizer/${getSafeUserId(user)}`)}
                     >
-                      {getProfileImageUrl(safeUser) ? (
-                        <img
-                          src={getProfileImageUrl(safeUser)}
-                          alt={getSafeUserName(safeUser)}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-blue-400 mr-4"
-                        />
-                      ) : (
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-4 ${getRoleColors(safeUser.role)}`}>
-                          <span className="text-lg font-bold">{getAvatarInitial(safeUser)}</span>
+                      <div className="flex items-center">
+                        {getProfileImageUrl(safeUser) ? (
+                          <img
+                            src={getProfileImageUrl(safeUser)}
+                            alt={getSafeUserName(safeUser)}
+                            className="w-12 h-12 lg:w-14 lg:h-14 rounded-full object-cover border-2 border-blue-400 mr-3 lg:mr-4 shadow-sm"
+                          />
+                        ) : (
+                          <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-3 lg:mr-4 shadow-sm ${getRoleColors(safeUser.role)}`}>
+                            <span className="text-base lg:text-lg font-bold">{getAvatarInitial(safeUser)}</span>
+                          </div>
+                        )}
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className={`font-medium text-blue-800 text-base lg:text-lg truncate ${
+                            safeUser.isDeleted ? 'text-gray-600' : ''
+                          }`}>{displayText}</span>
+                          {safeUser.username && safeUser.name && !safeUser.isDeleted && (
+                            <span className="text-sm text-gray-600 truncate">{safeUser.name}</span>
+                          )}
                         </div>
-                      )}
-                      <div className="flex flex-col">
-                        <span className={`font-medium text-lg ${
-                          safeUser.isDeleted ? 'text-gray-600' : 'text-blue-800'
-                        }`}>{displayText}</span>
-                        {safeUser.username && safeUser.name && !safeUser.isDeleted && (
-                          <span className="text-sm text-gray-600">{safeUser.name}</span>
+                        {isThisUserCreator && (
+                          <span className="ml-2 px-2 py-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-white text-xs rounded-full font-bold shadow-sm">Creator</span>
                         )}
                       </div>
-                      {isThisUserCreator && (
-                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
-                      )}
                       
                       {/* Action buttons - shown on hover (only for non-creator organizers, and only visible to event creator) */}
                       {!isThisUserCreator && isCreator && !safeUser.isDeleted && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg">
+                        <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg">
                           <div className="flex gap-2 justify-center">
                             {/* Remove button - only available to creator */}
                             <button
@@ -985,7 +983,7 @@ export default function EventDetailsPage() {
                                 setSelectedOrganizer(user);
                                 setShowRemoveOrganizerConfirm(true);
                               }}
-                              className="bg-yellow-500 text-white px-3 py-1 rounded text-xs hover:bg-yellow-600 transition-colors"
+                              className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white px-3 py-1 rounded-lg text-xs hover:from-yellow-600 hover:to-amber-600 transition-all duration-200 transform hover:scale-105 shadow-sm"
                               disabled={removingOrganizer}
                             >
                               Remove
@@ -998,7 +996,7 @@ export default function EventDetailsPage() {
                                 setSelectedOrganizer(user);
                                 setShowBanOrganizerConfirm(true);
                               }}
-                              className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors"
+                              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-lg text-xs hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-sm"
                               disabled={banningOrganizer}
                             >
                               Ban

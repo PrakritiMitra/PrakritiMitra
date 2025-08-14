@@ -12,6 +12,20 @@ import {
   getSafeUserId,
   getSafeUserRole 
 } from "../utils/safeUserUtils";
+import {
+  CurrencyDollarIcon,
+  UserIcon,
+  BuildingOfficeIcon,
+  GlobeAltIcon,
+  SparklesIcon,
+  CheckCircleIcon,
+  BoltIcon,
+  PencilIcon,
+  TrashIcon,
+  ArrowLeftIcon,
+  ExclamationTriangleIcon,
+  XCircleIcon
+} from "@heroicons/react/24/outline";
 
 export default function SponsorProfilePage() {
   const [user, setUser] = useState(null);
@@ -175,10 +189,10 @@ export default function SponsorProfilePage() {
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Sponsor Profile</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-purple-900 to-blue-900 bg-clip-text text-transparent">Sponsor Profile</h1>
                 <p className="text-lg text-purple-600 font-medium">{getSafeUserName(user)}</p>
-                <p className="text-gray-600">{getUsernameDisplay(user)}</p>
-                <p className="text-sm text-gray-500 capitalize">{getSafeUserRole(user) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
+                <p className="text-slate-600">{getUsernameDisplay(user)}</p>
+                <p className="text-sm text-slate-500 capitalize">{getSafeUserRole(user) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
               </div>
             </div>
             <div className="flex space-x-3">

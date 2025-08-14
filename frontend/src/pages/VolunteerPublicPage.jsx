@@ -12,6 +12,17 @@ import {
   getSafeUserName, 
   getSafeUserRole 
 } from "../utils/safeUserUtils";
+import { 
+  UserIcon, 
+  EnvelopeIcon, 
+  PhoneIcon, 
+  MapPinIcon, 
+  CalendarIcon, 
+  ClockIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  GlobeAltIcon
+} from "@heroicons/react/24/outline";
 
 export default function VolunteerPublicPage() {
   const { id } = useParams();
@@ -94,16 +105,31 @@ export default function VolunteerPublicPage() {
                   <img
                     src={getProfileImageUrl(volunteer)}
                     alt={getSafeUserName(volunteer)}
-                    className="w-24 h-24 rounded-full object-cover border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-emerald-300 shadow-lg transition-transform duration-500 hover:scale-105"
                   />
                 ) : (
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 border-green-300 shadow mb-2 transition-transform duration-500 hover:scale-105 ${getRoleColors('volunteer')}`}>
-                    <span className="text-3xl font-bold">{getAvatarInitial(volunteer)}</span>
+                  <div className={`w-32 h-32 rounded-full flex items-center justify-center border-4 border-emerald-300 shadow-lg transition-transform duration-500 hover:scale-105 ${getRoleColors('volunteer')}`}>
+                    <span className="text-4xl font-bold">{getAvatarInitial(volunteer)}</span>
                   </div>
                 )}
-                <h1 className="text-3xl font-bold text-green-800 mb-1 animate-fade-in-slow">{getSafeUserName(volunteer)}</h1>
-                <span className="text-green-600 font-medium capitalize mb-1">Volunteer</span>
-                {volunteer.city && <span className="text-gray-500 text-sm">{volunteer.city}</span>}
+                {/* Profile Info */}
+                <div className="flex-1 text-center lg:text-left">
+                  <h1 className="text-4xl lg:text-5xl font-bold text-emerald-800 mb-2">{getSafeUserName(volunteer)}</h1>
+                  <div className="flex items-center justify-center lg:justify-start gap-3 mb-4">
+                    <span className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-full text-sm">
+                      Volunteer
+                    </span>
+                    {volunteer.city && (
+                      <div className="flex items-center gap-1 text-gray-600">
+                        <MapPinIcon className="w-4 h-4" />
+                        <span>{volunteer.city}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-lg text-gray-600 max-w-2xl">
+                    {volunteer.aboutMe || "Passionate volunteer making a difference in the community."}
+                  </p>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>

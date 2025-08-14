@@ -12,6 +12,26 @@ import {
   getSafeUserId,
   getSafeUserRole 
 } from "../utils/safeUserUtils";
+import {
+  UserIcon,
+  CameraIcon,
+  IdentificationIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
+  ExclamationTriangleIcon,
+  TrashIcon,
+  ArrowLeftIcon,
+  ShieldCheckIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  CalendarIcon,
+  UsersIcon,
+  GlobeAltIcon,
+  LockClosedIcon,
+  KeyIcon
+} from "@heroicons/react/24/outline";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -328,7 +348,7 @@ export default function ProfilePage() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-6">
               <div className="flex flex-col items-center space-y-2">
-                <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-4 border-blue-200">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center overflow-hidden border-4 border-blue-200 shadow-lg">
                   {safeUser.profileImage ? (
                     <img
                       src={`http://localhost:5000/uploads/Profiles/${safeUser.profileImage}?k=${refreshKey}`}
@@ -336,7 +356,7 @@ export default function ProfilePage() {
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
                       {getSafeUserName(safeUser).charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -364,9 +384,9 @@ export default function ProfilePage() {
                 )}
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{getSafeUserName(safeUser)}</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent">{getSafeUserName(safeUser)}</h1>
                 <p className="text-lg text-blue-600 font-medium">{getUsernameDisplay(safeUser)}</p>
-                <p className="text-gray-600 capitalize">{getSafeUserRole(safeUser) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
+                <p className="text-slate-600 capitalize">{getSafeUserRole(safeUser) === "organizer" ? "Event Organizer" : "Volunteer"}</p>
                 {organization && (
                   <p className="text-sm text-blue-600 font-medium">{organization.name}</p>
                 )}
@@ -420,10 +440,10 @@ export default function ProfilePage() {
                     <img
                       src={`http://localhost:5000/uploads/Profiles/${safeUser.profileImage}`}
                       alt="Profile"
-                      className="w-24 h-24 rounded-full object-cover animate-fade-in"
+                      className="w-24 h-24 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="text-3xl font-bold text-blue-600">
+                    <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
                       {getSafeUserName(safeUser).charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -470,7 +490,7 @@ export default function ProfilePage() {
                     </div>
                   ) : safeUser.govtIdProofUrl ? (
                     <div>
-                      <span className="block text-xs text-gray-500 mb-1">Current:</span>
+                      <span className="block text-xs text-slate-500 mb-1">Current:</span>
                       {safeUser.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                         <img
                           src={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}`}
@@ -571,8 +591,8 @@ export default function ProfilePage() {
                       onChange={handleChange}
                       disabled={!editing}
                       max={new Date().toISOString().split('T')[0]} // Prevent future dates
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 transition-colors ${
-                        editing && new Date(formData.dateOfBirth) > new Date() ? 'border-red-500' : 'border-gray-300'
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 transition-colors ${
+                        editing && new Date(formData.dateOfBirth) > new Date() ? 'border-red-500' : 'border-slate-300'
                       }`}
                     />
                     {editing && new Date(formData.dateOfBirth) > new Date() && (
@@ -683,13 +703,13 @@ export default function ProfilePage() {
                 Account Information
               </h2>
               <div className="space-y-4">
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="font-medium text-gray-700">Role:</span>
-                  <span className="text-gray-900 capitalize font-semibold">{getSafeUserRole(safeUser)}</span>
+                <div className="flex justify-between py-3 border-b border-slate-200">
+                  <span className="font-medium text-slate-700">Role:</span>
+                  <span className="text-slate-900 capitalize font-semibold">{getSafeUserRole(safeUser)}</span>
                 </div>
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="font-medium text-gray-700">Member Since:</span>
-                  <span className="text-gray-900">
+                <div className="flex justify-between py-3 border-b border-slate-200">
+                  <span className="font-medium text-slate-700">Member Since:</span>
+                  <span className="text-slate-900">
                     {formatDate(safeUser.createdAt)}
                   </span>
                 </div>

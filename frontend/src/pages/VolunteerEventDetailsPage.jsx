@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 
 import { format } from "date-fns";
+import { DocumentTextIcon } from "@heroicons/react/24/outline";
 
 import axiosInstance from "../api/axiosInstance";
 import { getFullOrganizerTeam } from "../api/event";
@@ -589,15 +590,17 @@ export default function VolunteerEventDetailsPage() {
                   const displayText = getSafeUserName(orgUser) ? `@${getSafeUserName(orgUser)}` : displayName;
                   return (
                     <div key={getSafeUserId(orgUser)} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${getSafeUserId(orgUser)}`)}>
-                      <Avatar user={orgUser} size="lg" role="organizer" className="mr-4" />
-                      <div className="flex flex-col">
-                        <span className="font-medium text-blue-800 text-lg">{displayText}</span>
+                      <div className="flex-shrink-0 mr-4">
+                        <Avatar user={orgUser} size="lg" role="organizer" />
+                      </div>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="font-medium text-blue-800 text-lg truncate">{displayText}</span>
                         {getSafeUserName(orgUser) && getSafeUserRole(orgUser) === 'organizer' && (
-                          <span className="text-sm text-gray-600">{getSafeUserRole(orgUser)}</span>
+                          <span className="text-sm text-gray-600 truncate">{getSafeUserRole(orgUser)}</span>
                         )}
                       </div>
                       {isCreator && (
-                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold">Creator</span>
+                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold flex-shrink-0">Creator</span>
                       )}
                     </div>
                   );
@@ -655,11 +658,13 @@ export default function VolunteerEventDetailsPage() {
                 const displayText = getSafeUserName(vol) ? `@${getSafeUserName(vol)}` : displayName;
                 return (
                   <div key={getSafeUserId(vol)} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${getSafeUserId(vol)}`)}>
-                    <Avatar user={vol} size="lg" role="volunteer" className="mr-4" />
-                    <div className="flex flex-col">
-                      <span className="font-medium text-green-800 text-lg">{displayText}</span>
+                    <div className="flex-shrink-0 mr-4">
+                      <Avatar user={vol} size="lg" role="volunteer" />
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="font-medium text-green-800 text-lg truncate">{displayText}</span>
                       {getSafeUserName(vol) && getSafeUserRole(vol) === 'volunteer' && (
-                        <span className="text-sm text-gray-600">{getSafeUserRole(vol)}</span>
+                        <span className="text-sm text-gray-600 truncate">{getSafeUserRole(vol)}</span>
                       )}
                     </div>
                   </div>
@@ -682,34 +687,39 @@ export default function VolunteerEventDetailsPage() {
 
       <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
         {/* Certificate Section */}
-        {isPastEvent && isRegistered && (
-          <div className="mb-4 p-4 bg-blue-100 border border-blue-200 rounded-lg">
-            <h3 className="font-bold text-blue-800 mb-2">Your Certificate</h3>
+        <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl shadow-sm">
+            <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
+              <DocumentTextIcon className="w-5 h-5" />
+              Your Certificate
+            </h3>
             {userCertificates.length > 0 ? (
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 {certificateGenerated ? (
-                  <a href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" download>Download Certificate</a>
+                  <a href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" download>
+                    📄 Download Certificate
+                  </a>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <button onClick={handleGenerateCertificate} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed" disabled={!canGenerateCertificate || isGeneratingCertificate}>
-                      {isGeneratingCertificate ? "Generating..." : "Generate Certificate"}
+                  <div className="flex flex-col gap-3">
+                    <button onClick={handleGenerateCertificate} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" disabled={!canGenerateCertificate || isGeneratingCertificate}>
+                      {isGeneratingCertificate ? "🔄 Generating..." : "🎖️ Generate Certificate"}
                     </button>
-                    {!questionnaireCompleted && <span className="text-sm text-red-600">Please complete the questionnaire to enable generation.</span>}
+                    {!questionnaireCompleted && <span className="text-sm text-red-600 flex items-center gap-1">⚠️ Please complete the questionnaire to enable generation.</span>}
                   </div>
                 )}
-                <span className="text-gray-700">Award: <b>{userCertificates[0]?.award}</b></span>
+                <span className="text-gray-700 bg-white/60 px-4 py-2 rounded-lg">
+                  Award: <b className="text-blue-800">{userCertificates[0]?.award}</b>
+                </span>
               </div>
             ) : (
               <div className="text-gray-600">
                 {!questionnaireCompleted ? (
-                  <span>Complete your questionnaire to be eligible for a certificate.</span>
+                  <span className="flex items-center gap-2">📝 Complete your questionnaire to be eligible for a certificate.</span>
                 ) : (
-                  <span>Certificate not available yet. The event organizer needs to assign awards.</span>
+                  <span className="flex items-center gap-2">⏳ Certificate not available yet. The event organizer needs to assign awards.</span>
                 )}
               </div>
             )}
           </div>
-        )}
         
         <button className="mb-4 text-blue-600 underline" onClick={() => navigate(-1)}>← Back</button>
 
