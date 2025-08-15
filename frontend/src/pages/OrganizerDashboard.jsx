@@ -117,14 +117,33 @@ export default function OrganizerDashboard() {
           {/* Main Content */}
           <div className="flex-1">
             {/* Header Section */}
-            <div className={`mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <div>
-                <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-2">
-                  Organizer Dashboard
-                </h1>
-                <p className="text-slate-600 text-lg">
-                  Manage your environmental events and track your impact
-                </p>
+            <div className={`mb-6 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <div className="relative">
+                {/* Animated Background Elements */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  
+                </div>
+
+                {/* User Name Display - More compact */}
+                <div className="text-center lg:text-left">
+                  <div className="flex flex-col lg:flex-row items-center lg:items-baseline gap-2 lg:gap-3 mb-2">
+                    <h1 className="text-2xl lg:text-4xl font-bold">
+                      <span className="bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                        Welcome back,
+                      </span>
+                    </h1>
+                    <h2 className="text-3xl lg:text-5xl font-extrabold relative">
+                      <span className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent">
+                        {user?.name || 'Organizer'}
+                      </span>
+                      {/* Underline Effect */}
+                      <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-full transform scale-x-0 animate-pulse" style={{ animationDuration: '2s' }}></div>
+                    </h2>
+                  </div>
+                  <p className="text-base lg:text-lg text-slate-600 max-w-2.5xl mx-auto lg:mx-0">
+                    Ready to make a difference? Let's create some amazing environmental events together! 🌱✨
+                  </p>
+                </div>
               </div>
             </div>
 
