@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import VolunteerEventCard from "./VolunteerEventCard";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 
 const VolunteerEventsTab = () => {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [upcomingVisible, setUpcomingVisible] = useState(3);
+  const [pastVisible, setPastVisible] = useState(3);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -87,11 +90,26 @@ const VolunteerEventsTab = () => {
       {/* Upcoming Events */}
       <h2 className="text-xl font-semibold mb-3">Upcoming Events</h2>
       {filteredUpcomingEvents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredUpcomingEvents.map((event) => (
-            <VolunteerEventCard key={event._id} event={event} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredUpcomingEvents.slice(0, upcomingVisible).map((event) => (
+              <VolunteerEventCard key={event._id} event={event} />
+            ))}
+          </div>
+          {filteredUpcomingEvents.length > upcomingVisible && (
+            <div className="flex justify-center mt-6">
+              <button
+                className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
+                onClick={() => setUpcomingVisible(v => v + 3)}
+              >
+                <span className="flex items-center justify-center">
+                  Show More Events
+                  <ChevronDownIcon className="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" />
+                </span>
+              </button>
+            </div>
+          )}
+        </>
       ) : searchTerm ? (
         <p className="text-gray-500">No upcoming events found matching "{searchTerm}".</p>
       ) : (
@@ -101,11 +119,26 @@ const VolunteerEventsTab = () => {
       {/* Past Events */}
       <h2 className="text-xl font-semibold mt-8 mb-3">Past Events</h2>
       {filteredPastEvents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredPastEvents.map((event) => (
-            <VolunteerEventCard key={event._id} event={event} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredPastEvents.slice(0, pastVisible).map((event) => (
+              <VolunteerEventCard key={event._id} event={event} />
+            ))}
+          </div>
+          {filteredPastEvents.length > pastVisible && (
+            <div className="flex justify-center mt-6">
+              <button
+                className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
+                onClick={() => setPastVisible(v => v + 3)}
+              >
+                <span className="flex items-center justify-center">
+                  Show More Events
+                  <ChevronDownIcon className="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" />
+                </span>
+              </button>
+            </div>
+          )}
+        </>
       ) : searchTerm ? (
         <p className="text-gray-500">No past events found matching "{searchTerm}".</p>
       ) : (
