@@ -606,12 +606,12 @@ exports.leaveAsOrganizer = async (req, res) => {
     }
     // Remove user from organizerTeam
     const before = event.organizerTeam.length;
-    event.organizerTeam = event.organizerTeam.filter(obj => obj.user.toString() !== userId);
+    event.organizerTeam = event.organizerTeam.filter(obj => obj.user && obj.user.toString() !== userId);
     if (event.organizerTeam.length === before) {
       return res.status(400).json({ message: 'You are not an organizer for this event.' });
     }
     // Remove any join request for this user
-    event.organizerJoinRequests = event.organizerJoinRequests.filter(obj => obj.user.toString() !== userId);
+    event.organizerJoinRequests = event.organizerJoinRequests.filter(obj => obj.user && obj.user.toString() !== userId);
     await event.save();
     res.json({ message: 'Left as organizer successfully.' });
   } catch (err) {
@@ -638,12 +638,12 @@ exports.requestJoinAsOrganizer = async (req, res) => {
     }
     
     // Prevent duplicate join (already in team)
-    if (event.organizerTeam.some(obj => obj.user.toString() === userId)) {
+    if (event.organizerTeam.some(obj => obj.user && obj.user.toString() === userId)) {
       return res.status(400).json({ message: 'Already an organizer for this event.' });
     }
     
     // Check for existing join request
-    const existingRequestIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId);
+    const existingRequestIndex = event.organizerJoinRequests.findIndex(obj => obj.user && obj.user.toString() === userId);
     if (existingRequestIndex !== -1) {
       const existingRequest = event.organizerJoinRequests[existingRequestIndex];
       if (existingRequest.status === 'pending') {
@@ -679,7 +679,7 @@ exports.approveJoinRequest = async (req, res) => {
       return res.status(403).json({ message: 'Only the creator can approve join requests.' });
     }
     // Find the request
-    const reqIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId && obj.status === 'pending');
+    const reqIndex = event.organizerJoinRequests.findIndex(obj => obj.user && obj.user.toString() === userId && obj.status === 'pending');
     if (reqIndex === -1) {
       return res.status(404).json({ message: 'Join request not found.' });
     }
@@ -705,7 +705,7 @@ exports.rejectJoinRequest = async (req, res) => {
       return res.status(403).json({ message: 'Only the creator can reject join requests.' });
     }
     // Find the request
-    const reqObj = event.organizerJoinRequests.find(obj => obj.user.toString() === userId && obj.status === 'pending');
+    const reqObj = event.organizerJoinRequests.find(obj => obj.user && obj.user.toString() === userId && obj.status === 'pending');
     if (!reqObj) {
       return res.status(404).json({ message: 'Join request not found.' });
     }
@@ -725,7 +725,7 @@ exports.withdrawJoinRequest = async (req, res) => {
     const event = await require('../models/event').findById(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found' });
     // Find the pending join request
-    const reqIndex = event.organizerJoinRequests.findIndex(obj => obj.user.toString() === userId && obj.status === 'pending');
+    const reqIndex = event.organizerJoinRequests.findIndex(obj => obj.user && obj.user.toString() === userId && obj.status === 'pending');
     if (reqIndex === -1) {
       return res.status(404).json({ message: 'No pending join request found to withdraw.' });
     }
@@ -820,7 +820,7 @@ exports.updateOrganizerAttendance = async (req, res) => {
     const { hasAttended } = req.body;
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found' });
-    const organizer = event.organizerTeam.find(obj => obj.user.toString() === organizerId);
+    const organizer = event.organizerTeam.find(obj => obj.user && obj.user.toString() === organizerId);
     if (!organizer) return res.status(404).json({ message: 'Organizer not found in team' });
     organizer.hasAttended = !!hasAttended;
     await event.save();
@@ -932,7 +932,7 @@ exports.completeQuestionnaire = async (req, res) => {
       }
       // Add participation for all volunteers not already assigned
       const allVolunteerIds = (event.volunteers || []).map(id => id.toString());
-      const assignedVolunteerIds = event.certificates.filter(c => c.role === 'volunteer').map(c => c.user.toString());
+      const assignedVolunteerIds = event.certificates.filter(c => c.role === 'volunteer').map(c => c.user && c.user.toString()).filter(Boolean);
       allVolunteerIds.forEach(id => {
         if (!assignedVolunteerIds.includes(id)) {
           event.certificates.push({ user: id, role: 'volunteer', award: 'Participation' });
@@ -940,7 +940,7 @@ exports.completeQuestionnaire = async (req, res) => {
       });
       // Add participation for all organizers (except creator) not already assigned
       const allOrganizerIds = event.organizerTeam.map(obj => obj.user._id.toString()).filter(id => id !== req.user._id.toString());
-      const assignedOrganizerIds = event.certificates.filter(c => c.role === 'organizer').map(c => c.user.toString());
+      const assignedOrganizerIds = event.certificates.filter(c => c.role === 'organizer').map(c => c.user && c.user.toString()).filter(Boolean);
       allOrganizerIds.forEach(id => {
         if (!assignedOrganizerIds.includes(id)) {
           event.certificates.push({ user: id, role: 'organizer', award: 'Participation' });

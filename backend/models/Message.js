@@ -18,7 +18,10 @@ const messageSchema = new mongoose.Schema({
     userId: mongoose.Schema.Types.ObjectId,
     name: String,
     avatar: String,
-    role: String
+    role: String,
+    email: String,
+    phone: String,
+    profileImage: String
   },
   // Indicates if the user who sent this message is deleted
   isUserDeleted: {
@@ -48,7 +51,10 @@ const messageSchema = new mongoose.Schema({
     userInfo: {
       userId: mongoose.Schema.Types.ObjectId,
       name: String,
-      avatar: String
+      avatar: String,
+      email: String,
+      phone: String,
+      profileImage: String
     }
   }],
   replyTo: {
@@ -87,7 +93,10 @@ messageSchema.pre('save', async function(next) {
           userId: user._id,
           name: user.name,
           avatar: user.profileImage,
-          role: user.role
+          role: user.role,
+          email: user.email || 'N/A',
+          phone: user.phone || 'N/A',
+          profileImage: user.profileImage
         };
       }
     }
@@ -107,7 +116,10 @@ messageSchema.pre('save', async function(next) {
           userId: user._id,
           name: user.name,
           avatar: user.profileImage,
-          role: user.role
+          role: user.role,
+          email: user.email || 'N/A',
+          phone: user.phone || 'N/A',
+          profileImage: user.profileImage
         };
       }
     }

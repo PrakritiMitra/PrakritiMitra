@@ -45,7 +45,13 @@ exports.generateAttendanceReport = async (req, res) => {
 
     // Filter volunteer registrations (exclude organizers, removed, banned)
     const volunteerRegistrations = registrations.filter(r => {
-      const volunteerId = r.volunteerId._id.toString();
+      // For deleted users, use volunteerInfo.userId
+      const volunteerId = r.isUserDeleted && r.volunteerInfo ? 
+        r.volunteerInfo.userId.toString() : 
+        (r.volunteerId && r.volunteerId._id ? r.volunteerId._id.toString() : null);
+      
+      if (!volunteerId) return false;
+      
       return !organizerTeamIds.includes(volunteerId) && 
              !removedVolunteerIds.includes(volunteerId) && 
              !bannedVolunteerIds.includes(volunteerId);

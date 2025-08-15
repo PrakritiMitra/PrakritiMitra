@@ -2,39 +2,60 @@
 
 // Safe user data access - handles deleted users gracefully
 export const getSafeUserData = (user) => {
-  if (!user || user.isDeleted) {
+  if (!user) {
     return {
       _id: null,
-      name: 'Deleted User',
-      username: 'deleted_user',
-      email: 'deleted@user.com',
+      name: 'Unknown User',
+      username: 'unknown',
+      email: 'unknown@email.com',
       phone: 'N/A',
       role: 'user',
       profileImage: null,
+      isDeleted: false
+    };
+  }
+  
+  // If user is deleted, preserve the original username and name from the userInfo
+  if (user.isDeleted) {
+    return {
+      _id: user._id || user.userId,
+      name: user.name || 'Deleted User',
+      username: user.username || 'deleted_user',
+      email: user.email || 'deleted@user.com',
+      phone: user.phone || 'N/A',
+      role: user.role || 'user',
+      profileImage: user.profileImage || null,
       isDeleted: true
     };
   }
+  
   return user;
 };
 
 // Safe display name function
 export const getDisplayName = (user) => {
   const safeUser = getSafeUserData(user);
-  if (safeUser.isDeleted) return 'Deleted User';
+  if (safeUser.isDeleted) {
+    // For deleted users, show the original username if available, otherwise name
+    return safeUser.username ? `@${safeUser.username}` : safeUser.name || 'Deleted User';
+  }
   return safeUser.username ? `@${safeUser.username}` : safeUser.name || 'Unknown User';
 };
 
 // Safe username display
 export const getUsernameDisplay = (user) => {
   const safeUser = getSafeUserData(user);
-  if (safeUser.isDeleted) return 'Deleted User';
+  if (safeUser.isDeleted) {
+    // For deleted users, show the original username if available, otherwise name
+    return safeUser.username ? `@${safeUser.username}` : safeUser.name || 'Deleted User';
+  }
   return safeUser.username ? `@${safeUser.username}` : safeUser.name || 'Unknown User';
 };
 
 // Safe email display
 export const getEmailDisplay = (user) => {
   const safeUser = getSafeUserData(user);
-  if (safeUser.isDeleted) return 'Deleted User';
+  if (safeUser.isDeleted) return 'deleted@user.com';
   return safeUser.email || 'N/A';
 };
 
@@ -73,7 +94,10 @@ export const getSafeUserRole = (user) => {
 // Safe user name for alt text and labels
 export const getSafeUserName = (user) => {
   const safeUser = getSafeUserData(user);
-  if (safeUser.isDeleted) return 'Deleted User';
+  if (safeUser.isDeleted) {
+    // For deleted users, show the original name if available
+    return safeUser.name || 'Deleted User';
+  }
   return safeUser.username || safeUser.name || 'Unknown User';
 };
 

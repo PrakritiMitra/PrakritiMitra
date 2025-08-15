@@ -13,7 +13,11 @@ const TeamMemberSchema = new mongoose.Schema({
   userInfo: {
     userId: mongoose.Schema.Types.ObjectId,
     name: String,
-    username: String
+    username: String,
+    email: String,
+    phone: String,
+    profileImage: String,
+    role: String
   },
   // Indicates if the user is deleted
   isUserDeleted: {
@@ -92,7 +96,11 @@ const organizationSchema = new mongoose.Schema({
   creatorInfo: {
     userId: mongoose.Schema.Types.ObjectId,
     name: String,
-    username: String
+    username: String,
+    email: String,
+    phone: String,
+    profileImage: String,
+    role: String
   },
   // Indicates if the creator is deleted
   isCreatorDeleted: {
@@ -119,7 +127,7 @@ const organizationSchema = new mongoose.Schema({
   sponsorship: {
     enabled: {
       type: Boolean,
-      default: false
+      default: true  // Changed from false to true
     },
     description: String, // "We welcome sponsors to support our mission"
     contactEmail: String, // For sponsorship inquiries

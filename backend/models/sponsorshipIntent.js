@@ -144,7 +144,11 @@ const sponsorshipIntentSchema = new mongoose.Schema({
     userInfo: {
       userId: mongoose.Schema.Types.ObjectId,
       name: String,
-      username: String
+      username: String,
+      email: String,
+      phone: String,
+      profileImage: String,
+      role: String
     },
     // Indicates if the user is deleted
     isUserDeleted: {
@@ -184,7 +188,11 @@ const sponsorshipIntentSchema = new mongoose.Schema({
     userInfo: {
       userId: mongoose.Schema.Types.ObjectId,
       name: String,
-      username: String
+      username: String,
+      email: String,
+      phone: String,
+      profileImage: String,
+      role: String
     },
     // Indicates if the user is deleted
     isUserDeleted: {
@@ -213,7 +221,11 @@ const sponsorshipIntentSchema = new mongoose.Schema({
     userInfo: {
       userId: mongoose.Schema.Types.ObjectId,
       name: String,
-      username: String
+      username: String,
+      email: String,
+      phone: String,
+      profileImage: String,
+      role: String
     },
     // Indicates if the user is deleted
     isUserDeleted: {

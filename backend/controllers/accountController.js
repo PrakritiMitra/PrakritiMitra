@@ -27,8 +27,12 @@ const jwt = require('jsonwebtoken'); // added jwt
 const { validationResult } = require('express-validator');
 
 // Comprehensive function to anonymize user data across all models
-async function anonymizeUserData(userId, deletionId) {
+async function anonymizeUserData(userId, deletionId, originalUserData) {
   try {
+    // Extract original user data for preservation
+    const originalName = originalUserData?.name || 'Deleted User';
+    const originalUsername = originalUserData?.username || 'deleted_user';
+    
     // 1. Anonymize Messages (already handled by Message model)
     await Message.handleUserDeletion(userId);
     
@@ -39,9 +43,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'volunteerInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user',
-            profileImage: null
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'isUserDeleted': true,
           'deletionId': deletionId // Add deletionId to registration
@@ -57,8 +64,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'creatorInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'organizer'
           },
           'isCreatorDeleted': true,
           'deletionId': deletionId // Add deletionId to event
@@ -74,8 +85,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'organizerTeam.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'organizer'
           },
           'organizerTeam.$.isUserDeleted': true,
           'organizerTeam.$.deletionId': deletionId // Add deletionId to organizer team entry
@@ -91,8 +106,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'organizerJoinRequests.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'organizer'
           },
           'organizerJoinRequests.$.isUserDeleted': true,
           'organizerJoinRequests.$.deletionId': deletionId // Add deletionId to organizer join request
@@ -108,8 +127,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'creatorInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'organizer'
           },
           'isCreatorDeleted': true,
           'deletionId': deletionId // Add deletionId to organization
@@ -125,8 +148,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'team.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'team.$.isUserDeleted': true,
           'team.$.deletionId': deletionId // Add deletionId to team member
@@ -142,8 +169,12 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'isUserDeleted': true,
           'deletionId': deletionId // Add deletionId to sponsor
@@ -159,11 +190,15 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'communications.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'communications.$.isUserDeleted': true,
-          'deletionId': deletionId // Add deletionId to sponsorship
+          'communications.$.deletionId': deletionId // Add deletionId to sponsorship
         },
         $unset: { 'communications.$.createdBy': 1 }
       }
@@ -175,11 +210,15 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'documents.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'documents.$.isUserDeleted': true,
-          'deletionId': deletionId // Add deletionId to sponsorship document
+          'documents.$.deletionId': deletionId // Add deletionId to sponsorship document
         },
         $unset: { 'documents.$.uploadedBy': 1 }
       }
@@ -192,11 +231,15 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'communications.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'communications.$.isUserDeleted': true,
-          'deletionId': deletionId // Add deletionId to sponsorship intent
+          'communications.$.deletionId': deletionId // Add deletionId to sponsorship intent
         },
         $unset: { 'communications.$.createdBy': 1 }
       }
@@ -208,11 +251,15 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'documents.$.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'documents.$.isUserDeleted': true,
-          'deletionId': deletionId // Add deletionId to sponsorship intent document
+          'documents.$.deletionId': deletionId // Add deletionId to sponsorship intent document
         },
         $unset: { 'documents.$.uploadedBy': 1 }
       }
@@ -225,11 +272,15 @@ async function anonymizeUserData(userId, deletionId) {
         $set: { 
           'manualVerification.userInfo': {
             userId: userId,
-            name: 'Deleted User',
-            username: 'deleted_user'
+            name: originalName,
+            username: originalUsername,
+            email: 'deleted@user.com',
+            phone: 'N/A',
+            profileImage: null,
+            role: 'volunteer'
           },
           'manualVerification.isUserDeleted': true,
-          'deletionId': deletionId // Add deletionId to receipt
+          'manualVerification.deletionId': deletionId // Add deletionId to receipt
         },
         $unset: { 'manualVerification.verifiedBy': 1 }
       }
@@ -540,7 +591,7 @@ exports.deleteAccount = async (req, res) => {
     
     // 6. NOW anonymize all user's data across the system
     try {
-      await anonymizeUserData(userId, deletionId);
+      await anonymizeUserData(userId, deletionId, user); // Pass originalUserData
       console.log(`✅ Data anonymization completed for user ${userId}`);
     } catch (anonymizeError) {
       console.error(`❌ Error during data anonymization for user ${userId}:`, anonymizeError);
