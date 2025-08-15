@@ -217,10 +217,12 @@ const VolunteerEventCard = ({ event }) => {
   // Calendar functions
   const handleAddToCalendar = (e) => {
     e.stopPropagation(); // prevent card navigation
+    addEventToCalendar(event);
   };
 
   const handleDownloadCalendar = (e) => {
     e.stopPropagation(); // prevent card navigation
+    downloadCalendarFile(event);
   };
 
   const handleAddToWebsiteCalendar = async (e) => {

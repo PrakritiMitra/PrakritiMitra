@@ -547,6 +547,7 @@ export default function EventCard({ event }) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  addEventToCalendar(event);
                   setShowCalendarOptions(false);
                 }}
                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
@@ -558,6 +559,7 @@ export default function EventCard({ event }) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  downloadCalendarFile(event);
                   setShowCalendarOptions(false);
                 }}
                 className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
