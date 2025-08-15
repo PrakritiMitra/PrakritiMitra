@@ -42,17 +42,49 @@ export default function VolunteerMyEvents() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
       <Navbar />
       
-      <div className="pt-24 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="pt-24 pb-12">
         {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-4xl lg:text-5xl font-bold text-blue-800 mb-4 flex items-center gap-3">
-            <CalendarIcon className="w-10 h-10 text-blue-600" />
-            My Registered Events
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl">
-            Track your volunteer journey and stay updated on your upcoming commitments. 
-            Review your past contributions and their impact on the community.
-          </p>
+        <div className="mb-12 px-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-8 max-w-7xl mx-auto">
+            {/* Main Header Content */}
+            <div className="flex-1 text-center lg:text-left">
+              <h1 className="text-4xl lg:text-5xl font-bold text-blue-800 mb-4 flex items-center justify-center lg:justify-start gap-3">
+                <CalendarIcon className="w-10 h-10 text-blue-600" />
+                My Registered Events
+              </h1>
+              <p className="text-lg text-gray-600 max-w-2xl lg:max-w-none">
+                Track your volunteer journey and stay updated on your upcoming commitments. <br/>
+                Review your past contributions and their impact on the community.
+              </p>
+            </div>
+            
+            {/* Summary Section - Inline with header */}
+            {!loading && (upcomingEvents.length > 0 || pastEvents.length > 0) && (
+              <div className="flex-shrink-0 w-full lg:w-5/12">
+                <h3 className="text-xl font-bold text-emerald-800 mb-4 flex items-center justify-center lg:justify-start gap-3">
+                  <ExclamationTriangleIcon className="w-5 h-5" />
+                  Your Volunteer Summary
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 text-center border border-white/30 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="text-xl font-bold text-emerald-600 mb-1">{upcomingEvents.length}</div>
+                    <div className="text-gray-700 font-semibold text-xs">Upcoming</div>
+                    <div className="text-xs text-gray-500">Events</div>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 text-center border border-white/30 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="text-xl font-bold text-blue-600 mb-1">{pastEvents.length}</div>
+                    <div className="text-gray-700 font-semibold text-xs">Completed</div>
+                    <div className="text-xs text-gray-500">Events</div>
+                  </div>
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 text-center border border-white/30 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="text-xl font-bold text-purple-600 mb-1">{upcomingEvents.length + pastEvents.length}</div>
+                    <div className="text-gray-700 font-semibold text-xs">Total</div>
+                    <div className="text-xs text-gray-500">Events</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Loading State */}
@@ -65,21 +97,21 @@ export default function VolunteerMyEvents() {
 
         {/* Content */}
         {!loading && (
-          <div className="space-y-12">
+          <div className="space-y-16 px-4">
             {/* Upcoming Events Section */}
-            <section className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <ClockIcon className="w-6 h-6 text-white" />
+            <section>
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <ClockIcon className="w-7 h-7 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-emerald-800">Upcoming Events</h2>
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-emerald-800">Upcoming Events</h2>
                   <p className="text-gray-600">Your scheduled volunteer activities</p>
                 </div>
               </div>
 
               {upcomingEvents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
                   {upcomingEvents.map(event => (
                     <div key={event._id} className="transform hover:scale-[1.02] transition-all duration-300">
                       <VolunteerEventCard event={event} isRegistered={true} />
@@ -87,7 +119,7 @@ export default function VolunteerMyEvents() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
+                <div className="text-center py-16 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20 max-w-2xl mx-auto">
                   <div className="text-6xl mb-4">📅</div>
                   <h3 className="text-xl font-semibold text-gray-700 mb-2">No Upcoming Events</h3>
                   <p className="text-gray-500 max-w-md mx-auto">
@@ -99,19 +131,19 @@ export default function VolunteerMyEvents() {
             </section>
 
             {/* Past Events Section */}
-            <section className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                  <CheckCircleIcon className="w-6 h-6 text-white" />
+            <section>
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <CheckCircleIcon className="w-7 h-7 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-blue-800">Past Events</h2>
+                <div className="text-center">
+                  <h2 className="text-3xl font-bold text-blue-800">Past Events</h2>
                   <p className="text-gray-600">Your completed volunteer activities</p>
                 </div>
               </div>
 
               {pastEvents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
                   {pastEvents.map(event => (
                     <div key={event._id} className="transform hover:scale-[1.02] transition-all duration-300">
                       <VolunteerEventCard event={event} isRegistered={true} />
@@ -119,7 +151,7 @@ export default function VolunteerMyEvents() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12">
+                <div className="text-center py-16 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20 max-w-2xl mx-auto">
                   <div className="text-6xl mb-4">🏆</div>
                   <h3 className="text-xl font-semibold text-gray-700 mb-2">No Past Events</h3>
                   <p className="text-gray-500 max-w-md mx-auto">
@@ -129,33 +161,6 @@ export default function VolunteerMyEvents() {
                 </div>
               )}
             </section>
-
-            {/* Summary Section */}
-            {!loading && (upcomingEvents.length > 0 || pastEvents.length > 0) && (
-              <section className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-2xl border border-emerald-200 p-8">
-                <h3 className="text-2xl font-bold text-emerald-800 mb-6 flex items-center gap-3">
-                  <ExclamationTriangleIcon className="w-7 h-7" />
-                  Your Volunteer Summary
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20">
-                    <div className="text-3xl font-bold text-emerald-600 mb-2">{upcomingEvents.length}</div>
-                    <div className="text-gray-700 font-semibold">Upcoming Events</div>
-                    <div className="text-sm text-gray-500 mt-1">Scheduled activities</div>
-                  </div>
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20">
-                    <div className="text-3xl font-bold text-blue-600 mb-2">{pastEvents.length}</div>
-                    <div className="text-gray-700 font-semibold">Completed Events</div>
-                    <div className="text-sm text-gray-500 mt-1">Past contributions</div>
-                  </div>
-                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 text-center border border-white/20">
-                    <div className="text-3xl font-bold text-purple-600 mb-2">{upcomingEvents.length + pastEvents.length}</div>
-                    <div className="text-gray-700 font-semibold">Total Events</div>
-                    <div className="text-sm text-gray-500 mt-1">Your volunteer journey</div>
-                  </div>
-                </div>
-              </section>
-            )}
           </div>
         )}
       </div>

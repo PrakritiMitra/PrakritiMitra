@@ -49,16 +49,27 @@ export default function VolunteerDashboard() {
 
       <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className={`mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-              <SparklesIcon className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-emerald-900 to-emerald-700 bg-clip-text text-transparent">
-                Volunteer Dashboard
-              </h1>
-              <p className="text-slate-600 mt-1">Manage your events, calendar, and organizations</p>
+        <div className={`mb-6 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="relative">
+            {/* User Name Display - More compact */}
+            <div className="text-center lg:text-left">
+              <div className="flex flex-col lg:flex-row items-center lg:items-baseline gap-2 lg:gap-3 mb-2">
+                <h1 className="text-2xl lg:text-4xl font-bold">
+                  <span className="bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+                    Hello,
+                  </span>
+                </h1>
+                <h2 className="text-3xl lg:text-5xl font-extrabold relative">
+                  <span className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent">
+                    {user?.name || 'Volunteer'}
+                  </span>
+                  {/* Underline Effect */}
+                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-full transform scale-x-0 animate-pulse" style={{ animationDuration: '2s' }}></div>
+                </h2>
+              </div>
+              <p className="text-base lg:text-lg text-slate-600 max-w-2.5xl mx-auto lg:mx-0">
+                Ready to make a difference? Let's explore amazing environmental events together! 🌱✨
+              </p>
             </div>
           </div>
         </div>
