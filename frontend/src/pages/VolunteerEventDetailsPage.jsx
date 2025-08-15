@@ -654,17 +654,36 @@ export default function VolunteerEventDetailsPage() {
                 return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
               })
               .map(vol => {
-                const displayName = getSafeUserName(vol) || getUsernameDisplay(vol) || 'User';
-                const displayText = getSafeUserName(vol) ? `@${getSafeUserName(vol)}` : displayName;
+                const safeVol = getSafeUserData(vol);
+                const displayName = getDisplayName(safeVol);
+                const displayText = getUsernameDisplay(safeVol);
+                const canNavigate = canNavigateToUser(vol);
+                
                 return (
-                  <div key={getSafeUserId(vol)} className="flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-green-50" onClick={() => navigate(`/volunteer/${getSafeUserId(vol)}`)}>
+                  <div 
+                    key={getSafeUserId(vol) || safeVol._id} 
+                    className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border transition ${
+                      safeVol.isDeleted ? 'opacity-75 bg-gray-100 cursor-default' : 'hover:shadow-md cursor-pointer hover:bg-green-50'
+                    }`} 
+                    onClick={() => canNavigate && navigate(`/volunteer/${getSafeUserId(vol)}`)}
+                  >
                     <div className="flex-shrink-0 mr-4">
-                      <Avatar user={vol} size="lg" role="volunteer" />
+                      <Avatar user={safeVol} size="lg" role="volunteer" />
                     </div>
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="font-medium text-green-800 text-lg truncate">{displayText}</span>
-                      {getSafeUserName(vol) && getSafeUserRole(vol) === 'volunteer' && (
-                        <span className="text-sm text-gray-600 truncate">{getSafeUserRole(vol)}</span>
+                      <span className={`font-medium text-lg truncate ${
+                        safeVol.isDeleted ? 'text-gray-600' : 'text-green-800'
+                      }`}>
+                        {displayText}
+                        {safeVol.isDeleted && (
+                          <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">Deleted User</span>
+                        )}
+                      </span>
+                      {safeVol.username && safeVol.name && !safeVol.isDeleted && (
+                        <span className="text-sm text-gray-600 truncate">{safeVol.name}</span>
+                      )}
+                      {safeVol.isDeleted && safeVol.name && (
+                        <span className="text-sm text-gray-500 truncate">{safeVol.name}</span>
                       )}
                     </div>
                   </div>

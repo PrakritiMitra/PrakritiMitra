@@ -85,8 +85,8 @@ const sponsorshipIntentAPI = {
         individual: data.sponsor.sponsorType === 'individual' ? data.sponsor.individual : null,
         location: data.sponsor.location
       },
-      organizationId: data.organizationId,
-      eventId: data.eventId || null,
+      organization: data.organizationId, // Map organizationId to organization
+      event: data.eventId || null,      // Map eventId to event
       sponsorship: {
         type: data.sponsorship.type,
         description: data.sponsorship.description,

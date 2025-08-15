@@ -11,35 +11,41 @@ exports.submitIntent = async (req, res) => {
     const {
       sponsor,
       organizationId,
+      organization, // Add this field
       eventId,
+      event, // Add this field
       sponsorship,
       recognition,
       additionalInfo
     } = req.body;
 
+    // Use organization if provided, otherwise fall back to organizationId
+    const finalOrganizationId = organization || organizationId;
+    const finalEventId = event || eventId;
+
     // Validate organization exists
-    const organization = await Organization.findById(organizationId);
-    if (!organization) {
+    const organizationDoc = await Organization.findById(finalOrganizationId);
+    if (!organizationDoc) {
       return res.status(404).json({ message: 'Organization not found' });
     }
 
     // Validate event if provided
-    if (eventId) {
-      const event = await Event.findById(eventId);
-      if (!event) {
+    if (finalEventId) {
+      const eventDoc = await Event.findById(finalEventId);
+      if (!eventDoc) {
         return res.status(404).json({ message: 'Event not found' });
       }
     }
 
     // Check if organization has sponsorship enabled (allow by default if not explicitly disabled)
-    if (organization.sponsorship.enabled === false) {
+    if (organizationDoc.sponsorship.enabled === false) {
       return res.status(400).json({ 
         message: 'This organization does not accept sponsorships' 
       });
     }
 
     // Check minimum contribution (only if organization has set a minimum)
-    const minContribution = organization.sponsorship.minimumContribution || 0;
+    const minContribution = organizationDoc.sponsorship.minimumContribution || 0;
     const estimatedValue = Number(sponsorship.estimatedValue) || 0;
     
     if (minContribution > 0 && estimatedValue < minContribution) {
@@ -75,8 +81,8 @@ exports.submitIntent = async (req, res) => {
     // Create sponsorship intent
     const intentData = {
       sponsor,
-      organization: organizationId,
-      event: eventId,
+      organization: finalOrganizationId,
+      event: finalEventId,
       sponsorship,
       recognition,
       additionalInfo,
@@ -105,7 +111,7 @@ exports.submitIntent = async (req, res) => {
     const intent = await SponsorshipIntent.create(intentData);
 
     // Send email notification to organization admins (async, don't wait)
-    sendEmailToAdmins(intent, organization).catch(err => {
+    sendEmailToAdmins(intent, organizationDoc).catch(err => {
       console.error('Error sending email notification:', err);
     });
 
@@ -202,7 +208,7 @@ exports.getIntentById = async (req, res) => {
     }
 
     // Check if user has access to this intent
-    const isOwner = intent.sponsor.user.toString() === userId.toString();
+    const isOwner = intent.sponsor.user && intent.sponsor.user.toString() === userId.toString();
     const isAdmin = await checkIfAdmin(userId, intent.organization._id);
     
     if (!isOwner && !isAdmin) {
@@ -261,7 +267,7 @@ exports.updateIntent = async (req, res) => {
     }
 
     // Check if user owns this intent
-    if (intent.sponsor.user.toString() !== userId.toString()) {
+    if (!intent.sponsor.user || intent.sponsor.user.toString() !== userId.toString()) {
       return res.status(403).json({
         message: 'Access denied. You can only update your own applications.'
       });

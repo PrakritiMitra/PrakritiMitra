@@ -303,7 +303,7 @@ export default function LoginForm() {
       
       if (response.success) {
         // Store user data and tokens in localStorage
-        localStorage.setItem('accessToken', response.token);
+        localStorage.setItem('token', response.token); // Changed from 'accessToken' to 'token'
         localStorage.setItem('refreshToken', response.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.user));
 
