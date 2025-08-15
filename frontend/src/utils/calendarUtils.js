@@ -217,7 +217,13 @@ export const addEventToCalendar = (event) => {
     
     // Format dates for calendar (YYYYMMDDTHHMMSSZ format)
     const formatDateForCalendar = (date) => {
-      return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
     };
     
     // Create calendar event data
@@ -262,9 +268,13 @@ export const addEventToCalendar = (event) => {
     }
     
     // Open calendar in new tab
-    window.open(calendarUrl, '_blank');
+    const newWindow = window.open(calendarUrl, '_blank');
     
-    return { success: true, message: 'Calendar opened successfully!' };
+    if (newWindow) {
+      return { success: true, message: 'Calendar opened successfully!' };
+    } else {
+      return { success: false, message: 'Failed to open calendar (popup may be blocked)' };
+    }
     
   } catch (error) {
     console.error('Error adding event to calendar:', error);
@@ -307,7 +317,13 @@ export const downloadCalendarFile = (event) => {
     
     // Format date for ICS file
     const formatDateForICS = (date) => {
-      return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
     };
     
     // Create ICS content
@@ -332,6 +348,7 @@ export const downloadCalendarFile = (event) => {
     const link = document.createElement('a');
     link.href = url;
     link.download = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
