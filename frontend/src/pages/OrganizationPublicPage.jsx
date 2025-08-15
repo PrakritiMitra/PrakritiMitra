@@ -8,15 +8,6 @@ import { getEventsByOrganization } from '../api/event';
 import EventCard from '../components/event/EventCard';
 import Navbar from '../components/layout/Navbar';
 import { OrganizationSponsorshipSection } from '../components/sponsor';
-import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../utils/avatarUtils';
-import { 
-  getSafeUserData, 
-  getDisplayName, 
-  getUsernameDisplay, 
-  getSafeUserName,
-  getSafeUserId,
-  canNavigateToUser 
-} from '../utils/safeUserUtils';
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -439,52 +430,30 @@ export default function OrganizationPublicPage() {
                 </div>
               )}
               
-              {team.filter(member => member.status === 'approved').map((member) => {
-                const safeUser = getSafeUserData(member.userId);
-                const canNavigate = canNavigateToUser(member.userId);
-                
-                return (
-                  <div 
-                    key={member._id} 
-                    className={`flex items-center gap-4 mb-4 p-4 rounded-xl border border-slate-200 transition-all duration-200 group ${
-                      safeUser.isDeleted ? 'opacity-75 bg-gray-50 cursor-default' : 'cursor-pointer hover:bg-blue-50'
-                    }`}
-                    onClick={() => canNavigate && navigate(`/organizer/${getSafeUserId(member.userId)}`)}
-                  >
-                    {getProfileImageUrl(safeUser) ? (
-                      <img 
-                        src={getProfileImageUrl(safeUser)} 
-                        alt={getSafeUserName(safeUser)} 
-                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md" 
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
-                        {getAvatarInitial(safeUser)}
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <div className={`font-semibold transition-colors ${
-                        safeUser.isDeleted ? 'text-gray-600' : 'text-slate-900 group-hover:text-blue-700'
-                      }`}>
-                        {getSafeUserName(safeUser)}
-                        {safeUser.isDeleted && (
-                          <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">Deleted User</span>
-                        )}
-                      </div>
-                      <div className={`text-sm ${
-                        safeUser.isDeleted ? 'text-gray-500' : 'text-blue-600'
-                      }`}>
-                        {safeUser.username ? `@${safeUser.username}` : ''}
-                      </div>
-                      <div className={`text-sm ${
-                        safeUser.isDeleted ? 'text-gray-400' : 'text-slate-600'
-                      }`}>
-                        {safeUser.email || 'N/A'}
-                      </div>
+              {team.filter(member => member.status === 'approved').map((member) => (
+                <div 
+                  key={member._id} 
+                  className="flex items-center gap-4 mb-4 cursor-pointer hover:bg-blue-50 p-4 rounded-xl border border-slate-200 transition-all duration-200 group"
+                  onClick={() => navigate(`/organizer/${member.userId?._id}`)}
+                >
+                  {member.userId?.profileImage ? (
+                    <img 
+                      src={`http://localhost:5000/uploads/Profiles/${member.userId.profileImage}`} 
+                      alt={member.userId?.name} 
+                      className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md" 
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
+                      {member.userId?.name?.[0]}
                     </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{member.userId?.name || 'Unknown'}</div>
+                    <div className="text-blue-600 text-sm">{member.userId?.username ? `@${member.userId.username}` : ''}</div>
+                    <div className="text-slate-600 text-sm">{member.userId?.email}</div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -455,14 +455,12 @@ export default function OrganizationSettingsPage() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900">Sponsorship Settings</h2>
-              {formData.sponsorship.enabled && (
-                <button
-                  onClick={() => navigate(`/organization/${organizationId}/applications`)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  View Applications
-                </button>
-              )}
+              <button
+                onClick={() => navigate(`/organization/${organizationId}/applications`)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                View Applications
+              </button>
             </div>
             
             <div className="bg-blue-50 rounded-lg p-6 mb-6">

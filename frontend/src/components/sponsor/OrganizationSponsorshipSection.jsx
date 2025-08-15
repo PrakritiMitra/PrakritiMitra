@@ -13,9 +13,6 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
   
   const navigate = useNavigate();
 
-  // Check if sponsorship is enabled
-  const isSponsorshipEnabled = organization?.sponsorship?.enabled !== false;
-
   useEffect(() => {
     if (organizationId) {
       fetchSponsorships();
@@ -84,20 +81,12 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
             </svg>
             Sponsorship Opportunities
-            {!isSponsorshipEnabled && (
-              <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">
-                Currently Disabled
-              </span>
-            )}
           </h2>
           <p className="text-gray-600">
-            {!isSponsorshipEnabled 
-              ? 'This organization is currently not accepting new sponsorship applications.'
-              : organization.sponsorship.description || 'Support our mission and make a difference in the community'
-            }
+            {organization.sponsorship.description || 'Support our mission and make a difference in the community'}
           </p>
         </div>
-        {!isAdmin && isSponsorshipEnabled && (
+        {!isAdmin && (
           <button
             onClick={handleSponsorClick}
             className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
@@ -200,35 +189,25 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {!isSponsorshipEnabled ? 'Sponsorship Currently Disabled' : 'Interested in Sponsoring?'}
-          </h3>
-          {!isSponsorshipEnabled ? (
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Interested in Sponsoring?</h3>
+          {organization.sponsorship.contactEmail ? (
             <p className="text-gray-600 mb-2">
-              This organization is not currently accepting new sponsorship applications.
+              Contact us at{' '}
+              <a 
+                href={`mailto:${organization.sponsorship.contactEmail}`}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                {organization.sponsorship.contactEmail}
+              </a>
             </p>
           ) : (
-            <>
-              {organization.sponsorship.contactEmail ? (
-                <p className="text-gray-600 mb-2">
-                  Contact us at{' '}
-                  <a 
-                    href={`mailto:${organization.sponsorship.contactEmail}`}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {organization.sponsorship.contactEmail}
-                  </a>
-                </p>
-              ) : (
-                <p className="text-gray-600 mb-2">Contact us at our provided contact details</p>
-              )}
-              <p className="text-gray-600">Reach us out at our provided contact details</p>
-            </>
+            <p className="text-gray-600 mb-2">Contact us at our provided contact details</p>
           )}
-          {!isAdmin && isSponsorshipEnabled && (
+          <p className="text-gray-600">Reach us out at our provided contact details</p>
+          {!isAdmin && (
             <button
               onClick={handleSponsorClick}
               className="mt-4 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -265,7 +244,7 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
       )}
 
              {/* Contact Information - Only show if there are sponsors */}
-       {!loading && (sponsorships.length > 0 || stats.totalSponsors > 0) && organization.sponsorship.contactEmail && isSponsorshipEnabled && (
+       {!loading && (sponsorships.length > 0 || stats.totalSponsors > 0) && organization.sponsorship.contactEmail && (
          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
            <h3 className="text-sm font-medium text-gray-900 mb-2">Interested in Sponsoring?</h3>
            <p className="text-sm text-gray-600 mb-2">

@@ -35,11 +35,7 @@ const eventSchema = new mongoose.Schema({
   creatorInfo: {
     userId: mongoose.Schema.Types.ObjectId,
     name: String,
-    username: String,
-    email: String,
-    phone: String,
-    profileImage: String,
-    role: String
+    username: String
   },
   // Indicates if the creator is deleted
   isCreatorDeleted: {
@@ -196,11 +192,7 @@ const eventSchema = new mongoose.Schema({
       userInfo: {
         userId: mongoose.Schema.Types.ObjectId,
         name: String,
-        username: String,
-        email: String,
-        phone: String,
-        profileImage: String,
-        role: String
+        username: String
       },
       // Indicates if the user is deleted
       isUserDeleted: {
@@ -229,11 +221,7 @@ const eventSchema = new mongoose.Schema({
       userInfo: {
         userId: mongoose.Schema.Types.ObjectId,
         name: String,
-        username: String,
-        email: String,
-        phone: String,
-        profileImage: String,
-        role: String
+        username: String
       },
       // Indicates if the user is deleted
       isUserDeleted: {

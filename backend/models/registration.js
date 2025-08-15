@@ -16,10 +16,7 @@ const registrationSchema = new mongoose.Schema({
     userId: mongoose.Schema.Types.ObjectId,
     name: String,
     username: String,
-    email: String,
-    phone: String,
-    profileImage: String,
-    role: String
+    profileImage: String
   },
   // Indicates if the volunteer is deleted
   isUserDeleted: {

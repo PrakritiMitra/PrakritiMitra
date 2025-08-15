@@ -12,11 +12,7 @@ const sponsorSchema = new mongoose.Schema({
   userInfo: {
     userId: mongoose.Schema.Types.ObjectId,
     name: String,
-    username: String,
-    email: String,
-    phone: String,
-    profileImage: String,
-    role: String
+    username: String
   },
   // Indicates if the user is deleted
   isUserDeleted: {

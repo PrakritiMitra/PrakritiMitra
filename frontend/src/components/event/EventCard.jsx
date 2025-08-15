@@ -8,16 +8,6 @@ import useEventSlots from '../../hooks/useEventSlots';
 import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../../utils/calendarUtils";
 import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
 import calendarEventEmitter from "../../utils/calendarEventEmitter";
-import { 
-  CalendarIcon,
-  MapPinIcon,
-  UsersIcon,
-  ClockIcon,
-  BuildingOfficeIcon,
-  StarIcon,
-  TrophyIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
 
 export default function EventCard({ event }) {
   const {
@@ -30,28 +20,6 @@ export default function EventCard({ event }) {
     endDateTime,
     location,
     createdBy,
-    maxVolunteers,
-    unlimitedVolunteers,
-    volunteers = [],
-    equipmentNeeded = [],
-    waterProvided,
-    medicalSupport,
-    ageGroup,
-    precautions,
-    publicTransport,
-    contactPerson,
-    timeSlotsEnabled,
-    timeSlots = [],
-    recurringEvent,
-    recurringType,
-    recurringValue,
-    isRecurringInstance,
-    recurringInstanceNumber,
-    recurringPattern,
-    summary,
-    report,
-    certificates = [],
-    sponsorship = {}
   } = event;
 
   // Handle recurring event instances - use original event ID for API calls
@@ -66,7 +34,7 @@ export default function EventCard({ event }) {
   const effectiveEventId = getEffectiveEventId(_id);
 
   // Use the new hook for live slot info
-  const { availableSlots, maxVolunteers: hookMaxVolunteers, unlimitedVolunteers: hookUnlimitedVolunteers, loading: slotsLoading } = useEventSlots(effectiveEventId);
+  const { availableSlots, maxVolunteers, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(effectiveEventId);
 
   // User-friendly slot message with color
   let slotMessage = '';
@@ -74,7 +42,7 @@ export default function EventCard({ event }) {
   if (slotsLoading) {
     slotMessage = 'Loading slots...';
     slotColor = '';
-  } else if (hookUnlimitedVolunteers) {
+  } else if (unlimitedVolunteers) {
     slotMessage = 'Unlimited slots';
     slotColor = '';
   } else if (typeof availableSlots === 'number') {
@@ -100,8 +68,11 @@ export default function EventCard({ event }) {
 
   const eventImage = defaultImages[eventType?.toLowerCase()] || defaultImages["default"];
   
-  // Get city/state from location
-  const cityState = location?.split(",").slice(-2).join(", ").trim();
+  // Recurring event indicators
+  const isRecurringInstance = event.isRecurringInstance;
+  const recurringInstanceNumber = event.recurringInstanceNumber;
+  const recurringPattern = event.recurringEvent ? `${event.recurringType} - ${event.recurringValue}` : null;
+  let cityState = location?.split(",").slice(-2).join(", ").trim();
 
   const [organizerTeam, setOrganizerTeam] = useState([]);
   const [joining, setJoining] = useState(false);
@@ -261,203 +232,74 @@ export default function EventCard({ event }) {
     }
   };
 
-  // Get truncated description for consistent card heights
-  const getTruncatedDescription = (text, maxLength = 120) => {
-    if (!text || text.length <= maxLength) return text || "No description provided.";
-    return text.substring(0, maxLength).trim() + '...';
-  };
-
-  // Get event type display
-  const getEventTypeDisplay = () => {
-    if (!eventType) return 'General Event';
-    return eventType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  // Get location display
-  const getLocationDisplay = () => {
-    if (!location) return 'Location not specified';
-    const parts = location.split(',').map(part => part.trim());
-    return parts.length > 2 ? parts.slice(-2).join(', ') : location;
-  };
-
-  // Get event features
-  const getEventFeatures = () => {
-    const features = [];
-    
-    if (waterProvided) features.push({ label: 'Water Provided', icon: '💧', color: 'text-blue-600' });
-    if (medicalSupport) features.push({ label: 'Medical Support', icon: '🏥', color: 'text-red-600' });
-    if (ageGroup) features.push({ label: ageGroup, icon: '👥', color: 'text-green-600' });
-    if (timeSlotsEnabled) features.push({ label: 'Time Slots', icon: '⏰', color: 'text-purple-600' });
-    if (equipmentNeeded?.length > 0) features.push({ label: 'Equipment', icon: '🛠️', color: 'text-amber-600' });
-    if (recurringEvent) features.push({ label: 'Recurring', icon: '🔄', color: 'text-indigo-600' });
-    
-    return features;
-  };
-
-  const eventFeatures = getEventFeatures();
-
   return (
     <div className="relative">
-      <Link to={`/events/${effectiveEventId}`}>
-        <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden relative min-h-[280px] flex flex-col">
-          {/* Status Badges */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
-            {isLive && (
-              <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow animate-pulse">
-                LIVE
+              <Link to={`/events/${effectiveEventId}`}>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden relative">
+          {/* Show LIVE or Ended badge */}
+          {isLive && (
+            <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-0 animate-pulse">
+              LIVE
+            </div>
+          )}
+          {/* Questionnaire badge for organizers on past events */}
+          {isPast && isOrganizer && myOrganizerObj && (
+            myQuestionnaireCompleted ? (
+              <div className="absolute top-2 right-2 bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-0">
+                Completed
               </div>
-            )}
-            {isPast && isOrganizer && myOrganizerObj && (
-              myQuestionnaireCompleted ? (
-                <div className="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                  Completed
-                </div>
-              ) : (
-                <div className="bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                  Questionnaire Pending
-                </div>
-              )
-            )}
-            {isRecurringInstance && (
-              <div className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                #{recurringInstanceNumber}
+            ) : (
+              <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow z-0">
+                Questionnaire Pending
               </div>
+            )
+          )}
+          <img
+            src={eventImage}
+            alt={eventType}
+            className="w-full h-32 object-cover"
+          />
+          <div className="p-3">
+            <h3 className="text-base font-semibold text-gray-800 mb-1 line-clamp-1">
+              {title}
+              {isRecurringInstance && (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                  #{recurringInstanceNumber}
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-gray-600 mb-1 capitalize">{eventType}</p>
+            {recurringPattern && (
+              <p className="text-xs text-blue-600 mb-1">
+                <span className="font-medium">Recurring:</span> {recurringPattern}
+              </p>
             )}
+            <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Org:</span> {organization?.name || "Unknown"}</p>
+            <p className="text-xs text-gray-600 line-clamp-2 mb-2">{description}</p>
+            <p className="text-xs text-gray-700 mb-1"><span className="font-medium">Date:</span> {formattedDate}</p>
+            <p className={`text-xs ${slotColor} mb-1`}><span className="font-medium">Slots:</span> {slotMessage}</p>
+            <p className="text-xs text-gray-700"><span className="font-medium">Location:</span> {cityState || location}</p>
           </div>
-
-          {/* Event Image */}
-          <div className="relative h-36 overflow-hidden">
-            <img
-              src={eventImage}
-              alt={eventType}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-          </div>
-
-                     {/* Event Content */}
-           <div className="p-4 flex-1 flex flex-col">
-             {/* Header with Organization Info inline */}
-             <div className="mb-3">
-               <div className="flex items-start justify-between mb-2">
-                 <h3 className="text-lg font-bold text-slate-900 line-clamp-2 group-hover:text-blue-700 transition-colors duration-200 flex-1 mr-3">
-                   {title}
-                 </h3>
-                 <div className="flex items-center gap-1 text-xs text-slate-600 flex-shrink-0">
-                   <BuildingOfficeIcon className="w-3 h-3" />
-                   <span className="truncate max-w-[80px]">
-                     {organization?.name || "Unknown"}
-                   </span>
-                 </div>
-               </div>
-               
-               <div className="flex items-center gap-2 mb-2">
-                 <div className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                   {getEventTypeDisplay()}
-                 </div>
-                 {recurringPattern && (
-                   <div className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                     {recurringPattern}
-                   </div>
-                 )}
-               </div>
-             </div>
-
-             {/* Description */}
-             <p className="text-slate-600 text-sm mb-3 line-clamp-2 flex-1">
-               {getTruncatedDescription(description)}
-             </p>
-
-             {/* Compact Event Details Row */}
-             <div className="flex items-center gap-4 mb-3 text-xs">
-               <div className="flex items-center gap-1">
-                 <CalendarIcon className="w-3 h-3 text-slate-500" />
-                 <span className="text-slate-700 font-medium">
-                   {format(new Date(startDateTime), "d MMM")} • {format(new Date(startDateTime), "h:mm a")}
-                 </span>
-               </div>
-               <div className="flex items-center gap-1">
-                 <MapPinIcon className="w-3 h-3 text-slate-500" />
-                 <span className="text-slate-700 font-medium truncate max-w-[120px]">
-                   {getLocationDisplay()}
-                 </span>
-               </div>
-             </div>
-
-             {/* Volunteer Slots and Event Features inline */}
-             <div className="flex items-center justify-between mb-3">
-               <div className="flex items-center gap-2">
-                 <UsersIcon className="w-3 h-3 text-slate-500" />
-                 <span className={`text-xs font-medium ${slotColor}`}>
-                   {slotMessage}
-                 </span>
-                 {!slotsLoading && !hookUnlimitedVolunteers && (
-                   <span className="text-xs text-slate-500">
-                     ({availableSlots || 0}/{hookMaxVolunteers || maxVolunteers || 0})
-                   </span>
-                 )}
-               </div>
-               
-               {/* Compact Event Features */}
-               {eventFeatures.length > 0 && (
-                 <div className="flex gap-1">
-                   {eventFeatures.slice(0, 3).map((feature, index) => (
-                     <div key={index} className="px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600" title={feature.label}>
-                       {feature.icon}
-                     </div>
-                   ))}
-                   {eventFeatures.length > 3 && (
-                     <div className="px-1.5 py-0.5 bg-slate-100 rounded text-xs text-slate-600">
-                       +{eventFeatures.length - 3}
-                     </div>
-                   )}
-                 </div>
-               )}
-             </div>
-
-             {/* Footer with Stats inline */}
-             <div className="mt-auto pt-3 border-t border-slate-200">
-               <div className="flex items-center justify-between text-xs text-slate-500">
-                 <span>Click to view details</span>
-                 <div className="flex items-center gap-3">
-                   {volunteers?.length > 0 && (
-                     <div className="flex items-center gap-1">
-                       <UsersIcon className="w-3 h-3" />
-                       <span>{volunteers.length}</span>
-                     </div>
-                   )}
-                   {certificates?.length > 0 && (
-                     <div className="flex items-center gap-1">
-                       <TrophyIcon className="w-3 h-3" />
-                       <span>{certificates.length}</span>
-                     </div>
-                   )}
-                 </div>
-               </div>
-             </div>
-           </div>
         </div>
       </Link>
 
-      {/* Join as Organizer Button */}
+      {/* Only show join as organizer buttons if event is not completed */}
       {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && (
         <button
           onClick={handleRequestJoinAsOrganizer}
-          className="absolute top-3 left-3 bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 z-20 text-sm font-medium shadow-lg"
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-0"
           disabled={joining}
         >
           {joining ? "Requesting..." : "Join as Organizer"}
         </button>
       )}
       {!isPastEvent && canJoinAsOrganizer && joinRequestStatus === 'pending' && (
-        <div className="absolute top-3 left-3 bg-blue-100 text-blue-700 px-3 py-1 rounded-full z-20 text-sm font-semibold shadow-lg">
-          Join request sent
-        </div>
+        <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 px-3 py-1 rounded z-0 text-xs font-semibold">Join request sent</div>
       )}
       {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && hasRejectedRequest && !joining && (
         <button
           onClick={handleRequestJoinAsOrganizer}
-          className="absolute top-3 left-3 bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 z-20 text-sm font-medium shadow-lg"
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-0"
           disabled={joining}
         >
           {joining ? "Reapplying..." : "Reapply as Organizer"}
@@ -466,24 +308,20 @@ export default function EventCard({ event }) {
       {!isPastEvent && canJoinAsOrganizer && joinRequestStatus !== 'pending' && !hasRejectedRequest && (
         <button
           onClick={handleRequestJoinAsOrganizer}
-          className="absolute top-3 left-3 bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 z-20 text-sm font-medium shadow-lg"
+          className="absolute top-2 left-2 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 z-0"
           disabled={joining}
         >
           {joining ? "Requesting..." : "Join as Organizer"}
         </button>
       )}
       {!isPastEvent && canJoinAsOrganizer && joinRequestStatus === 'rejected' && joining && (
-        <div className="absolute top-3 left-3 bg-blue-100 text-blue-700 px-3 py-1 rounded-full z-20 text-sm font-semibold shadow-lg">
-          Reapplying...
-        </div>
+        <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 px-3 py-1 rounded z-0 text-xs font-semibold">Reapplying...</div>
       )}
-      
-      {/* Error and Success Messages */}
-      {joinError && <p className="text-xs text-red-600 mt-2 ml-3">{joinError}</p>}
-      {joinSuccess && <p className="text-xs text-green-600 mt-2 ml-3">{joinSuccess}</p>}
+      {joinError && <p className="text-xs text-red-600 mt-1 ml-2">{joinError}</p>}
+      {joinSuccess && <p className="text-xs text-green-600 mt-1 ml-2">{joinSuccess}</p>}
       
       {/* Add to Calendar Button */}
-      <div className="absolute bottom-3 right-3 z-20">
+      <div className="absolute bottom-2 right-2">
         <div className="relative">
           <button
             data-calendar-button
@@ -492,7 +330,7 @@ export default function EventCard({ event }) {
               e.stopPropagation();
               setShowCalendarOptions(!showCalendarOptions);
             }}
-            className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-10"
             title="Add to Calendar"
           >
             <FaCalendarPlus className="w-4 h-4" />
@@ -500,7 +338,7 @@ export default function EventCard({ event }) {
           
           {/* Calendar Options Dropdown */}
           {showCalendarOptions && (
-            <div data-calendar-dropdown className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[220px] z-30">
+            <div data-calendar-dropdown className="absolute bottom-full right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 p-2 min-w-[220px] z-20">
               {/* Website Calendar Options */}
               {calendarStatus.canAddToCalendar && (
                 <button

@@ -9,11 +9,28 @@ import { FiEdit2 } from 'react-icons/fi';
 import { MdDelete } from 'react-icons/md';
 import EmojiPicker from 'emoji-picker-react';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
-import { getSafeUserData, getDisplayName } from '../../utils/safeUserUtils';
 
-// Remove the local utility functions since we're now importing them
-// const getSafeUserData = (user) => { ... }
-// const getDisplayName = (user) => { ... }
+// Utility function to safely get user data (handles deleted users)
+const getSafeUserData = (user) => {
+  if (!user || user.isDeleted) {
+    return {
+      _id: null,
+      name: 'Deleted User',
+      username: 'deleted_user',
+      role: 'user',
+      profileImage: null,
+      isDeleted: true
+    };
+  }
+  return user;
+};
+
+// Safe display name function
+const getDisplayName = (user) => {
+  const safeUser = getSafeUserData(user);
+  if (safeUser.isDeleted) return 'Deleted User';
+  return safeUser.username ? `@${safeUser.username}` : safeUser.name || 'Unknown User';
+};
 
 
 const socket = io('http://localhost:5000', {

@@ -966,9 +966,6 @@ export default function EventDetailsPage() {
                           {safeUser.username && safeUser.name && !safeUser.isDeleted && (
                             <span className="text-sm text-gray-600 truncate">{safeUser.name}</span>
                           )}
-                          {safeUser.isDeleted && safeUser.name && (
-                            <span className="text-sm text-gray-500 truncate">{safeUser.name}</span>
-                          )}
                         </div>
                         {isThisUserCreator && (
                           <span className="ml-2 px-2 py-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-white text-xs rounded-full font-bold shadow-sm">Creator</span>
@@ -1155,52 +1152,30 @@ export default function EventDetailsPage() {
               ) : (
                 volunteers
                   .filter(vol => {
-                    const safeVol = getSafeUserData(vol);
-                    const displayName = safeVol.username || safeVol.name || '';
+                    const displayName = vol.username || vol.name || '';
                     return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
                   })
                   .map((vol) => {
-                    const safeVol = getSafeUserData(vol);
-                    const displayName = getDisplayName(safeVol);
-                    const displayText = getUsernameDisplay(safeVol);
-                    const canNavigate = canNavigateToUser(vol);
-                    
+                    const displayName = vol.username || vol.name || 'User';
+                    const displayText = vol.username ? `@${vol.username}` : displayName;
                     return (
                       <div
-                        key={vol._id || safeVol._id}
-                        className={`group relative bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition hover:bg-green-50 ${
-                          safeVol.isDeleted ? 'opacity-75 bg-gray-100' : ''
-                        }`}
+                        key={vol._id}
+                        className="group relative bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition hover:bg-green-50"
                       >
                         <div 
-                          className={`flex items-center flex-1 ${canNavigate ? 'cursor-pointer' : 'cursor-default'}`}
-                          onClick={() => canNavigate && navigate(`/volunteer/${getSafeUserId(vol)}`)}
+                          className="flex items-center flex-1 cursor-pointer"
+                          onClick={() => navigate(`/volunteer/${vol._id}`)}
                         >
-                          {getProfileImageUrl(safeVol) ? (
-                            <img
-                              src={getProfileImageUrl(safeVol)}
-                              alt={getSafeUserName(safeVol)}
-                              className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
-                            />
-                          ) : (
-                            <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-green-400 mr-4 ${getRoleColors(safeVol.role)}`}>
-                              <span className="text-sm font-bold">{getAvatarInitial(safeVol)}</span>
-                            </div>
-                          )}
+                          <img
+                            src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
+                            alt={displayName}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
+                          />
                           <div className="flex flex-col">
-                            <span className={`font-medium text-lg ${
-                              safeVol.isDeleted ? 'text-gray-600' : 'text-green-800'
-                            }`}>
-                              {displayText}
-                              {safeVol.isDeleted && (
-                                <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">Deleted User</span>
-                              )}
-                            </span>
-                            {safeVol.username && safeVol.name && !safeVol.isDeleted && (
-                              <span className="text-sm text-gray-600">{safeVol.name}</span>
-                            )}
-                            {safeVol.isDeleted && safeVol.name && (
-                              <span className="text-sm text-gray-500">{safeVol.name}</span>
+                            <span className="font-medium text-green-800 text-lg">{displayText}</span>
+                            {vol.username && vol.name && (
+                              <span className="text-sm text-gray-600">{vol.name}</span>
                             )}
                           </div>
                         </div>
@@ -1261,53 +1236,31 @@ export default function EventDetailsPage() {
               ) : (
                 bannedVolunteers
                   .filter(vol => {
-                    const safeVol = getSafeUserData(vol);
-                    const displayName = safeVol.username || safeVol.name || '';
+                    const displayName = vol.username || vol.name || '';
                     return displayName.toLowerCase().includes(volunteerSearchTerm.toLowerCase());
                   })
                   .map((vol) => {
-                    const safeVol = getSafeUserData(vol);
-                    const displayName = getDisplayName(safeVol);
-                    const displayText = getUsernameDisplay(safeVol);
-                    const canNavigate = canNavigateToUser(vol);
-                    
+                    const displayName = vol.username || vol.name || 'User';
+                    const displayText = vol.username ? `@${vol.username}` : displayName;
                     return (
                       <div
-                        key={vol._id || safeVol._id}
-                        className={`bg-red-50 rounded-lg shadow p-3 border border-red-200 ${
-                          safeVol.isDeleted ? 'opacity-75 bg-gray-100' : ''
-                        }`}
+                        key={vol._id}
+                        className="bg-red-50 rounded-lg shadow p-3 border border-red-200"
                       >
                         <div 
-                          className={`flex items-center justify-between ${canNavigate ? 'cursor-pointer' : 'cursor-default'}`}
-                          onClick={() => canNavigate && navigate(`/volunteer/${getSafeUserId(vol)}`)}
+                          className="flex items-center justify-between cursor-pointer"
+                          onClick={() => navigate(`/volunteer/${vol._id}`)}
                         >
                           <div className="flex items-center flex-1">
-                            {getProfileImageUrl(safeVol) ? (
-                              <img
-                                src={getProfileImageUrl(safeVol)}
-                                alt={getSafeUserName(safeVol)}
-                                className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
-                              />
-                            ) : (
-                              <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-red-400 mr-4 ${getRoleColors(safeVol.role)}`}>
-                                <span className="text-sm font-bold">{getAvatarInitial(safeVol)}</span>
-                              </div>
-                            )}
+                            <img
+                              src={vol.profileImage ? `http://localhost:5000/uploads/Profiles/${vol.profileImage}` : '/images/default-profile.jpg'}
+                              alt={displayName}
+                              className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
+                            />
                             <div className="flex flex-col">
-                              <span className={`font-medium text-lg ${
-                                safeVol.isDeleted ? 'text-gray-600' : 'text-red-800'
-                              }`}>
-                                {displayText}
-                                {safeVol.isDeleted && (
-                                  <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">Deleted User</span>
-                                )}
-                              </span>
-                              {safeVol.username && safeVol.name && !safeVol.isDeleted && (
-                                <span className="text-sm text-gray-600">{safeVol.name}</span>
-                              )}
-                              {safeVol.isDeleted && safeVol.name && (
-                                <span className="text-sm text-gray-500">{safeVol.name}</span>
+                              <span className="font-medium text-red-800 text-lg">{displayText}</span>
+                              {vol.username && vol.name && (
+                                <span className="text-sm text-gray-600">{vol.name}</span>
                               )}
                             </div>
                           </div>

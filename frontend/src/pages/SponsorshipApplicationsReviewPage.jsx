@@ -413,18 +413,11 @@ export default function SponsorshipApplicationsReviewPage() {
                       <tr key={application._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className={`text-sm font-medium ${
-                              application.sponsor.isDeleted ? 'text-gray-600' : 'text-gray-900'
-                            }`}>
-                              {application.sponsor.name || 'Deleted User'}
-                              {application.sponsor.isDeleted && (
-                                <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">Deleted User</span>
-                              )}
+                            <div className="text-sm font-medium text-gray-900">
+                              {application.sponsor.name}
                             </div>
-                            <div className={`text-sm ${
-                              application.sponsor.isDeleted ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                              {application.sponsor.email || 'N/A'}
+                            <div className="text-sm text-gray-500">
+                              {application.sponsor.email}
                             </div>
                           </div>
                         </td>
@@ -551,30 +544,15 @@ export default function SponsorshipApplicationsReviewPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600">Name</p>
-                        <p className={`font-medium ${
-                          selectedApplication.sponsor.isDeleted ? 'text-gray-600' : 'text-gray-900'
-                        }`}>
-                          {selectedApplication.sponsor.name || 'Deleted User'}
-                          {selectedApplication.sponsor.isDeleted && (
-                            <span className="ml-2 px-2 py-1 bg-gray-500 text-white text-xs rounded-full font-bold">Deleted User</span>
-                          )}
-                        </p>
+                        <p className="font-medium">{selectedApplication.sponsor.name}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Email</p>
-                        <p className={`font-medium ${
-                          selectedApplication.sponsor.isDeleted ? 'text-gray-400' : 'text-gray-900'
-                        }`}>
-                          {selectedApplication.sponsor.email || 'N/A'}
-                        </p>
+                        <p className="font-medium">{selectedApplication.sponsor.email}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Phone</p>
-                        <p className={`font-medium ${
-                          selectedApplication.sponsor.isDeleted ? 'text-gray-400' : 'text-gray-900'
-                        }`}>
-                          {selectedApplication.sponsor.phone || 'N/A'}
-                        </p>
+                        <p className="font-medium">{selectedApplication.sponsor.phone}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Type</p>

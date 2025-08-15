@@ -296,7 +296,7 @@ exports.updateAttendance = async (req, res) => {
     const creatorId = event.organizerTeam?.[0]?.user?.toString?.() || event.createdBy?.toString?.();
     const isCreator = req.user._id.toString() === creatorId;
     // Check if user is in organizerTeam
-    const isOrganizer = event.organizerTeam.some(obj => obj.user?.toString() === req.user._id.toString());
+    const isOrganizer = event.organizerTeam.some(obj => obj.user.toString() === req.user._id.toString());
     // If not an organizer, deny
     if (!isOrganizer) {
       return res.status(403).json({ message: 'Only organizers can mark attendance.' });
@@ -305,7 +305,7 @@ exports.updateAttendance = async (req, res) => {
     if (!isCreator) {
       // Check if the registration is for a volunteer (not an organizer)
       // A volunteer registration will not have their userId in organizerTeam
-      const isForOrganizer = event.organizerTeam.some(obj => obj.user?.toString() === registration.volunteerId?.toString());
+      const isForOrganizer = event.organizerTeam.some(obj => obj.user.toString() === registration.volunteerId.toString());
       if (isForOrganizer) {
         return res.status(403).json({ message: 'Only the event creator can mark attendance for organizers.' });
       }
@@ -361,7 +361,7 @@ exports.getVolunteersForEvent = async (req, res) => {
     // Get the event and its organizerTeam
     const Event = require('../models/event');
     const event = await Event.findById(eventId);
-    const organizerTeamIds = event ? event.organizerTeam.map(obj => obj.user?.toString()).filter(Boolean) : [];
+    const organizerTeamIds = event ? event.organizerTeam.map(obj => obj.user.toString()) : [];
     
     // Get removed and banned volunteer IDs
     const removedVolunteerIds = event?.removedVolunteers?.map(id => id.toString()) || [];
@@ -370,13 +370,7 @@ exports.getVolunteersForEvent = async (req, res) => {
     // Return user details and attendance, excluding removed and banned volunteers
     const volunteers = registrations
       .filter(r => {
-        // For deleted users, use volunteerInfo.userId
-        const volunteerId = r.isUserDeleted && r.volunteerInfo ? 
-          r.volunteerInfo.userId.toString() : 
-          (r.volunteerId ? r.volunteerId.toString() : null);
-        
-        if (!volunteerId) return false;
-        
+        const volunteerId = r.volunteerId.toString();
         return !organizerTeamIds.includes(volunteerId) && 
                !removedVolunteerIds.includes(volunteerId) && 
                !bannedVolunteerIds.includes(volunteerId);
@@ -429,8 +423,7 @@ exports.getVolunteersForEvent = async (req, res) => {
       });
     res.json(volunteers);
   } catch (err) {
-    console.error('Error in getVolunteersForEvent:', err);
-    res.status(500).json({ message: 'Server error fetching volunteers', error: err.message });
+    res.status(500).json({ message: 'Server error fetching volunteers', error: err });
   }
 };
 
@@ -782,7 +775,7 @@ exports.getAttendanceStats = async (req, res) => {
     const registrations = await Registration.find({ eventId }).populate('volunteerId', 'name username email phone profileImage role');
     
     // Get organizer team IDs
-    const organizerTeamIds = event.organizerTeam.map(obj => obj.user?.toString()).filter(Boolean);
+    const organizerTeamIds = event.organizerTeam.map(obj => obj.user.toString());
     
     // Get removed and banned volunteer IDs
     const removedVolunteerIds = event?.removedVolunteers?.map(id => id.toString()) || [];
@@ -790,13 +783,7 @@ exports.getAttendanceStats = async (req, res) => {
     
     // Filter out organizers, removed, and banned volunteers
     const volunteerRegistrations = registrations.filter(r => {
-      // For deleted users, use volunteerInfo.userId
-      const volunteerId = r.isUserDeleted && r.volunteerInfo ? 
-        r.volunteerInfo.userId.toString() : 
-        (r.volunteerId ? r.volunteerId.toString() : null);
-      
-      if (!volunteerId) return false;
-      
+      const volunteerId = r.volunteerId.toString();
       return !organizerTeamIds.includes(volunteerId) && 
              !removedVolunteerIds.includes(volunteerId) && 
              !bannedVolunteerIds.includes(volunteerId);
