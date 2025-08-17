@@ -2,14 +2,23 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import {
   Box,
   TextField,
   Button,
   Typography,
   MenuItem,
-  Divider
+  CircularProgress,
+  Grid,
+  Paper,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent
 } from '@mui/material';
+import { ChevronRightIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 
 const FOCUS_AREAS = [
   'Environment',
@@ -21,18 +30,33 @@ const FOCUS_AREAS = [
   'Other'
 ];
 
-function getFilePreview(file) {
-  if (!file) return null;
-  if (file.type.startsWith('image/')) {
-    return <img src={URL.createObjectURL(file)} alt="preview" style={{ maxWidth: 120, maxHeight: 120, marginTop: 8, borderRadius: 8 }} />;
+const steps = [
+  {
+    label: 'Basic Information',
+    description: 'Organization details and focus area'
+  },
+  {
+    label: 'Contact & Location',
+    description: 'Location and contact information'
+  },
+  {
+    label: 'Vision & Social',
+    description: 'Mission statement and social links'
+  },
+  {
+    label: 'Documents',
+    description: 'Required certificates and documents'
+  },
+  {
+    label: 'Review & Submit',
+    description: 'Review all information and submit'
   }
-  if (file.type === 'application/pdf') {
-    return <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{file.name}</Typography>;
-  }
-  return <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>{file.name}</Typography>;
-}
+];
 
 export default function OrganizationForm() {
+  const navigate = useNavigate();
+  const [activeStep, setActiveStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -43,7 +67,7 @@ export default function OrganizationForm() {
     visionMission: '',
     orgPhone: '',
     yearOfEstablishment: '',
-    focusArea: '',
+    focusArea: 'Environment', // Set default value
     focusAreaOther: '',
   });
   const [files, setFiles] = useState({
@@ -80,8 +104,52 @@ export default function OrganizationForm() {
     }));
   };
 
+  // Validation function to check if all required fields are filled
+  const isFormValid = () => {
+    const requiredFields = {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      headOfficeLocation: formData.headOfficeLocation.trim(),
+      orgEmail: formData.orgEmail.trim(),
+      visionMission: formData.visionMission.trim(),
+      orgPhone: formData.orgPhone.trim(),
+      yearOfEstablishment: formData.yearOfEstablishment.trim(),
+      focusArea: formData.focusArea
+    };
+
+    // Check if focusArea is 'Other', then focusAreaOther is also required
+    if (formData.focusArea === 'Other') {
+      requiredFields.focusAreaOther = formData.focusAreaOther.trim();
+    }
+
+    // Check if all required fields have values
+    return Object.values(requiredFields).every(value => value && value.length > 0);
+  };
+
+  const handleNext = () => {
+    // Check if current step has required fields filled before allowing next
+    if (activeStep === 3 && !isFormValid()) {
+      toast.error('Please fill all required fields before reviewing your organization details.', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      return;
+    }
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
     try {
       const token = localStorage.getItem('token');
       const data = new FormData();
@@ -95,6 +163,7 @@ export default function OrganizationForm() {
       Object.entries(files).forEach(([key, file]) => {
         if (file) data.append(key, file);
       });
+      
       const response = await axios.post('/api/organizations/register', data, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -102,14 +171,643 @@ export default function OrganizationForm() {
         },
         withCredentials: true
       });
-      alert('Organization registered successfully!');
+      
+      // Show success toast
+      toast.success('Organization created successfully! Redirecting...', {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+      
+      // Organization created successfully, redirect to your-organizations
+      setTimeout(() => {
+        navigate('/your-organizations');
+      }, 1500); // Small delay to show the success message
+      
     } catch (err) {
       if (err.response && err.response.status === 409) {
-        alert('An organization with this name already exists. Please choose a different name.');
+        toast.error('An organization with this name already exists. Please choose a different name.', {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       } else {
-        alert('Failed to register organization. Please check your network or try again.');
+        toast.error('Failed to register organization. Please check your network or try again.', {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
       }
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0:
+  return (
+          <div className="space-y-6">
+            {/* Basic Information Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                Basic Information
+              </h3>
+              <div className="space-y-4">
+                {/* First row: Organization Name and Year of Establishment */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name *</label>
+      <TextField
+        name="name"
+        value={formData.name}
+        onChange={handleChange}
+        required
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="Enter your organization name"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+      />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Year of Establishment *</label>
+      <TextField
+                      name="yearOfEstablishment"
+                      value={formData.yearOfEstablishment}
+        onChange={handleChange}
+                      type="number"
+        required
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="e.g., 2020"
+                      inputProps={{ 
+                        min: "1900", 
+                        max: new Date().getFullYear().toString() 
+                      }}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Second row: Website URL and Focus Area */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Website URL (optional)</label>
+      <TextField
+        name="website"
+        value={formData.website}
+        onChange={handleChange}
+        type="url"
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="https://www.yourorganization.com"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Focus Area *</label>
+                    <TextField
+                      name="focusArea"
+                      select
+                      value={formData.focusArea}
+                      onChange={handleChange}
+                      required
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    >
+                      {FOCUS_AREAS.map((area) => (
+                        <MenuItem key={area} value={area}>{area}</MenuItem>
+                      ))}
+                    </TextField>
+                  </div>
+                </div>
+                
+                {/* Conditional field for Other Focus Area */}
+                {formData.focusArea === 'Other' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Please specify Focus Area *</label>
+                    <TextField
+                      name="focusAreaOther"
+                      value={formData.focusAreaOther}
+                      onChange={handleChange}
+                      required
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="Enter your specific focus area"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Description Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Description
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Brief Description *</label>
+                <TextField
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  multiline
+                  rows={4}
+                  required
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  placeholder="Describe your organization's mission, goals, and the impact you aim to create..."
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 1:
+        return (
+          <div className="space-y-6">
+            {/* Location Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                Location Information
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Head Office Location *</label>
+      <TextField
+        name="headOfficeLocation"
+        value={formData.headOfficeLocation}
+        onChange={handleChange}
+        required
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  placeholder="Enter the complete address of your organization"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                />
+              </div>
+            </div>
+            
+            {/* Contact Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                Contact Details
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Organization Email *</label>
+      <TextField
+        name="orgEmail"
+        value={formData.orgEmail}
+        onChange={handleChange}
+        type="email"
+        required
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="contact@organization.com"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+      />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Organization Phone *</label>
+      <TextField
+        name="orgPhone"
+        value={formData.orgPhone}
+        onChange={handleChange}
+        type="tel"
+        required
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="+91 98765 43210"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
+            {/* Vision & Mission Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                Vision & Mission
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vision & Mission Statement *</label>
+      <TextField
+        name="visionMission"
+        value={formData.visionMission}
+        onChange={handleChange}
+        multiline
+                  rows={4}
+        required
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  placeholder="Describe your organization's vision, mission, and long-term goals..."
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                />
+              </div>
+            </div>
+            
+      {/* Social Links Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-pink-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 0h10m-10 0a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V6a2 2 0 00-2-2" />
+                  </svg>
+                </div>
+                Social Media Links
+              </h3>
+              <div className="space-y-4">
+      {formData.socialLinks.map((link, index) => (
+                  <div key={index}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Social Link #{index + 1} {index === 0 ? '(optional)' : ''}
+                    </label>
+        <TextField
+          value={link}
+          onChange={(e) => handleSocialLinkChange(index, e.target.value)}
+          type="url"
+                      fullWidth
+                      variant="outlined"
+                      size="small"
+                      placeholder="https://example.com/profile"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+                    />
+                  </div>
+                ))}
+                
+                <div className="pt-2">
+                  <Button 
+                    onClick={addSocialLink} 
+                    variant="outlined" 
+                    color="info" 
+                    size="small"
+                    sx={{ 
+                      borderRadius: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: 0.5,
+                      px: 2
+                    }}
+                  >
+        + Add Another Link
+      </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+      {/* Documents Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-6 h-6 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Required Documents
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Logo Upload */}
+                <div className="text-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Organization Logo</label>
+          <Button
+            variant="outlined"
+            component="label"
+                    size="small"
+                    sx={{ 
+                      width: '100%', 
+                      py: 2, 
+                      borderRadius: 1.5,
+                      borderStyle: 'dashed',
+                      borderWidth: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      minHeight: '60px'
+                    }}
+                  >
+            <input
+              type="file"
+              name="logo"
+              accept="image/*,application/pdf"
+              hidden
+              onChange={handleFileChange}
+            />
+                    {files.logo ? `${files.logo.name} ✓` : 'Upload Logo (Image/PDF)'}
+          </Button>
+                  {/* {getFilePreview(files.logo)} */}
+                </div>
+                
+                {/* GST Certificate */}
+                <div className="text-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">GST Certificate</label>
+          <Button
+            variant="outlined"
+            component="label"
+                    size="small"
+                    sx={{ 
+                      width: '100%', 
+                      py: 2, 
+                      borderRadius: 1.5,
+                      borderStyle: 'dashed',
+                      borderWidth: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      minHeight: '60px'
+                    }}
+                  >
+            <input
+              type="file"
+              name="gstCertificate"
+              accept="image/*,application/pdf"
+              hidden
+              onChange={handleFileChange}
+            />
+                    {files.gstCertificate ? `${files.gstCertificate.name} ✓` : 'GST Certificate (Image/PDF)'}
+          </Button>
+                  {/* {getFilePreview(files.gstCertificate)} */}
+                </div>
+                
+                {/* PAN Card */}
+                <div className="text-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">PAN Card</label>
+          <Button
+            variant="outlined"
+            component="label"
+                    size="small"
+                    sx={{ 
+                      width: '100%', 
+                      py: 2, 
+                      borderRadius: 1.5,
+                      borderStyle: 'dashed',
+                      borderWidth: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      minHeight: '60px'
+                    }}
+                  >
+            <input
+              type="file"
+              name="panCard"
+              accept="image/*,application/pdf"
+              hidden
+              onChange={handleFileChange}
+            />
+                    {files.panCard ? `${files.panCard.name} ✓` : 'PAN Card (Image/PDF)'}
+          </Button>
+                  {/* {getFilePreview(files.panCard)} */}
+                </div>
+                
+                {/* NGO Registration */}
+                <div className="text-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">NGO Registration</label>
+          <Button
+            variant="outlined"
+            component="label"
+                    size="small"
+                    sx={{ 
+                      width: '100%', 
+                      py: 2, 
+                      borderRadius: 1.5,
+                      borderStyle: 'dashed',
+                      borderWidth: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      minHeight: '60px'
+                    }}
+                  >
+            <input
+              type="file"
+              name="ngoRegistration"
+              accept="image/*,application/pdf"
+              hidden
+              onChange={handleFileChange}
+            />
+                    {files.ngoRegistration ? `${files.ngoRegistration.name} ✓` : 'NGO Registration Certificate (Image/PDF)'}
+          </Button>
+                  {/* {getFilePreview(files.ngoRegistration)} */}
+                </div>
+                
+                {/* Letter of Intent */}
+                <div className="text-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Letter of Intent</label>
+          <Button
+            variant="outlined"
+            component="label"
+                    size="small"
+                    sx={{ 
+                      width: '100%', 
+                      py: 2, 
+                      borderRadius: 1.5,
+                      borderStyle: 'dashed',
+                      borderWidth: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      minHeight: '60px'
+                    }}
+                  >
+            <input
+              type="file"
+              name="letterOfIntent"
+              accept="image/*,application/pdf"
+              hidden
+              onChange={handleFileChange}
+            />
+                    {files.letterOfIntent ? `${files.letterOfIntent.name} ✓` : 'Letter of Intent (Image/PDF)'}
+          </Button>
+                  {/* {getFilePreview(files.letterOfIntent)} */}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            {/* Review Header */}
+            <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
+              <h3 className="text-lg font-semibold text-blue-900 mb-2 flex items-center">
+                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                Review Your Organization Details
+              </h3>
+              <p className="text-blue-700 text-sm">
+                Please review all the information below before submitting. You can go back to any step to make changes.
+              </p>
+            </div>
+            
+            {/* Basic Information Review */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-5 h-5 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                Basic Information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Organization Name:</span>
+                  <p className="text-gray-900 font-medium">{formData.name || 'Not provided'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Year of Establishment:</span>
+                  <p className="text-gray-900 font-medium">{formData.yearOfEstablishment || 'Not provided'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Focus Area:</span>
+                  <p className="text-gray-900 font-medium">{formData.focusArea || 'Not provided'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Website:</span>
+                  <p className="text-gray-900 font-medium">{formData.website || 'Not provided'}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Contact Information Review */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-5 h-5 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                Contact Information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Head Office Location:</span>
+                  <p className="text-gray-900 font-medium">{formData.headOfficeLocation || 'Not provided'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Organization Email:</span>
+                  <p className="text-gray-900 font-medium">{formData.orgEmail || 'Not provided'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Organization Phone:</span>
+                  <p className="text-gray-900 font-medium">{formData.orgPhone || 'Not provided'}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Description & Vision Review */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-5 h-5 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Description & Vision
+              </h4>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Brief Description:</span>
+                  <p className="text-gray-900 mt-1">{formData.description || 'Not provided'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Vision & Mission Statement:</span>
+                  <p className="text-gray-900 mt-1">{formData.visionMission || 'Not provided'}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Documents Review */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                <div className="w-5 h-5 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-3 h-3 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                Documents
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { key: 'logo', label: 'Organization Logo' },
+                  { key: 'gstCertificate', label: 'GST Certificate' },
+                  { key: 'panCard', label: 'PAN Card' },
+                  { key: 'ngoRegistration', label: 'NGO Registration' },
+                  { key: 'letterOfIntent', label: 'Letter of Intent' }
+                ].map((doc) => (
+                  <div key={doc.key} className="text-center p-3 bg-gray-50 rounded-lg">
+                    <div className="text-sm font-medium text-gray-700 mb-1">{doc.label}</div>
+                    <div className={`text-xs px-2 py-1 rounded-full ${files[doc.key] ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {files[doc.key] ? '✓ Uploaded' : 'Pending'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
     }
   };
 
@@ -118,229 +816,98 @@ export default function OrganizationForm() {
       component="form"
       onSubmit={handleSubmit}
       sx={{
-        maxWidth: 600,
+        width: '100%',
+        maxWidth: '1000px', // Adjusted for card-based layout
         mx: 'auto',
-        p: 4,
-        backgroundColor: 'white',
-        borderRadius: 2,
-        boxShadow: 3,
         display: 'flex',
         flexDirection: 'column',
-        gap: 2
+        gap: 3,
+        pb: 6, // Add bottom padding
+        mb: 4  // Add bottom margin
       }}
       encType="multipart/form-data"
     >
-      <Typography variant="h5" fontWeight="bold" color="primary" mb={1}>
-        Register New Organization
-      </Typography>
-      <Divider sx={{ mb: 2 }} />
+      {/* Progress Stepper */}
+      <Paper elevation={0} sx={{ p: 3, backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)' }}>
+        <Stepper activeStep={activeStep} orientation="horizontal">
+          {steps.map((step, index) => (
+            <Step key={step.label}>
+              <StepLabel>
+                <Typography variant="body2" fontWeight={activeStep === index ? 600 : 400}>
+                  {step.label}
+                </Typography>
+              </StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+      </Paper>
 
-      {/* Basic Info Section */}
-      <Typography variant="subtitle1" fontWeight="bold">Basic Information</Typography>
-      <TextField
-        label="Organization Name"
-        name="name"
-        value={formData.name}
-        onChange={handleChange}
-        required
-      />
-      <TextField
-        label="Brief Description"
-        name="description"
-        value={formData.description}
-        onChange={handleChange}
-        multiline
-        rows={3}
-        required
-      />
-      <TextField
-        label="Website URL (optional)"
-        name="website"
-        value={formData.website}
-        onChange={handleChange}
-        type="url"
-      />
-
-      <Divider sx={{ my: 2 }} />
-      {/* Contact Section */}
-      <Typography variant="subtitle1" fontWeight="bold">Contact & Details</Typography>
-      <TextField
-        label="Head Office Location"
-        name="headOfficeLocation"
-        value={formData.headOfficeLocation}
-        onChange={handleChange}
-        required
-      />
-      <TextField
-        label="Organization Email"
-        name="orgEmail"
-        value={formData.orgEmail}
-        onChange={handleChange}
-        type="email"
-        required
-      />
-      <TextField
-        label="Organization Phone"
-        name="orgPhone"
-        value={formData.orgPhone}
-        onChange={handleChange}
-        type="tel"
-        required
-      />
-      <TextField
-        label="Year of Establishment"
-        name="yearOfEstablishment"
-        value={formData.yearOfEstablishment}
-        onChange={handleChange}
-        type="number"
-        required
-      />
-
-      <Divider sx={{ my: 2 }} />
-      {/* Vision & Focus Area Section */}
-      <Typography variant="subtitle1" fontWeight="bold">Vision & Focus Area</Typography>
-      <TextField
-        label="Vision & Mission"
-        name="visionMission"
-        value={formData.visionMission}
-        onChange={handleChange}
-        multiline
-        rows={3}
-        required
-      />
-      <TextField
-        select
-        label="Focus Area"
-        name="focusArea"
-        value={formData.focusArea}
-        onChange={handleChange}
-        required
-      >
-        {FOCUS_AREAS.map((area) => (
-          <MenuItem key={area} value={area}>{area}</MenuItem>
-        ))}
-      </TextField>
-      {formData.focusArea === 'Other' && (
-        <TextField
-          label="Please specify Focus Area"
-          name="focusAreaOther"
-          value={formData.focusAreaOther}
-          onChange={handleChange}
-          required
-        />
-      )}
-
-      <Divider sx={{ my: 2 }} />
-      {/* Social Links Section */}
-      <Typography variant="subtitle1" fontWeight="bold">Social Media Links</Typography>
-      {formData.socialLinks.map((link, index) => (
-        <TextField
-          key={index}
-          label={`Link #${index + 1}`}
-          value={link}
-          onChange={(e) => handleSocialLinkChange(index, e.target.value)}
-          type="url"
-          sx={{ mb: 1 }}
-        />
-      ))}
-      <Button onClick={addSocialLink} variant="text" color="primary" sx={{ width: 'fit-content', mb: 2 }}>
-        + Add Another Link
-      </Button>
-
-      <Divider sx={{ my: 2 }} />
-      {/* Documents Section */}
-      <Typography variant="subtitle1" fontWeight="bold">Upload Documents</Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box>
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ textAlign: 'left', justifyContent: 'flex-start', width: '100%' }}
-          >
-            Upload Logo (Image/PDF)
-            <input
-              type="file"
-              name="logo"
-              accept="image/*,application/pdf"
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-          {getFilePreview(files.logo)}
-        </Box>
-        <Box>
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ textAlign: 'left', justifyContent: 'flex-start', width: '100%' }}
-          >
-            GST Certificate (Image/PDF)
-            <input
-              type="file"
-              name="gstCertificate"
-              accept="image/*,application/pdf"
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-          {getFilePreview(files.gstCertificate)}
-        </Box>
-        <Box>
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ textAlign: 'left', justifyContent: 'flex-start', width: '100%' }}
-          >
-            PAN Card (Image/PDF)
-            <input
-              type="file"
-              name="panCard"
-              accept="image/*,application/pdf"
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-          {getFilePreview(files.panCard)}
-        </Box>
-        <Box>
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ textAlign: 'left', justifyContent: 'flex-start', width: '100%' }}
-          >
-            NGO Registration Certificate (Image/PDF)
-            <input
-              type="file"
-              name="ngoRegistration"
-              accept="image/*,application/pdf"
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-          {getFilePreview(files.ngoRegistration)}
-        </Box>
-        <Box>
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ textAlign: 'left', justifyContent: 'flex-start', width: '100%' }}
-          >
-            Letter of Intent (Image/PDF)
-            <input
-              type="file"
-              name="letterOfIntent"
-              accept="image/*,application/pdf"
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-          {getFilePreview(files.letterOfIntent)}
-        </Box>
+      {/* Step Content */}
+      <Paper elevation={0} sx={{ p: 3, backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)' }}>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+            {steps[activeStep].label}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {steps[activeStep].description}
+          </Typography>
       </Box>
 
-      <Button type="submit" variant="contained" color="primary" sx={{ mt: 3 }}>
-        Submit
+        {renderStepContent(activeStep)}
+      </Paper>
+
+      {/* Navigation Buttons */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Button
+          disabled={activeStep === 0}
+          onClick={handleBack}
+          variant="outlined"
+          startIcon={<ChevronLeftIcon className="w-4 h-4" />}
+          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+        >
+          Back
+        </Button>
+        
+        <Box>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !isFormValid()}
+              startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+              sx={{ 
+                borderRadius: 2, 
+                textTransform: 'none', 
+                fontWeight: 600,
+                px: 4,
+                py: 1.5
+              }}
+            >
+              {isSubmitting ? 'Creating Organization...' : 'Create Organization'}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleNext}
+              endIcon={<ChevronRightIcon className="w-4 h-4" />}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+            >
+              Next
       </Button>
+          )}
+          {activeStep === steps.length - 1 && !isFormValid() && (
+            <Typography 
+              variant="caption" 
+              color="error" 
+              sx={{ mt: 1, display: 'block', textAlign: 'center' }}
+            >
+              Please fill all required fields to submit
+            </Typography>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 }

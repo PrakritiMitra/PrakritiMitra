@@ -227,14 +227,26 @@ const TimeSlotBuilder = ({
           {!unlimitedVolunteers && (
             <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
               <Typography variant="subtitle2" gutterBottom>
-                Volunteer Allocation
+                Volunteer Allocation Status
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Chip 
                   label={`Remaining: ${remainingVolunteers} volunteers`}
-                  color={remainingVolunteers < 0 ? 'error' : remainingVolunteers < 10 ? 'warning' : 'success'}
+                  color={remainingVolunteers < 0 ? 'error' : remainingVolunteers === 0 ? 'success' : remainingVolunteers < 10 ? 'warning' : 'success'}
                   variant="outlined"
                 />
+                {remainingVolunteers === 0 && (
+                  <Chip 
+                    label="All volunteers allocated! ✓" 
+                    color="success" 
+                    variant="filled"
+                  />
+                )}
+                {remainingVolunteers < 0 && (
+                  <Typography variant="body2" color="error">
+                    Over-allocated by {Math.abs(remainingVolunteers)} volunteers
+                  </Typography>
+                )}
                 {allocationError && (
                   <Typography variant="body2" color="error">
                     {allocationError}
@@ -259,16 +271,16 @@ const TimeSlotBuilder = ({
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-                    {slot.existing ? 'Existing ' : 'New '}Time Slot {slotIndex + 1}
+                    {slot.name || `Time Slot ${slotIndex + 1}`}
                   </Typography>
-                  {slot.existing && (
-                    <Chip 
-                      label="Read Only" 
-                      color="default" 
-                      size="small" 
-                      variant="outlined"
-                    />
-                  )}
+                  
+                  {/* Time Range Display */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {slot.startTime} - {slot.endTime}
+                    </Typography>
+                  </Box>
+                  
                   {!slot.existing && (
                     <IconButton 
                       onClick={() => removeTimeSlot(slot.id)}
@@ -280,147 +292,193 @@ const TimeSlotBuilder = ({
                   )}
                 </Box>
 
-                <Grid container spacing={2} sx={{ mb: 2 }}>
-                  <Grid item xs={12} sm={3}>
-                    <TextField
-                      fullWidth
-                      label="Slot Name"
-                      value={slot.name}
-                      onChange={(e) => updateTimeSlot(slot.id, 'name', e.target.value)}
-                      placeholder="e.g., Morning"
+                {/* Time Slot Fields */}
+                <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                  <TextField
+                    label="Slot Name"
+                    value={slot.name}
+                    onChange={(e) => updateTimeSlot(slot.id, 'name', e.target.value)}
+                    sx={{ flexGrow: 1 }}
+                    placeholder="e.g., Morning, Afternoon"
+                    disabled={slot.existing && readOnly}
+                  />
+                  <FormControl sx={{ minWidth: 120 }}>
+                    <InputLabel>Start Time</InputLabel>
+                    <Select
+                      value={slot.startTime}
+                      onChange={(e) => updateTimeSlot(slot.id, 'startTime', e.target.value)}
+                      label="Start Time"
                       disabled={slot.existing && readOnly}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={3}>
-                    <FormControl fullWidth>
-                      <InputLabel>Start Time</InputLabel>
-                      <Select
-                        value={slot.startTime}
-                        onChange={(e) => updateTimeSlot(slot.id, 'startTime', e.target.value)}
-                        label="Start Time"
-                        disabled={slot.existing && readOnly}
-                      >
-                        {timeIntervals.map((time) => (
-                          <MenuItem key={time} value={time}>
-                            {time}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={3}>
-                    <FormControl fullWidth>
-                      <InputLabel>End Time</InputLabel>
-                      <Select
-                        value={slot.endTime}
-                        onChange={(e) => updateTimeSlot(slot.id, 'endTime', e.target.value)}
-                        label="End Time"
-                        disabled={slot.existing && readOnly}
-                      >
-                        {timeIntervals.map((time) => (
-                          <MenuItem key={time} value={time}>
-                            {time}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={3}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<AddIcon />}
-                      onClick={() => addCategory(slot.id)}
-                      fullWidth
                     >
-                      Add Category
-                    </Button>
-                  </Grid>
-                </Grid>
+                      {timeIntervals.map((time) => (
+                        <MenuItem key={time} value={time}>{time}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl sx={{ minWidth: 120 }}>
+                    <InputLabel>End Time</InputLabel>
+                    <Select
+                      value={slot.endTime}
+                      onChange={(e) => updateTimeSlot(slot.id, 'endTime', e.target.value)}
+                      label="End Time"
+                      disabled={slot.existing && readOnly}
+                    >
+                      {timeIntervals.map((time) => (
+                        <MenuItem key={time} value={time}>{time}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
 
-                <Typography variant="subtitle2" gutterBottom>
-                  Categories ({slot.categories.length})
-                </Typography>
-
-                {slot.categories.map((category, catIndex) => (
-                  <Box key={category.id} sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    mb: 1,
-                    p: 1,
-                    bgcolor: category.existing ? 'grey.100' : 'white',
-                    borderRadius: 1,
-                    border: category.existing ? '1px solid #e0e0e0' : 'none'
-                  }}>
-                    <TextField
-                      label="Category Name"
-                      value={category.name}
-                      onChange={(e) => updateCategory(slot.id, category.id, 'name', e.target.value)}
-                      sx={{ flexGrow: 1, mr: 1 }}
-                      placeholder="e.g., Cleanup"
-                      disabled={category.existing && readOnly}
-                    />
-                    <TextField
-                      label="Max Volunteers"
-                      type="number"
-                      value={category.maxVolunteers || ''}
-                      onChange={(e) => {
-                        const value = e.target.value === '' ? null : parseInt(e.target.value);
-                        updateCategory(slot.id, category.id, 'maxVolunteers', value);
-                      }}
-                      onFocus={() => {
-                        if (setEditingCategory) {
-                          setEditingCategory({ slotId: slot.id, categoryId: category.id });
-                        }
-                      }}
-                      onBlur={() => {
-                        clearEditingState();
-                      }}
-                      sx={{ width: 150, mr: 1 }}
-                      placeholder="Unlimited"
-                      inputProps={{ 
-                        min: 1,
-                        max: unlimitedVolunteers ? undefined : remainingVolunteers
-                      }}
-                      helperText={
-                        !unlimitedVolunteers && remainingVolunteers < Infinity
-                          ? `Max available: ${remainingVolunteers}`
-                          : "Unlimited"
-                      }
-                      error={
-                        !unlimitedVolunteers && 
-                        category.maxVolunteers && 
-                        category.maxVolunteers > remainingVolunteers &&
-                        !(editingCategory && 
-                          editingCategory.slotId === slot.id && 
-                          editingCategory.categoryId === category.id)
-                      }
-                      disabled={category.existing && readOnly}
-                    />
-                    {!category.existing && (
-                      <IconButton 
-                        onClick={() => removeCategory(slot.id, category.id)}
-                        color="error"
+                {/* Categories Section */}
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle2">
+                      Categories ({slot.categories.length})
+                    </Typography>
+                    {!readOnly && (
+                      <Button
                         size="small"
+                        startIcon={<AddIcon />}
+                        onClick={() => addCategory(slot.id)}
+                        disabled={!unlimitedVolunteers && remainingVolunteers <= 0}
                       >
-                        <DeleteIcon />
-                      </IconButton>
-                    )}
-                    {category.existing && readOnly && (
-                      <Chip 
-                        label="Read Only" 
-                        color="default" 
-                        size="small" 
-                        variant="outlined"
-                      />
+                        Add Category
+                      </Button>
                     )}
                   </Box>
-                ))}
+                  
+                  {/* Allocation Guidance */}
+                  {!unlimitedVolunteers && remainingVolunteers === 0 && (
+                    <Box sx={{ mb: 2, p: 1.5, bgcolor: 'success.light', borderRadius: 1 }}>
+                      <Typography variant="caption" color="success.contrastText">
+                        ✓ All volunteers allocated! No more categories can be added.
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  {!unlimitedVolunteers && remainingVolunteers < 0 && (
+                    <Box sx={{ mb: 2, p: 1.5, bgcolor: 'error.light', borderRadius: 1 }}>
+                      <Typography variant="caption" color="error.contrastText">
+                        ⚠️ Over-allocated! Reduce volunteers in some categories before adding new ones.
+                      </Typography>
+                    </Box>
+                  )}
 
-                {slot.categories.length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    No categories added yet. Click "Add Category" to get started.
-                  </Typography>
-                )}
+                  {slot.categories.map((category, catIndex) => (
+                    <Box key={category.id} sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      mb: 1,
+                      p: 1,
+                      bgcolor: category.existing ? 'grey.100' : 'white',
+                      borderRadius: 1,
+                      border: category.existing ? '1px solid #e0e0e0' : 'none'
+                    }}>
+                      <TextField
+                        label="Category Name"
+                        value={category.name}
+                        onChange={(e) => updateCategory(slot.id, category.id, 'name', e.target.value)}
+                        sx={{ flexGrow: 1, mr: 1 }}
+                        placeholder="e.g., Cleanup"
+                        disabled={category.existing && readOnly}
+                      />
+                       <TextField
+                         label="Max Volunteers"
+                         type="number"
+                         value={category.maxVolunteers || ''}
+                         onChange={(e) => {
+                           const value = e.target.value === '' ? null : parseInt(e.target.value);
+                           updateCategory(slot.id, category.id, 'maxVolunteers', value);
+                         }}
+                         onFocus={() => {
+                           if (setEditingCategory) {
+                             setEditingCategory({ slotId: slot.id, categoryId: category.id });
+                           }
+                         }}
+                         onBlur={() => {
+                           clearEditingState();
+                         }}
+                         sx={{ width: 150, mr: 1 }}
+                         placeholder="Unlimited"
+                         inputProps={{ 
+                           min: 1,
+                           max: unlimitedVolunteers ? undefined : undefined
+                         }}
+                         error={
+                           !unlimitedVolunteers && 
+                           category.maxVolunteers && 
+                           remainingVolunteers < 0 &&
+                           !(editingCategory && 
+                             editingCategory.slotId === slot.id && 
+                             editingCategory.categoryId === category.id)
+                         }
+                         disabled={category.existing && readOnly}
+                       />
+                      
+                      {/* Category Status Indicator */}
+                      {!unlimitedVolunteers && (
+                        <Box sx={{ ml: 1, display: 'flex', alignItems: 'center' }}>
+                          {category.maxVolunteers ? (
+                            <Chip 
+                              label={`${category.maxVolunteers} allocated`}
+                              color="primary"
+                              size="small"
+                              variant="outlined"
+                              sx={{ mr: 1 }}
+                            />
+                          ) : null}
+                          {remainingVolunteers === 0 ? (
+                            <Chip 
+                              label="No volunteers left"
+                              color="success"
+                              size="small"
+                              variant="outlined"
+                            />
+                          ) : remainingVolunteers > 0 ? (
+                            <Chip 
+                              label={`${remainingVolunteers} remaining`}
+                              color={remainingVolunteers < 10 ? 'warning' : 'default'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip 
+                              label={`Over by ${Math.abs(remainingVolunteers)}`}
+                              color="error"
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                        </Box>
+                      )}
+                      
+                      {!category.existing && (
+                        <IconButton 
+                          onClick={() => removeCategory(slot.id, category.id)}
+                          color="error"
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      )}
+                      {category.existing && readOnly && (
+                        <Chip 
+                          label="Read Only" 
+                          color="default" 
+                          size="small" 
+                          variant="outlined"
+                        />
+                      )}
+                    </Box>
+                  ))}
+
+                  {slot.categories.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No categories added yet. Click "Add Category" to get started.
+                    </Typography>
+                  )}
+                </Box>
               </CardContent>
             </Card>
           ))}

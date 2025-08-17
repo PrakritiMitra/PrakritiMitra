@@ -77,10 +77,6 @@ export default function EventCreationWrapper({
     }
   };
 
-  const handleImageUpdate = (images) => {
-    setFormData((prev) => ({ ...prev, eventImages: images }));
-  };
-
   const handleLetterUpdate = (file) => {
     setFormData((prev) => ({ ...prev, govtApprovalLetter: file }));
   };
@@ -94,14 +90,6 @@ export default function EventCreationWrapper({
   };
 
   const handleSubmit = async () => {
-    // Debug: ensure click reaches here
-    // Using console logs instead of alerts for unobtrusive debugging
-    console.log("[EventCreationWrapper] handleSubmit called", {
-      step,
-      hasTimeSlots: !!(formData.timeSlots && formData.timeSlots.length),
-      timeSlotsEnabled: formData.timeSlotsEnabled,
-      unlimitedVolunteers: formData.unlimitedVolunteers,
-    });
     // Validate volunteer allocation if time slots are enabled
     if (formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && !formData.unlimitedVolunteers) {
       const eventMax = parseInt(formData.maxVolunteers) || 0;
@@ -170,16 +158,13 @@ export default function EventCreationWrapper({
       const isUpdating = Boolean(isEdit && eventId);
       const url = isUpdating ? `/api/events/${eventId}` : "/api/events/create";
       const method = isUpdating ? 'PUT' : 'POST';
-      console.log(`[EventCreationWrapper] About to ${method} ${url}`);
 
       let response;
       if (isUpdating) {
         response = await axiosInstance.put(url, data);
-        console.log(`[EventCreationWrapper] PUT ${url} ->`, response.status);
         alert("Event updated successfully!");
       } else {
         response = await axiosInstance.post(url, data);
-        console.log(`[EventCreationWrapper] POST ${url} ->`, response.status);
         alert("Event created successfully!");
       }
 
@@ -211,7 +196,6 @@ export default function EventCreationWrapper({
         <EventStepOne
           formData={formData}
           setFormData={handleFormUpdate}
-          setImageFiles={handleImageUpdate}
           setLetterFile={handleLetterUpdate}
           selectedOrgId={selectedOrgId}
           organizationOptions={organizationOptions}

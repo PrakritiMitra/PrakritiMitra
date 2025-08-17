@@ -17,7 +17,7 @@ const generateToken = (userId, deviceInfo = 'unknown', ipAddress = 'unknown') =>
   };
   
   return {
-    accessToken: jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" }),
+    accessToken: jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" }),
     refreshToken: jwt.sign({ id: userId, tokenId, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: "7d" }),
     tokenId
   };
@@ -106,7 +106,7 @@ exports.googleCallback = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: 'ACCOUNT_DELETED',
-          message: '🚫 This account has been deleted. You can recover it within 7 days, or wait until the recovery period expires to use this email for a new account.',
+          message: '🚫  days after the deletion, or wait until the recovery period (7 days after the deletion) expires to use this email for a new account.',
           canRecover: true,
           recoveryToken,
           email: user.originalEmail || user.email
@@ -179,7 +179,7 @@ exports.googleCallback = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: 'ACCOUNT_DELETED',
-          message: '🚫 This account has been deleted. You can recover it within 7 days, or wait until the recovery period expires to use this email for a new account.',
+          message: '🚫 This account has been deleted. You can recover it within 7 days after the deletion, or wait until the recovery period (7 days after the deletion) expires to use this email for a new account.',
           canRecover: true,
           recoveryToken,
           email: user.originalEmail || user.email
