@@ -21,6 +21,7 @@ export default function JoinOrganizationPage() {
   const [pendingOrgIds, setPendingOrgIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
+  const [organizationsToShow, setOrganizationsToShow] = useState(6);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const navigate = useNavigate();
@@ -241,74 +242,89 @@ export default function JoinOrganizationPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {organizations.map((org, index) => (
-                <div
-                  key={org._id}
-                  className={`transform hover:-translate-y-1 transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  {/* Organization Card */}
-                  <OrganizationCard
-                    organization={org}
-                    onClick={() => handleOrganizationClick(org)}
-                    variant="default"
-                    showStats={true}
-                    autoSize={false}
-                    actionButtons={
-                      <div className="space-y-3">
-                        {org.status === "pending" ? (
-                          <div className="flex items-center justify-between">
-                            <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('pending')}`}>
-                              {getStatusIcon('pending')}
-                              Approval Pending
-                            </span>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {organizations.slice(0, organizationsToShow).map((org, index) => (
+                  <div
+                    key={org._id}
+                    className={`transform hover:-translate-y-1 transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    {/* Organization Card */}
+                    <OrganizationCard
+                      organization={org}
+                      onClick={() => handleOrganizationClick(org)}
+                      variant="default"
+                      showStats={true}
+                      autoSize={false}
+                      actionButtons={
+                        <div className="space-y-3">
+                          {org.status === "pending" ? (
+                            <div className="flex items-center justify-between">
+                              <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('pending')}`}>
+                                {getStatusIcon('pending')}
+                                Approval Pending
+                              </span>
+                              <button
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleWithdrawRequest(org._id);
+                                }}
+                              >
+                                <XCircleIcon className="w-4 h-4" />
+                                Withdraw
+                              </button>
+                            </div>
+                          ) : org.status === "rejected" ? (
+                            <div className="flex items-center justify-between">
+                              <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('rejected')}`}>
+                                {getStatusIcon('rejected')}
+                                Request Rejected
+                              </span>
+                              <button
+                                className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleJoinRequest(org._id);
+                                }}
+                              >
+                                <CheckCircleIcon className="w-4 h-4" />
+                                Reapply
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleWithdrawRequest(org._id);
-                              }}
-                            >
-                              <XCircleIcon className="w-4 h-4" />
-                              Withdraw
-                            </button>
-                          </div>
-                        ) : org.status === "rejected" ? (
-                          <div className="flex items-center justify-between">
-                            <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('rejected')}`}>
-                              {getStatusIcon('rejected')}
-                              Request Rejected
-                            </span>
-                            <button
-                              className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-medium"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleJoinRequest(org._id);
                               }}
                             >
-                              <CheckCircleIcon className="w-4 h-4" />
-                              Reapply
+                              <UsersIcon className="w-4 h-4" />
+                              Request to Join
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleJoinRequest(org._id);
-                            }}
-                          >
-                            <UsersIcon className="w-4 h-4" />
-                            Request to Join
-                          </button>
-                        )}
-                      </div>
-                    }
-                  />
+                          )}
+                        </div>
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Show More Button */}
+              {organizations.length > organizationsToShow && (
+                <div className="text-center mt-8">
+                  <button
+                    onClick={() => setOrganizationsToShow(organizationsToShow + 6)}
+                    className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  >
+                    <ArrowRightIcon className="w-5 h-5" />
+                    {`Show More Organizations (${organizations.length - organizationsToShow} more)`}
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
