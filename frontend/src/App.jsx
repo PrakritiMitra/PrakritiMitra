@@ -47,6 +47,7 @@ import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
 import FAQSection from "./pages/FAQSection";
 import TeamPage from "./pages/Team.jsx";
+import { ChatProvider, useChatContext } from "./context/ChatContext";
 
 const SUGGESTED_QUESTIONS = [
   "What is your pricing?",
@@ -82,11 +83,19 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 function App() {
-  const [chatOpen, setChatOpen] = useState(false);
+  return (
+    <ChatProvider>
+      <AppContent />
+    </ChatProvider>
+  );
+}
+
+function AppContent() {
   const [messages, setMessages] = useState([
     { sender: "bot", text: "Hi! How can I help you today?" },
   ]);
   const [loading, setLoading] = useState(false);
+  const { rootChatOpen, openRootChat, closeRootChat } = useChatContext();
 
   const handleSendMessage = async (msg) => {
     setMessages((prev) => [
@@ -421,10 +430,10 @@ function App() {
           />
         </Routes>
       </Router>
-      <ChatBubble onClick={() => setChatOpen(true)} />
+      <ChatBubble onClick={openRootChat} />
       <ChatWindow
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
+        isOpen={rootChatOpen}
+        onClose={closeRootChat}
         messages={messages}
         onSendMessage={handleSendMessage}
         loading={loading}

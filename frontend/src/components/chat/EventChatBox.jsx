@@ -10,6 +10,7 @@ import { MdDelete } from 'react-icons/md';
 import EmojiPicker from 'emoji-picker-react';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
 import { getSafeUserData, getDisplayName } from '../../utils/safeUserUtils';
+import { useChatContext } from '../../context/ChatContext';
 
 // Remove the local utility functions since we're now importing them
 // const getSafeUserData = (user) => { ... }
@@ -29,6 +30,7 @@ const socket = io('http://localhost:5000', {
 
 export default function EventChatbox({ eventId, currentUser }) {
   const navigate = useNavigate();
+  const { openEventChat, closeEventChat, eventChatOpen, rootChatOpen } = useChatContext();
   const [messages, setMessages] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
@@ -44,8 +46,8 @@ export default function EventChatbox({ eventId, currentUser }) {
   const [unsendConfirm, setUnsendConfirm] = useState({ show: false, msg: null });
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // New state for the floating bubble UI
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // Use context state instead of local state
+  const isChatOpen = eventChatOpen;
 
   const chatEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -55,20 +57,60 @@ export default function EventChatbox({ eventId, currentUser }) {
   const isLoadingEarlierRef = useRef(false);
 
   // --- Chat UI Positioning Constants ---
-  const PADDING = 112; // 64px (chatbot bubble) + 24px (gap) + 24px (extra)
+  const PADDING = 37; // 24px from right edge (same as root chatbot)
+  const GAP = 60; // Gap between root chatbot and event chatbox
   const BUBBLE_DIMS = { w: 64, h: 64 };
   const CHATBOX_DIMS = { w: 384, h: 500 };
-  // Default position for the bubble in the bottom-right corner
-  const bubbleDefaultPos = {
-    x: window.innerWidth - BUBBLE_DIMS.w - 24, // keep right padding at 24px
-    y: window.innerHeight - BUBBLE_DIMS.h - PADDING,
+  
+  // Function to calculate default position - ensures consistent positioning
+  const calculateDefaultPosition = () => {
+    // Root chatbot is positioned at bottom-6 right-6 (24px from bottom and right edges)
+    // Event chatbox should be positioned above it with an 80px gap for visual separation
+    // This creates a clean vertical alignment while maintaining proper spacing
+    return {
+      x: window.innerWidth - BUBBLE_DIMS.w - PADDING, // 24px from right edge (same as root chatbot)
+      y: window.innerHeight - BUBBLE_DIMS.h - PADDING - GAP, // 80px above root chatbot position
+    };
   };
+  
   // Unified draggable chat position state
-  // Always start at the bubble's default corner
-  const [chatPos, setChatPos] = useState(bubbleDefaultPos);
+  const [chatPos, setChatPos] = useState(() => calculateDefaultPosition());
   const [dragging, setDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const bubbleRef = useRef(null);
+
+  // Function to reset position to default
+  const resetToDefaultPosition = () => {
+    const newDefaultPos = calculateDefaultPosition();
+    setChatPos(newDefaultPos);
+  };
+
+  // Update default position when window resizes
+  useEffect(() => {
+    const updateDefaultPosition = () => {
+      const newDefaultPos = calculateDefaultPosition();
+      
+      // Only update if chat is closed (bubble mode)
+      if (!eventChatOpen) {
+        setChatPos(newDefaultPos);
+      }
+    };
+
+    window.addEventListener('resize', updateDefaultPosition);
+    return () => window.removeEventListener('resize', updateDefaultPosition);
+  }, [eventChatOpen]);
+
+  // Ensure proper positioning on mount and when component updates
+  useEffect(() => {
+    // Small delay to ensure window dimensions are accurate
+    const timer = setTimeout(() => {
+      if (!eventChatOpen) {
+        resetToDefaultPosition();
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [eventChatOpen]); // Run when eventChatOpen changes
 
   // Handle mouse/touch events for dragging (bubble or header)
   const startDrag = (e) => {
@@ -84,6 +126,7 @@ export default function EventChatbox({ eventId, currentUser }) {
       y: clientY - chatPos.y,
     });
   };
+
   const onDrag = (e) => {
     if (!dragging) return;
     // Prevent default for touch events to stop scrolling
@@ -94,20 +137,42 @@ export default function EventChatbox({ eventId, currentUser }) {
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     let newX = clientX - dragOffset.x;
     let newY = clientY - dragOffset.y;
-    // Clamp to window bounds (bubble: 80x80, chatbox: 384x500)
-    const maxW = isChatOpen ? 384 : 80;
-    const maxH = isChatOpen ? 500 : 80;
+    
+    // Clamp to window bounds
+    const maxW = eventChatOpen ? CHATBOX_DIMS.w : BUBBLE_DIMS.w;
+    const maxH = eventChatOpen ? CHATBOX_DIMS.h : BUBBLE_DIMS.h;
     newX = Math.max(0, Math.min(window.innerWidth - maxW, newX));
     newY = Math.max(0, Math.min(window.innerHeight - maxH, newY));
+    
     setChatPos({ x: newX, y: newY });
   };
+
   const stopDrag = () => {
     setDragging(false);
     // Only save position if the chat window was dragged
-    if (isChatOpen) {
+    if (eventChatOpen) {
       localStorage.setItem('chatPosition', JSON.stringify(chatPos));
     }
   };
+
+  // Load saved chat position on mount (only for chat window, not bubble)
+  useEffect(() => {
+    const savedPosition = localStorage.getItem('chatPosition');
+    if (savedPosition && eventChatOpen) {
+      try {
+        const parsed = JSON.parse(savedPosition);
+        // Validate the saved position is within bounds
+        const maxW = window.innerWidth - CHATBOX_DIMS.w;
+        const maxH = window.innerHeight - CHATBOX_DIMS.h;
+        if (parsed.x >= 0 && parsed.x <= maxW && parsed.y >= 0 && parsed.y <= maxH) {
+          setChatPos(parsed);
+        }
+      } catch (error) {
+        console.warn('Failed to parse saved chat position:', error);
+      }
+    }
+  }, [eventChatOpen]);
+
   useEffect(() => {
     if (dragging) {
       window.addEventListener('mousemove', onDrag);
@@ -133,8 +198,8 @@ export default function EventChatbox({ eventId, currentUser }) {
   useEffect(() => {
     const handleResize = () => {
       setChatPos(pos => {
-        const maxW = isChatOpen ? 384 : 80;
-        const maxH = isChatOpen ? 500 : 80;
+        const maxW = eventChatOpen ? CHATBOX_DIMS.w : BUBBLE_DIMS.w;
+        const maxH = eventChatOpen ? CHATBOX_DIMS.h : BUBBLE_DIMS.h;
         return {
           x: Math.max(0, Math.min(window.innerWidth - maxW, pos.x)),
           y: Math.max(0, Math.min(window.innerHeight - maxH, pos.y)),
@@ -143,7 +208,7 @@ export default function EventChatbox({ eventId, currentUser }) {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isChatOpen]);
+  }, [eventChatOpen]);
 
   const EMOJIS = ['👍', '❤️', '😂', '🎉', '🙏', '😢'];
 
@@ -290,12 +355,12 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   useEffect(() => {
     // When chatbox is opened, scroll to bottom (latest message)
-    if (isChatOpen) {
+    if (eventChatOpen) {
       setTimeout(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'auto' });
       }, 0);
     }
-  }, [isChatOpen]);
+  }, [eventChatOpen]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -473,8 +538,8 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   return (
     <>
-      {/* Draggable Floating Chat Bubble (only shows when chat is closed) */}
-      {!isChatOpen && (
+      {/* Draggable Floating Chat Bubble (only shows when chat is closed AND root chatbot is closed) */}
+       {!isChatOpen && !rootChatOpen && (
         <div
           ref={bubbleRef}
           style={{
@@ -489,7 +554,7 @@ export default function EventChatbox({ eventId, currentUser }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.15), 0 0 0 2px rgba(37, 99, 235, 0.1)',
             cursor: dragging ? 'grabbing' : 'grab',
             userSelect: 'none',
             transition: dragging ? 'none' : 'transform 0.2s',
@@ -503,7 +568,7 @@ export default function EventChatbox({ eventId, currentUser }) {
             const clampedX = Math.max(PADDING, Math.min(window.innerWidth - CHATBOX_DIMS.w - PADDING, chatPos.x));
             const clampedY = Math.max(PADDING, Math.min(window.innerHeight - CHATBOX_DIMS.h - PADDING, chatPos.y));
             setChatPos({ x: clampedX, y: clampedY });
-            setIsChatOpen(true);
+            openEventChat();
           }}
         >
           <span className="text-3xl" style={{ color: 'white' }}>💬</span>
@@ -539,8 +604,8 @@ export default function EventChatbox({ eventId, currentUser }) {
             <h3 className="font-semibold text-lg">Event Chat</h3>
             <button 
               onClick={() => {
-                setIsChatOpen(false);
-                setChatPos(bubbleDefaultPos);
+                closeEventChat();
+                resetToDefaultPosition();
                 // Clear saved chat window position
                 localStorage.removeItem('chatPosition');
               }} 

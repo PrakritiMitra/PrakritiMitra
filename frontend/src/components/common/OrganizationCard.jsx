@@ -133,7 +133,16 @@ const OrganizationCard = ({
   // Get location display
   const getLocationDisplay = () => {
     const locationParts = [city, state, headOfficeLocation].filter(Boolean);
-    return locationParts.length > 0 ? locationParts.join(', ') : 'Location not specified';
+    if (locationParts.length === 0) return 'Location not specified';
+    
+    const fullLocation = locationParts.join(', ');
+    
+    // Truncate very long addresses to prevent layout issues
+    if (fullLocation.length > 50) {
+      return fullLocation.substring(0, 47).trim() + '...';
+    }
+    
+    return fullLocation;
   };
 
   // Get impact metrics
@@ -331,20 +340,20 @@ const OrganizationCard = ({
 
         {/* Location and Details */}
         <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
-          <div className="flex items-center gap-1">
-            <MapPinIcon className="w-3 h-3" />
-            <span className="truncate">{getLocationDisplay()}</span>
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            <MapPinIcon className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate block">{getLocationDisplay()}</span>
           </div>
           
           {yearOfEstablishment && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <ClockIcon className="w-3 h-3" />
               <span>Est. {yearOfEstablishment}</span>
             </div>
           )}
           
           {focusArea && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <StarIcon className="w-3 h-3" />
               <span className="truncate">{getFocusAreaDisplay()}</span>
             </div>

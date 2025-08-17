@@ -17,7 +17,7 @@ const generateToken = (userId, deviceInfo = 'unknown', ipAddress = 'unknown') =>
   };
   
   return {
-    accessToken: jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" }),
+    accessToken: jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" }),
     refreshToken: jwt.sign({ id: userId, tokenId, type: 'refresh' }, process.env.JWT_SECRET, { expiresIn: "7d" }),
     tokenId
   };
@@ -928,7 +928,7 @@ exports.refreshToken = async (req, res) => {
       deviceInfo: session.deviceInfo,
       ipAddress: session.ipAddress,
       type: 'access'
-    }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     const userResponse = {
       _id: user._id,

@@ -18,11 +18,11 @@ import {
 } from "@mui/material";
 import LocationPicker from './LocationPicker'; // Make sure this path is correct
 import TimeSlotBuilder from './TimeSlotBuilder';
+import { toast } from "react-toastify"; // Added for toast notifications
 
 export default function EventStepOne({
   formData,
   setFormData,
-  setImageFiles,
   setLetterFile,
   selectedOrgId,
   organizationOptions = [],
@@ -36,6 +36,7 @@ export default function EventStepOne({
   const [remainingVolunteers, setRemainingVolunteers] = useState(0);
   const [allocationError, setAllocationError] = useState("");
   const [editingCategory, setEditingCategory] = useState(null); // Track which category is being edited
+  const [newLetterFile, setNewLetterFile] = useState(null); // Track newly uploaded letter
 
   // Calculate remaining volunteers, optionally excluding a specific category
   const calculateRemainingVolunteers = useCallback((excludeCategory = null) => {
@@ -135,15 +136,35 @@ export default function EventStepOne({
   };
 
   const handleImageChange = (e) => {
-    setImageFiles([...e.target.files]);
+    const files = Array.from(e.target.files);
+    setFormData(prev => ({
+      ...prev,
+      eventImages: [...(prev.eventImages || []), ...files]
+    }));
   };
 
   const handleLetterChange = (e) => {
-    setLetterFile(e.target.files[0]);
+    const file = e.target.files[0];
+    console.log("[EventStepOne] Letter file selected:", file?.name, file?.type, file?.size);
+    if (file) {
+      setNewLetterFile(file);
+      setLetterFile(file);
+      console.log("[EventStepOne] Letter file set in state and parent");
+    }
   };
 
   const handleProceed = (e) => {
     e.preventDefault();
+    
+    // Check if time slots are enabled and validate volunteer allocation
+    if (formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && !formData.unlimitedVolunteers) {
+      if (remainingVolunteers < 0) {
+        // Show error and prevent proceeding
+        toast.error(`Cannot proceed: You have over-allocated ${Math.abs(remainingVolunteers)} volunteers. Please adjust your category limits before continuing.`);
+        return;
+      }
+    }
+    
     // Clear editing state before proceeding to ensure accurate validation
     setEditingCategory(null);
     onNext();
@@ -152,11 +173,32 @@ export default function EventStepOne({
   // Helper to handle appending new files
   const handleAddImages = (e) => {
     const files = Array.from(e.target.files);
-    setImageFiles((prev) => [...prev, ...files]);
+    setFormData(prev => ({
+      ...prev,
+      eventImages: [...(prev.eventImages || []), ...files]
+    }));
   };
 
   const handleRemoveNewImage = (idx) => {
-    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+    setFormData(prev => ({
+      ...prev,
+      eventImages: prev.eventImages.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleRemoveNewLetter = () => {
+    console.log("[EventStepOne] Removing new letter:", newLetterFile?.name);
+    setNewLetterFile(null);
+    setLetterFile(null);
+    
+    // Clear the file input more reliably
+    const fileInputs = document.querySelectorAll('input[type="file"][accept="image/*,application/pdf"]');
+    fileInputs.forEach(input => {
+      if (input.files && input.files.length > 0) {
+        input.value = '';
+        console.log("[EventStepOne] Cleared file input");
+      }
+    });
   };
 
   return (
@@ -385,67 +427,165 @@ export default function EventStepOne({
         <Typography variant="subtitle1" gutterBottom>
           Event Images (optional)
         </Typography>
+        
+        {/* Image Upload Status */}
+        {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && (
+          <Box mb={2} p={2} bgcolor="success.light" borderRadius={1}>
+            <Typography variant="body2" color="success.contrastText">
+              ✓ {formData.eventImages.length} image{formData.eventImages.length !== 1 ? 's' : ''} uploaded
+            </Typography>
+          </Box>
+        )}
+        
+        {/* Initial Image Upload Button */}
+        {(!formData.eventImages || formData.eventImages.length === 0) && (
+          <Button
+            variant="outlined"
+            component="label"
+            sx={{ mb: 2 }}
+            startIcon={<span>📷</span>}
+          >
+            Upload Event Images
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={handleImageChange}
+            />
+          </Button>
+        )}
+        
         {/* Existing Images */}
         {existingImages.length > 0 && (
-          <Box mb={1}>
-            <Typography variant="body2">Existing Images:</Typography>
-            {existingImages.map((img, index) => (
-              <Box key={index} display="flex" alignItems="center" gap={1} mt={1}>
-                <img src={`http://localhost:5000/uploads/Events/${img}`} alt="Preview" width="100" style={{ borderRadius: 4 }} />
-                <Button size="small" color="error" onClick={() => onRemoveExistingImage(img)}>Remove</Button>
-              </Box>
-            ))}
+          <Box mb={2}>
+            <Typography variant="body2" color="textSecondary" gutterBottom>
+              Existing Images:
+            </Typography>
+            <Box display="flex" flexWrap="wrap" gap={2}>
+              {existingImages.map((img, index) => (
+                <Box key={index} display="flex" flexDirection="column" alignItems="center" gap={1}>
+                  <img 
+                    src={`http://localhost:5000/uploads/Events/${img}`} 
+                    alt="Preview" 
+                    width="100" 
+                    height="100"
+                    style={{ borderRadius: 8, objectFit: 'cover', border: '2px solid #e0e0e0' }} 
+                  />
+                  <Button 
+                    size="small" 
+                    color="error" 
+                    variant="outlined"
+                    onClick={() => onRemoveExistingImage(img)}
+                  >
+                    Remove
+                  </Button>
+                </Box>
+              ))}
+            </Box>
           </Box>
         )}
+        
         {/* New Uploads Preview */}
         {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && (
-          <Box mb={1} display="flex" flexWrap="wrap" gap={2}>
-            {formData.eventImages.map((file, idx) => (
-              <Box key={idx} display="flex" flexDirection="column" alignItems="center" gap={1}>
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt={`Upload Preview ${idx + 1}`}
-                  width={100}
-                  style={{ borderRadius: 4, marginBottom: 4 }}
-                />
-                <Button size="small" color="error" onClick={() => handleRemoveNewImage(idx)}>Remove</Button>
-              </Box>
-            ))}
+          <Box mb={2}>
+            <Typography variant="body2" color="textSecondary" gutterBottom>
+              New Images:
+            </Typography>
+            <Box display="flex" flexWrap="wrap" gap={2}>
+              {formData.eventImages.map((file, idx) => (
+                <Box key={idx} display="flex" flexDirection="column" alignItems="center" gap={1}>
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt={`Upload Preview ${idx + 1}`}
+                    width="100"
+                    height="100"
+                    style={{ borderRadius: 8, objectFit: 'cover', border: '2px solid #4caf50' }}
+                  />
+                  <Typography variant="caption" color="textSecondary" textAlign="center">
+                    {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                  </Typography>
+                  <Button 
+                    size="small" 
+                    color="error" 
+                    variant="outlined"
+                    onClick={() => handleRemoveNewImage(idx)}
+                  >
+                    Remove
+                  </Button>
+                </Box>
+              ))}
+            </Box>
           </Box>
         )}
-        {/* Add Another Image Button */}
-        <Button
-          variant="outlined"
-          component="label"
-          sx={{ mt: 1 }}
-        >
-          Add Another Image
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={e => {
-              handleAddImages(e);
-              e.target.value = null; // Reset input after handling
-            }}
-          />
-        </Button>
+        
+        {/* Add Another Image Button - Only show if there are already images */}
+        {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && (
+          <Button
+            variant="outlined"
+            component="label"
+            sx={{ mt: 1 }}
+            startIcon={<span>➕</span>}
+          >
+            Add More Images
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={e => {
+                handleAddImages(e);
+                e.target.value = null; // Reset input after handling
+              }}
+            />
+          </Button>
+        )}
       </Box>
 
       <Box mt={2}>
         <Typography variant="subtitle1" gutterBottom>
           Govt Approval Letter (Image/PDF)
         </Typography>
+        
+        {/* Existing Letter Display */}
         {existingLetter && (
-          <Box display="flex" alignItems="center" gap={2}>
+          <Box display="flex" alignItems="center" gap={2} mb={2}>
             <a href={`http://localhost:5000/uploads/${existingLetter}`} target="_blank" rel="noopener noreferrer">
               {existingLetter}
             </a>
             <Button size="small" color="error" onClick={onRemoveExistingLetter}>Remove</Button>
           </Box>
         )}
-        <input type="file" accept="image/*,application/pdf" onChange={handleLetterChange} />
+        
+        {/* New Letter Upload Status */}
+        {newLetterFile && (
+          <Box mb={2} p={2} bgcolor="success.light" borderRadius={1}>
+            <Typography variant="body2" color="success.contrastText" gutterBottom>
+              ✓ New letter uploaded: {newLetterFile.name}
+            </Typography>
+            <Button 
+              size="small" 
+              color="error" 
+              variant="outlined"
+              onClick={handleRemoveNewLetter}
+              sx={{ mt: 1 }}
+            >
+              Remove New Letter
+            </Button>
+          </Box>
+        )}
+        
+        {/* File Upload Input */}
+        <input 
+          type="file" 
+          name="govtApprovalLetter"
+          accept="image/*,application/pdf" 
+          onChange={handleLetterChange}
+          style={{ marginTop: '8px' }}
+        />
+        <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+          Upload a new government approval letter. You can remove it before proceeding if needed.
+        </Typography>
       </Box>
 
       <TimeSlotBuilder
@@ -461,9 +601,24 @@ export default function EventStepOne({
         readOnly={readOnly}
       />
 
-      <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 3 }}>
+      <Button 
+        type="submit" 
+        variant="contained" 
+        color="primary" 
+        fullWidth 
+        sx={{ mt: 3 }}
+        disabled={formData.timeSlotsEnabled && !formData.unlimitedVolunteers && remainingVolunteers < 0}
+      >
         Proceed to Questionnaire →
       </Button>
+      
+      {/* Helper text for disabled button */}
+      {formData.timeSlotsEnabled && !formData.unlimitedVolunteers && remainingVolunteers < 0 && (
+        <Typography variant="body2" color="error" sx={{ mt: 1, textAlign: 'center' }}>
+          ⚠️ Cannot proceed: You have over-allocated {Math.abs(remainingVolunteers)} volunteers. 
+          Please adjust your category limits above before continuing.
+        </Typography>
+      )}
     </Box>
   );
 }
