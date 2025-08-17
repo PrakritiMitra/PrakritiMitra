@@ -100,6 +100,8 @@ export default function OrganizationPublicPage() {
   const [events, setEvents] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [upcomingEventsToShow, setUpcomingEventsToShow] = useState(2);
+  const [pastEventsToShow, setPastEventsToShow] = useState(2);
 
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -378,11 +380,23 @@ export default function OrganizationPublicPage() {
                 <p className="text-slate-500 text-lg">No upcoming events scheduled.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {upcoming.map((e) => (
-                  <EventCard key={e._id} event={e} />
-                ))}
-              </div>
+                             <div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   {upcoming.slice(0, upcomingEventsToShow).map((e) => (
+                     <EventCard key={e._id} event={e} />
+                   ))}
+                 </div>
+                 {upcoming.length > upcomingEventsToShow && (
+                   <div className="text-center mt-6">
+                     <button
+                       onClick={() => setUpcomingEventsToShow(upcomingEventsToShow + 2)}
+                       className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                     >
+                       Show More Events ({upcoming.length - upcomingEventsToShow} more)
+                     </button>
+                   </div>
+                 )}
+               </div>
             )}
           </div>
 
@@ -402,11 +416,23 @@ export default function OrganizationPublicPage() {
                 <p className="text-slate-500 text-lg">No past events found.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {past.map((e) => (
-                  <EventCard key={e._id} event={e} />
-                ))}
-              </div>
+                             <div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   {past.slice(0, pastEventsToShow).map((e) => (
+                     <EventCard key={e._id} event={e} />
+                   ))}
+                 </div>
+                 {past.length > pastEventsToShow && (
+                   <div className="text-center mt-6">
+                     <button
+                       onClick={() => setPastEventsToShow(pastEventsToShow + 2)}
+                       className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                     >
+                       Show More Events ({past.length - pastEventsToShow} more)
+                     </button>
+                   </div>
+                 )}
+               </div>
             )}
           </div>
         </div>
