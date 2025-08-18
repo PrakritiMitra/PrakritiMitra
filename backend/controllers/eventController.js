@@ -29,7 +29,7 @@ exports.createEvent = async (req, res) => {
       title,
       description,
       location,
-      mapLocation, // This is now an object: { address, lat, lng }
+      mapLocation, // This may be an object or flattened fields from multipart
       startDateTime,
       endDateTime,
       eventType,
@@ -107,6 +107,24 @@ exports.createEvent = async (req, res) => {
       processedTimeSlots = prepareTimeSlotsForSave(parsedTimeSlots);
     }
 
+    // Normalize mapLocation from multipart (supports mapLocation[address], mapLocation[lat], mapLocation[lng])
+    const normalizedMapLocation = (() => {
+      if (mapLocation && typeof mapLocation === 'object') {
+        return mapLocation;
+      }
+      const addr = req.body['mapLocation[address]'];
+      const latStr = req.body['mapLocation[lat]'];
+      const lngStr = req.body['mapLocation[lng]'];
+      if (addr || latStr || lngStr) {
+        return {
+          address: addr || '',
+          lat: latStr,
+          lng: lngStr,
+        };
+      }
+      return { address: '', lat: null, lng: null };
+    })();
+
     // File handling
     const images = req.files?.eventImages?.map((f) => f.filename) || [];
     const approvalLetter = req.files?.govtApprovalLetter?.[0]?.filename || null;
@@ -117,9 +135,9 @@ exports.createEvent = async (req, res) => {
       description,
       location, // Original string location
       mapLocation: {
-        address: mapLocation.address,
-        lat: parseFloat(mapLocation.lat) || null,
-        lng: parseFloat(mapLocation.lng) || null,
+        address: normalizedMapLocation.address,
+        lat: normalizedMapLocation.lat !== undefined && normalizedMapLocation.lat !== null && normalizedMapLocation.lat !== '' ? parseFloat(normalizedMapLocation.lat) : null,
+        lng: normalizedMapLocation.lng !== undefined && normalizedMapLocation.lng !== null && normalizedMapLocation.lng !== '' ? parseFloat(normalizedMapLocation.lng) : null,
       },
       startDateTime,
       endDateTime,
@@ -429,16 +447,36 @@ exports.updateEvent = async (req, res) => {
       processedTimeSlots = prepareTimeSlotsForSave(parsedTimeSlots);
     }
 
+    // Normalize incoming mapLocation for update (supports nested keys in multipart)
+    const updateMapLoc = (() => {
+      if (mapLocation && typeof mapLocation === 'object') {
+        return mapLocation;
+      }
+      const addr = req.body['mapLocation[address]'];
+      const latStr = req.body['mapLocation[lat]'];
+      const lngStr = req.body['mapLocation[lng]'];
+      if (addr !== undefined || latStr !== undefined || lngStr !== undefined) {
+        return { address: addr, lat: latStr, lng: lngStr };
+      }
+      return null;
+    })();
+
     // Update fields
     event.title = title || event.title;
     event.description = description || event.description;
     event.location = location || event.location;
     
-    if (mapLocation && typeof mapLocation === 'object') {
+    if (updateMapLoc) {
       event.mapLocation = {
-        address: mapLocation.address || event.mapLocation.address,
-        lat: parseFloat(mapLocation.lat) || event.mapLocation.lat,
-        lng: parseFloat(mapLocation.lng) || event.mapLocation.lng,
+        address: updateMapLoc.address !== undefined && updateMapLoc.address !== null ? updateMapLoc.address : (event.mapLocation?.address || ''),
+        lat: updateMapLoc.lat !== undefined && updateMapLoc.lat !== null && updateMapLoc.lat !== '' ? parseFloat(updateMapLoc.lat) : (event.mapLocation?.lat || null),
+        lng: updateMapLoc.lng !== undefined && updateMapLoc.lng !== null && updateMapLoc.lng !== '' ? parseFloat(updateMapLoc.lng) : (event.mapLocation?.lng || null),
+      };
+    } else if (mapLocation && typeof mapLocation === 'object') {
+      event.mapLocation = {
+        address: mapLocation.address || event.mapLocation?.address || '',
+        lat: mapLocation.lat !== undefined && mapLocation.lat !== null && mapLocation.lat !== '' ? parseFloat(mapLocation.lat) : (event.mapLocation?.lat || null),
+        lng: mapLocation.lng !== undefined && mapLocation.lng !== null && mapLocation.lng !== '' ? parseFloat(mapLocation.lng) : (event.mapLocation?.lng || null),
       };
     }
 
