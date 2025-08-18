@@ -11,7 +11,18 @@ import {
   FaChartLine,
   FaClock,
   FaCalendarCheck,
-  FaCalendarTimes
+  FaCalendarTimes,
+  FaEye,
+  FaEyeSlash,
+  FaMapMarkerAlt,
+  FaCalendarAlt,
+  FaTrophy,
+  FaExclamationTriangle,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaChartBar,
+  FaUserFriends,
+  FaClipboardList
 } from 'react-icons/fa';
 
 const AttendanceDashboard = ({ eventId }) => {
@@ -21,6 +32,7 @@ const AttendanceDashboard = ({ eventId }) => {
   const [socket, setSocket] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Fetch initial stats
   const fetchStats = async (showLoading = true) => {
@@ -92,12 +104,12 @@ const AttendanceDashboard = ({ eventId }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div className="space-y-4">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+          <div className="grid grid-cols-2 gap-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -107,8 +119,8 @@ const AttendanceDashboard = ({ eventId }) => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <p className="text-red-600">{error}</p>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+        <p className="text-red-600 text-sm">{error}</p>
       </div>
     );
   }
@@ -124,14 +136,11 @@ const AttendanceDashboard = ({ eventId }) => {
     });
   };
 
-  const formatDateTime = (dateString) => {
+  const formatDate = (dateString) => {
     if (!dateString) return '—';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
+    return new Date(dateString).toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
-    }) + ' ' + date.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
@@ -139,9 +148,9 @@ const AttendanceDashboard = ({ eventId }) => {
   };
 
   const getEventStatusColor = () => {
-    if (stats.event.isEnded) return 'text-red-600';
-    if (stats.event.isLive) return 'text-green-600';
-    return 'text-yellow-600';
+    if (stats.event.isEnded) return 'text-red-600 bg-red-50 border-red-200';
+    if (stats.event.isLive) return 'text-green-600 bg-green-50 border-green-200';
+    return 'text-yellow-600 bg-yellow-50 border-yellow-200';
   };
 
   const getEventStatusText = () => {
@@ -150,176 +159,250 @@ const AttendanceDashboard = ({ eventId }) => {
     return 'Event Not Started';
   };
 
+  const getAttendanceRateColor = (rate) => {
+    if (rate >= 80) return 'text-green-600 bg-green-50 border-green-200';
+    if (rate >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    return 'text-red-600 bg-red-50 border-red-200';
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Live Attendance Dashboard</h2>
-          <p className="text-gray-600">{stats.event.title}</p>
-        </div>
-        <div className="text-right">
-          <div className={`text-lg font-semibold ${getEventStatusColor()}`}>
-            {getEventStatusText()}
+    <div className="space-y-4">
+      {/* Box 1: Event Overview Header */}
+      <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-1">Event Overview</h2>
+            <p className="text-sm text-gray-600 truncate max-w-[200px]">{stats.event.title}</p>
           </div>
-          <div className="text-sm text-gray-500">
-            Last updated: {lastUpdated ? formatTime(lastUpdated) : '—'}
+          <div className="flex items-center gap-2">
+            <div className={`px-2 py-1 rounded-full text-xs font-semibold border ${getEventStatusColor()}`}>
+              {getEventStatusText()}
+            </div>
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+              title={showDetails ? "Hide details" : "Show details"}
+            >
+              {showDetails ? <FaEye size={14} /> : <FaEyeSlash size={14} />}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Overall Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">Total Participants</p>
-              <p className="text-2xl font-bold text-blue-800">{stats.overall.totalParticipants}</p>
+      {/* Box 2: Overall Statistics */}
+      <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <FaChartBar className="text-blue-500" />
+          Overall Statistics
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-blue-600">Total</p>
+                <p className="text-xl font-bold text-blue-800">{stats.overall.totalParticipants}</p>
+              </div>
+              <FaUsers className="text-blue-500 text-lg" />
             </div>
-            <FaUsers className="text-blue-500 text-2xl" />
+          </div>
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-green-600">Present</p>
+                <p className="text-xl font-bold text-green-800">{stats.overall.totalPresent}</p>
+              </div>
+              <FaUserCheck className="text-green-500 text-lg" />
+            </div>
+          </div>
+
+          <div className={`border rounded-lg p-3 ${getAttendanceRateColor(stats.overall.attendanceRate)}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium">Rate</p>
+                <p className="text-xl font-bold">{stats.overall.attendanceRate}%</p>
+              </div>
+              <FaChartLine className="text-lg" />
+            </div>
+          </div>
+
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-orange-600">Volunteers</p>
+                <p className="text-xl font-bold text-orange-800">{stats.volunteers.total}</p>
+              </div>
+              <FaUsers className="text-orange-500 text-lg" />
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600">Currently Present</p>
-              <p className="text-2xl font-bold text-green-800">{stats.overall.totalPresent}</p>
+      {/* Box 3: Volunteer Statistics */}
+      <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <FaUserFriends className="text-emerald-500" />
+          Volunteer Statistics
+        </h3>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-green-600 font-bold text-lg">{stats.volunteers.checkedIn}</div>
+              <div className="text-xs text-green-600">Checked In</div>
             </div>
-            <FaUserCheck className="text-green-500 text-2xl" />
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-blue-600 font-bold text-lg">{stats.volunteers.checkedIn}</div>
+              <div className="text-xs text-blue-600">Present</div>
+            </div>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-yellow-600 font-bold text-lg">{stats.volunteers.notArrived}</div>
+              <div className="text-xs text-yellow-600">Pending</div>
+            </div>
+          </div>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-red-600 font-bold text-lg">{stats.volunteers.checkedOut}</div>
+              <div className="text-xs text-red-600">Checked Out</div>
+            </div>
           </div>
         </div>
-
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-600">Attendance Rate</p>
-              <p className="text-2xl font-bold text-purple-800">{stats.overall.attendanceRate}%</p>
-            </div>
-            <FaChartLine className="text-purple-500 text-2xl" />
+        <div className="pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-600">Efficiency:</span>
+            <span className={`font-semibold ${
+              stats.volunteers.total > 0 ? 
+              (stats.volunteers.checkedIn / stats.volunteers.total * 100) >= 80 ? 'text-green-600' : 'text-yellow-600' : 'text-gray-400'
+            }`}>
+              {stats.volunteers.total > 0 ? Math.round((stats.volunteers.checkedIn / stats.volunteers.total) * 100) : 0}%
+            </span>
           </div>
         </div>
+      </div>
 
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-orange-600">Event Date & Time</p>
-              <div className="text-xs font-bold text-orange-800">
-                <div>Start: {formatDateTime(stats.event.startDateTime)}</div>
-                <div>End: {formatDateTime(stats.event.endDateTime)}</div>
+      {/* Box 4: Organizer Statistics */}
+      <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <FaCalendarCheck className="text-purple-500" />
+          Organizer Statistics
+        </h3>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-purple-600 font-bold text-lg">{stats.organizers.total}</div>
+              <div className="text-xs text-purple-600">Total</div>
+            </div>
+          </div>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-green-600 font-bold text-lg">{stats.organizers.present}</div>
+              <div className="text-xs text-green-600">Present</div>
+            </div>
+          </div>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-yellow-600 font-bold text-lg">{stats.organizers.total - stats.organizers.present}</div>
+              <div className="text-xs text-yellow-600">Pending</div>
+            </div>
+          </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-center">
+              <div className="text-blue-600 font-bold text-lg">
+                {stats.organizers.total > 0 ? Math.round((stats.organizers.present / stats.organizers.total) * 100) : 0}%
+              </div>
+              <div className="text-xs text-blue-600">Rate</div>
+            </div>
+          </div>
+        </div>
+        <div className="pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-600">Coverage:</span>
+            <span className={`font-semibold ${
+              stats.organizers.total > 0 ? 
+              (stats.organizers.present / stats.organizers.total * 100) >= 80 ? 'text-green-600' : 'text-yellow-600' : 'text-gray-400'
+            }`}>
+              {stats.organizers.total > 0 ? Math.round((stats.organizers.present / stats.organizers.total) * 100) : 0}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Box 5: Recent Activity */}
+      <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <FaClock className="text-indigo-500" />
+          Recent Activity
+        </h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <FaUserPlus className="text-green-500" />
+              <div>
+                <div className="text-green-600 font-bold">{stats.recentActivity.checkIns}</div>
+                <div className="text-xs text-green-600">Check-ins</div>
               </div>
             </div>
-            <FaClock className="text-orange-500 text-2xl" />
           </div>
-        </div>
-      </div>
-
-      {/* Volunteer Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-indigo-600">Total Volunteers</p>
-              <p className="text-xl font-bold text-indigo-800">{stats.volunteers.total}</p>
-            </div>
-            <FaUsers className="text-indigo-500 text-xl" />
-          </div>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600">Checked In</p>
-              <p className="text-xl font-bold text-green-800">{stats.volunteers.checkedIn}</p>
-            </div>
-            <FaUserCheck className="text-green-500 text-xl" />
-          </div>
-        </div>
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">Currently Present</p>
-              <p className="text-xl font-bold text-blue-800">{stats.volunteers.currentlyPresent}</p>
-            </div>
-            <FaUserClock className="text-blue-500 text-xl" />
-          </div>
-        </div>
-
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-600">Checked Out</p>
-              <p className="text-xl font-bold text-red-800">{stats.volunteers.checkedOut}</p>
-            </div>
-            <FaUserTimes className="text-red-500 text-xl" />
-          </div>
-        </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-yellow-600">Not Arrived</p>
-              <p className="text-xl font-bold text-yellow-800">{stats.volunteers.notArrived}</p>
-            </div>
-            <FaUserClock className="text-yellow-500 text-xl" />
-          </div>
-        </div>
-      </div>
-
-      {/* Organizer Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-600">Total Organizers</p>
-              <p className="text-xl font-bold text-purple-800">{stats.organizers.total}</p>
-            </div>
-            <FaUsers className="text-purple-500 text-xl" />
-          </div>
-        </div>
-
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600">Organizers Present</p>
-              <p className="text-xl font-bold text-green-800">{stats.organizers.present}</p>
-            </div>
-            <FaCalendarCheck className="text-green-500 text-xl" />
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-3">Recent Activity (Last 10 minutes)</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center space-x-3">
-            <FaUserPlus className="text-green-500 text-lg" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Recent Check-ins</p>
-              <p className="text-lg font-bold text-green-600">{stats.recentActivity.checkIns}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <FaUserMinus className="text-red-500 text-lg" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Recent Check-outs</p>
-              <p className="text-lg font-bold text-red-600">{stats.recentActivity.checkOuts}</p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <FaUserMinus className="text-red-500" />
+              <div>
+                <div className="text-red-600 font-bold">{stats.recentActivity.checkOuts}</div>
+                <div className="text-xs text-red-600">Check-outs</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Real-time indicator */}
-      <div className="mt-4 flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-gray-600">
-            {isUpdating ? 'Updating...' : 'Live updates enabled'}
-          </span>
+      {/* Expandable Details Section */}
+      {showDetails && (
+        <div className="space-y-3">
+          {/* Event Schedule Box */}
+          <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <FaCalendarAlt className="text-gray-500" />
+              Event Schedule
+            </h4>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <FaClock className="text-blue-500" />
+                <span className="text-gray-600">
+                  Start: {formatDate(stats.event.startDateTime)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FaTimesCircle className="text-red-500" />
+                <span className="text-gray-600">
+                  End: {formatDate(stats.event.endDateTime)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* System Status Box */}
+          <div className="bg-white rounded-lg shadow-lg p-4 border border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <FaCheckCircle className="text-green-500" />
+              System Status
+            </h4>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-gray-600">
+                  {isUpdating ? 'Updating...' : 'Live updates enabled'}
+                </span>
+              </div>
+              <div className="text-center text-gray-400">
+                Last updated: {lastUpdated ? formatTime(lastUpdated) : '—'}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

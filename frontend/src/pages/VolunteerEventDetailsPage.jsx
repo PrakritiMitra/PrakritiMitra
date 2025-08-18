@@ -98,9 +98,9 @@ export default function VolunteerEventDetailsPage() {
   // Organizer & Volunteer List state
   const [organizerTeam, setOrganizerTeam] = useState([]);
   const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
-  const [showVolunteers, setShowVolunteers] = useState(false);
   const [volunteers, setVolunteers] = useState([]);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('organizers');
   
   // Search state
   const [organizerSearchTerm, setOrganizerSearchTerm] = useState("");
@@ -314,11 +314,19 @@ export default function VolunteerEventDetailsPage() {
 
   // Check for available event report for past events
   const isPastEvent = event && event.endDateTime ? new Date(event.endDateTime) < new Date() : false;
+  
+  // Clear QR codes when event becomes past
   useEffect(() => {
-    if (isPastEvent && isRegistered) {
+    if (isPastEvent) {
+      clearQrCodeState();
+    }
+  }, [isPastEvent]); // Only depend on isPastEvent
+  
+  useEffect(() => {
+    if (isPastEvent) {
       fetchEventReport();
     }
-  }, [isPastEvent, isRegistered]); // Simplified dependencies
+  }, [isPastEvent]); // Fetch report for all users when event is past
 
   // Socket connection for real-time updates (slots, etc.)
   useEffect(() => {
@@ -388,6 +396,25 @@ export default function VolunteerEventDetailsPage() {
       alert(err.response?.data?.message || 'Failed to generate exit QR.');
     }
   };
+
+  // Clear QR code state when event completes
+  const clearQrCodeState = () => {
+    if (!isPastEvent) return;
+    
+    // Clear exit QR code state
+    if (exitQrPath) {
+      setExitQrPath(null);
+      setShowExitQr(false);
+    }
+    
+    // Clear entry QR code reference from registration details
+    if (registrationDetails?.qrCodePath) {
+      setRegistrationDetails(prev => ({
+        ...prev,
+        qrCodePath: null
+      }));
+    }
+  };
   
   const handleQuestionnaireSubmit = async (answers) => {
     if (questionnaireCompleted) {
@@ -444,13 +471,18 @@ export default function VolunteerEventDetailsPage() {
   const fetchEventReport = async () => {
     if (!event?._id) return;
     setReportLoading(true);
+    try {
     const result = await getEventReport(event._id);
     if (result.success) {
       setEventReport(result.data);
     } else {
       console.error('Failed to fetch report:', result.error);
     }
+    } catch (error) {
+      console.error('Error fetching event report:', error);
+    } finally {
     setReportLoading(false);
+    }
   };
 
   const handleViewReport = () => setShowReportModal(true);
@@ -550,103 +582,197 @@ export default function VolunteerEventDetailsPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-12 relative">
       <Navbar />
 
-      {/* Organizer Team Drawer & Button */}
-      {organizerTeam.length > 0 && (
-        <>
+      {/* Single Participants Sidebar Button */}
+      {(organizerTeam.length > 0 || true) && (
           <button
-            className={`fixed z-50 bg-blue-600 text-white px-5 py-2 rounded shadow hover:bg-blue-700 transition top-[calc(2cm+1.5rem)] ${showOrganizerTeamDrawer ? 'right-[340px]' : 'right-8'}`}
-            style={{ transition: 'right 0.3s cubic-bezier(0.4,0,0.2,1)' }}
-            onClick={() => setShowOrganizerTeamDrawer(prev => !prev)}
-          >
-            {showOrganizerTeamDrawer ? 'Hide Organizer Team' : 'Show Organizer Team'}
-          </button>
-          <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizerTeamDrawer ? 'translate-x-0' : 'translate-x-full'}`}>
-
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-blue-700">Organizer Team</h2>
-              <button className="text-gray-500 hover:text-red-600 text-2xl font-bold" onClick={() => setShowOrganizerTeamDrawer(false)} aria-label="Close">×</button>
+          className={`fixed z-50 bg-gradient-to-r from-blue-600/80 to-blue-700/80 backdrop-blur-sm text-white px-3 py-3 rounded-l-lg shadow-lg hover:from-blue-700/90 hover:to-blue-800/90 transition-all duration-300 transform top-32 ${
+            showOrganizerTeamDrawer ? 'right-96' : 'right-0'
+          }`}
+          onClick={() => {
+            setShowOrganizerTeamDrawer((prev) => {
+              if (!prev) {
+                fetchVolunteers();
+              }
+              return !prev;
+            });
+          }}
+        >
+          <div className="flex flex-col items-center gap-1">
+            {/* Participants Icon */}
+            <svg 
+              className="w-5 h-5 text-white" 
+              fill="currentColor" 
+              viewBox="0 0 20 20"
+            >
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+            </svg>
+            
+            {/* Arrow Icon */}
+            <div className={`w-3 h-3 transition-all duration-300 ${
+              showOrganizerTeamDrawer ? 'rotate-0' : 'rotate-180'
+            }`}>
+              <svg 
+                className="w-3 h-3 text-white" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
             </div>
+          </div>
+          </button>
+      )}
+
+      {/* Single Participants Sidebar with Slider */}
+      {(organizerTeam.length > 0 || true) && (
+        <div
+          className={`fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-[70] transform transition-transform duration-300 ease-in-out ${showOrganizerTeamDrawer ? 'translate-x-0' : 'translate-x-full'}`}
+        >
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+            <h2 className="text-lg font-semibold text-blue-700">View Participants</h2>
+            <button
+              className="text-gray-500 hover:text-red-600 text-2xl font-bold"
+              onClick={() => setShowOrganizerTeamDrawer(false)}
+              aria-label="Close participants drawer"
+            >
+              ×
+            </button>
+            </div>
+          
+          {/* Slider Tabs */}
+          <div className="px-6 py-3 border-b">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => {
+                  setActiveTab('organizers');
+                }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'organizers'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Organizers ({organizerTeam.length})
+              </button>
+              <button
+                onClick={() => {
+                  if (activeTab !== 'volunteers') {
+                    fetchVolunteers();
+                  }
+                  setActiveTab('volunteers');
+                }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'volunteers'
+                    ? 'bg-white text-green-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Volunteers ({volunteers.length})
+              </button>
+            </div>
+          </div>
+          
+          {/* Search Bar */}
             <div className="px-6 py-3 border-b">
               <input
                 type="text"
-                placeholder="Search organizers..."
-                value={organizerSearchTerm}
-                onChange={(e) => setOrganizerSearchTerm(e.target.value)}
+              placeholder={`Search ${activeTab === 'organizers' ? 'organizers' : 'volunteers'}...`}
+              value={activeTab === 'organizers' ? organizerSearchTerm : volunteerSearchTerm}
+              onChange={(e) => {
+                if (activeTab === 'organizers') {
+                  setOrganizerSearchTerm(e.target.value);
+                } else {
+                  setVolunteerSearchTerm(e.target.value);
+                }
+              }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
+          
+          {/* Content Area */}
+          <div className="overflow-y-auto h-[calc(100%-200px)] px-6 py-4 custom-scrollbar">
+            {/* Organizers Tab Content */}
+            {activeTab === 'organizers' && (
+              <div className="space-y-4">
+                {/* Active Organizers Section */}
+                <div>
+                  <h3 className="text-md font-semibold text-blue-700 mb-3">Active Organizers</h3>
               {organizerTeam
-                .filter(obj => {
-                  if (!getSafeUserId(obj.user)) return false;
-                  const orgUser = obj.user;
-                  const displayName = getSafeUserName(orgUser) || getUsernameDisplay(orgUser) || '';
+                    .filter((obj) => {
+                      if (!obj.user || !obj.user._id) return false;
+                      const user = obj.user;
+                      const displayName = getSafeUserName(user) || getUsernameDisplay(user) || '';
                   return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
                 })
-                .map(obj => {
-                  const orgUser = obj.user;
-                  const isCreator = getSafeUserId(orgUser) === event.createdBy._id;
-                  const displayName = getSafeUserName(orgUser) || getUsernameDisplay(orgUser) || 'User';
-                  const displayText = getSafeUserName(orgUser) ? `@${getSafeUserName(orgUser)}` : displayName;
+                    .map((obj) => {
+                      const user = obj.user;
+                      const isThisUserCreator = user._id === event.createdBy._id;
+                      const displayName = getSafeUserName(user) || getUsernameDisplay(user) || 'User';
+                      const displayText = getSafeUserName(user) ? `@${getSafeUserName(user)}` : displayName;
+                      const canNavigate = canNavigateToUser(user);
+                      
                   return (
-                    <div key={getSafeUserId(orgUser)} className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border hover:shadow-md transition cursor-pointer hover:bg-blue-50 mb-2 ${isCreator ? 'border-2 border-yellow-500 bg-yellow-50' : ''}`} onClick={() => navigate(`/organizer/${getSafeUserId(orgUser)}`)}>
-                      <div className="flex-shrink-0 mr-4">
-                        <Avatar user={orgUser} size="lg" role="organizer" />
+                        <div
+                          key={user._id}
+                          className={`group relative bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 mb-3 transform hover:scale-[1.02] ${isThisUserCreator ? 'border-2 border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50 shadow-md' : ''}`}
+                          onClick={() => canNavigate && navigate(`/organizer/${getSafeUserId(user)}`)}
+                        >
+                          <div className="flex items-center">
+                            {getProfileImageUrl(user) ? (
+                              <img
+                                src={getProfileImageUrl(user)}
+                                alt={getSafeUserName(user)}
+                                className="w-12 h-12 lg:w-14 lg:h-14 rounded-full object-cover border-2 border-blue-400 mr-3 lg:mr-4 shadow-sm"
+                              />
+                            ) : (
+                              <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-3 lg:mr-4 shadow-sm ${getRoleColors(user.role || 'organizer')}`}>
+                                <span className="text-base lg:text-lg font-bold">{getAvatarInitial(user)}</span>
                       </div>
+                            )}
                       <div className="flex flex-col flex-1 min-w-0">
-                        <span className="font-medium text-blue-800 text-lg truncate">{displayText}</span>
-                        {getSafeUserName(orgUser) && getSafeUserRole(orgUser) === 'organizer' && (
-                          <span className="text-sm text-gray-600 truncate">{getSafeUserRole(orgUser)}</span>
+                              <span className={`font-medium text-blue-800 text-base lg:text-lg truncate ${
+                                user.isDeleted ? 'text-gray-600' : ''
+                              }`}>{displayText}</span>
+                              {getSafeUserName(user) && getSafeUserRole(user) === 'organizer' && (
+                                <span className="text-sm text-gray-600 truncate">{getSafeUserRole(user)}</span>
                         )}
                       </div>
-                      {isCreator && (
-                        <span className="ml-3 px-2 py-1 bg-yellow-400 text-white text-xs rounded font-bold flex-shrink-0">Creator</span>
+                            {isThisUserCreator && (
+                              <span className="ml-2 px-2 py-1 bg-gradient-to-r from-yellow-400 to-amber-500 text-white text-xs rounded-full font-bold shadow-sm">Creator</span>
                       )}
+                          </div>
                     </div>
                   );
-                })}
+                    })
+                  }
               {organizerTeam.filter(obj => {
-                if (!getSafeUserId(obj.user)) return false;
-                const orgUser = obj.user;
-                const displayName = getSafeUserName(orgUser) || getUsernameDisplay(orgUser) || '';
+                    if (!obj.user?._id) return false;
+                    const user = obj.user;
+                    const displayName = getSafeUserName(user) || getUsernameDisplay(user) || '';
                 return displayName.toLowerCase().includes(organizerSearchTerm.toLowerCase());
               }).length === 0 && organizerSearchTerm && (
                 <div className="text-gray-500 text-center py-4">No organizers found matching "{organizerSearchTerm}"</div>
               )}
             </div>
           </div>
-        </>
-      )}
-
-      {/* Volunteers Drawer & Button */}
-      <button
-        className="fixed z-50 bg-green-600 text-white px-5 py-2 rounded shadow hover:bg-green-700 transition top-[calc(2cm+1.5rem)] left-8"
-        onClick={() => {
-          if (!showVolunteers) fetchVolunteers();
-          setShowVolunteers(prev => !prev);
-        }}
-      >
-        {showVolunteers ? 'Hide Volunteers' : 'Show Volunteers'}
-      </button>
-      <div className={`fixed top-0 left-0 h-full w-80 bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showVolunteers ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold text-green-700">Volunteers</h2>
-          <button className="text-gray-500 hover:text-red-600 text-2xl font-bold" onClick={() => setShowVolunteers(false)} aria-label="Close">×</button>
-        </div>
-        <div className="px-6 py-3 border-b">
-          <input
-            type="text"
-            placeholder="Search volunteers..."
-            value={volunteerSearchTerm}
-            onChange={(e) => setVolunteerSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
-        </div>
-        <div className="overflow-y-auto h-[calc(100%-128px)] px-6 py-4 space-y-4">
+            )}
+            
+            {/* Volunteers Tab Content */}
+            {activeTab === 'volunteers' && (
+              <div className="space-y-4">
+                {/* Active Volunteers Section */}
+                <div>
+                  <h3 className="text-md font-semibold text-green-700 mb-3">Active Volunteers</h3>
           {volunteersLoading ? (
-            <div>Loading...</div>
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                      <span className="ml-3 text-gray-600">Loading volunteers...</span>
+                    </div>
           ) : volunteers.length === 0 ? (
-            <div className="text-gray-500">No volunteers registered.</div>
+                    <div className="text-gray-500 text-center py-8">
+                      <div className="text-gray-400 mb-2">👥</div>
+                      <p>No volunteers registered yet.</p>
+                    </div>
           ) : (
             volunteers
               .filter(vol => {
@@ -662,17 +788,26 @@ export default function VolunteerEventDetailsPage() {
                 return (
                   <div 
                     key={getSafeUserId(vol) || safeVol._id} 
-                    className={`flex items-center bg-gray-50 rounded-lg shadow p-3 border transition ${
-                      safeVol.isDeleted ? 'opacity-75 bg-gray-100 cursor-default' : 'hover:shadow-md cursor-pointer hover:bg-green-50'
+                            className={`group relative bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 cursor-pointer hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 mb-3 transform hover:scale-[1.02] ${
+                              safeVol.isDeleted ? 'opacity-75 bg-gray-100' : ''
                     }`} 
                     onClick={() => canNavigate && navigate(`/volunteer/${getSafeUserId(vol)}`)}
                   >
-                    <div className="flex-shrink-0 mr-4">
-                      <Avatar user={safeVol} size="lg" role="volunteer" />
+                            <div className="flex items-center">
+                              {getProfileImageUrl(safeVol) ? (
+                                <img
+                                  src={getProfileImageUrl(safeVol)}
+                                  alt={getSafeUserName(safeVol)}
+                                  className="w-12 h-12 lg:w-14 lg:h-14 rounded-full object-cover border-2 border-green-400 mr-3 lg:mr-4 shadow-sm"
+                                />
+                              ) : (
+                                <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center border-2 border-green-400 mr-3 lg:mr-4 shadow-sm ${getRoleColors(safeVol.role || 'volunteer')}`}>
+                                  <span className="text-base lg:text-lg font-bold">{getAvatarInitial(safeVol)}</span>
                     </div>
+                              )}
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className={`font-medium text-lg truncate ${
-                        safeVol.isDeleted ? 'text-gray-600' : 'text-green-800'
+                                <span className={`font-medium text-green-800 text-base lg:text-lg truncate ${
+                                  safeVol.isDeleted ? 'text-gray-600' : ''
                       }`}>
                         {displayText}
                         {safeVol.isDeleted && (
@@ -685,6 +820,7 @@ export default function VolunteerEventDetailsPage() {
                       {safeVol.isDeleted && safeVol.name && (
                         <span className="text-sm text-gray-500 truncate">{safeVol.name}</span>
                       )}
+                              </div>
                     </div>
                   </div>
                 );
@@ -698,64 +834,484 @@ export default function VolunteerEventDetailsPage() {
           )}
         </div>
       </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* LIVE badge */}
       {isLiveEvent && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow z-20 animate-pulse">LIVE</div>
       )}
 
-      <div className="pt-24 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        {/* Certificate Section */}
-        <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl shadow-sm">
-            <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">
-              <DocumentTextIcon className="w-5 h-5" />
+             <div className="pt-24 w-full px-6">
+         {/* Two Column Layout */}
+         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 max-w-none xl:h-[calc(100vh-8rem)]">
+           {/* Left Column - Action Cards */}
+           <div className="xl:col-span-1 space-y-6 xl:overflow-y-auto xl:max-h-screen pr-2 pb-8 custom-scrollbar">
+             {/* Certificate Section - Only visible for completed events */}
+             {isPastEvent && isRegistered && (
+               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                   <DocumentTextIcon className="w-5 h-5 text-blue-600" />
               Your Certificate
             </h3>
             {userCertificates.length > 0 ? (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                   <div className="space-y-3">
                 {certificateGenerated ? (
-                  <a href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" download>
+                       <div className="space-y-3">
+                         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                           <p className="text-sm text-green-800">
+                             🎉 <strong>Certificate ready!</strong> You can now download your certificate.
+                           </p>
+                         </div>
+                         <a 
+                           href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} 
+                           className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm text-center block"
+                           download
+                         >
                     📄 Download Certificate
                   </a>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <button onClick={handleGenerateCertificate} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" disabled={!canGenerateCertificate || isGeneratingCertificate}>
-                      {isGeneratingCertificate ? "🔄 Generating..." : "🎖️ Generate Certificate"}
+                       </div>
+                     ) : (
+                       <div className="space-y-3">
+                         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                           <p className="text-sm text-green-800">
+                             🎖️ <strong>Award assigned!</strong> You can now generate your certificate.
+                           </p>
+                           <p className="text-xs text-green-700 mt-1">
+                             Award: <span className="text-blue-800">{userCertificates[0]?.award}</span>
+                           </p>
+                         </div>
+                         <button
+                           onClick={handleGenerateCertificate}
+                           disabled={!canGenerateCertificate || isGeneratingCertificate}
+                           className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                         >
+                           {isGeneratingCertificate ? "🔄 Generating..." : "🎨 Generate Certificate"}
                     </button>
-                    {!questionnaireCompleted && <span className="text-sm text-red-600 flex items-center gap-1">⚠️ Please complete the questionnaire to enable generation.</span>}
                   </div>
                 )}
-                <span className="text-gray-700 bg-white/60 px-4 py-2 rounded-lg">
-                  Award: <b className="text-blue-800">{userCertificates[0]?.award}</b>
-                </span>
               </div>
             ) : (
-              <div className="text-gray-600">
+                   <div className="space-y-3">
                 {!questionnaireCompleted ? (
-                  <span className="flex items-center gap-2">📝 Complete your questionnaire to be eligible for a certificate.</span>
-                ) : (
-                  <span className="flex items-center gap-2">⏳ Certificate not available yet. The event organizer needs to assign awards.</span>
+                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                         <p className="text-sm text-amber-800">
+                           📝 <strong>Complete your questionnaire first</strong> to be eligible for a certificate.
+                         </p>
+                       </div>
+                     ) : (
+                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                         <p className="text-sm text-blue-800">
+                           ⏳ <strong>Questionnaire completed!</strong> Certificates will be available once the event organizer assigns awards.
+                         </p>
+                       </div>
                 )}
               </div>
             )}
           </div>
-        
-        <button className="mb-4 text-blue-600 underline" onClick={() => navigate(-1)}>← Back</button>
+             )}
 
-        {/* Event Card */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 w-full">
-          <div className="relative w-full bg-gray-200 flex items-center justify-center" style={{ minHeight: '180px', maxHeight: '220px' }}>
-            <img src={eventImage} alt={event.eventType} className="w-full h-full object-cover object-center opacity-40 absolute top-0 left-0 z-0" />
-            <div className="absolute bottom-2 left-2 bg-white/80 px-3 py-1 rounded text-sm font-semibold text-blue-700 shadow z-20">{event.eventType || "Event"}</div>
+             {/* Questionnaire Section for Volunteers */}
+             {isPastEvent && isRegistered && (
+               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                   <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                     <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                   </svg>
+                   Event Feedback
+                 </h3>
+                 
+                 <div className="space-y-3">
+                   {questionnaireCompleted ? (
+                     <div className="text-center py-2">
+                       <div className="text-green-600 font-medium mb-2">✅ Questionnaire Completed</div>
+                       <p className="text-sm text-gray-600">Thank you for your feedback!</p>
           </div>
+                   ) : (
+                     <>
+                       <p className="text-sm text-gray-600">
+                         Help us improve future events by sharing your experience.
+                       </p>
+                       <button
+                         onClick={() => setShowQuestionnaireModal(true)}
+                         className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                         disabled={questionnaireSubmitting}
+                       >
+                         {questionnaireSubmitting ? 'Submitting...' : 'Complete Questionnaire'}
+                       </button>
+                     </>
+                   )}
+                 </div>
+               </div>
+             )}
 
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-blue-800">
+                                                       {/* AI Event Report Section - Visible to Everyone Once Generated */}
+               {/* Show to: ALL users for past events when report exists, regardless of participation */}
+               {isPastEvent && eventReport && (
+                <div className="relative bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 rounded-2xl shadow-2xl border border-indigo-400/40 p-6 overflow-hidden">
+                  {/* Dynamic AI Background Pattern */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/8 via-indigo-500/8 via-cyan-500/8 to-blue-500/8"></div>
+                  
+                  {/* Enhanced Glowing Border Effect */}
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/25 via-indigo-500/25 via-cyan-500/25 to-blue-500/25 blur-2xl animate-pulse"></div>
+                  
+                  {/* Animated AI Circuit Pattern with Better Colors */}
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-400/50 rounded-full animate-ping"></div>
+                    <div className="absolute top-8 right-8 w-8 h-8 border border-violet-400/50 rounded-full animate-pulse"></div>
+                    <div className="absolute bottom-6 left-8 w-12 h-12 border border-indigo-400/50 rounded-full animate-bounce"></div>
+                    <div className="absolute bottom-8 right-4 w-6 h-6 border border-blue-400/50 rounded-full animate-ping"></div>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-cyan-300/30 rounded-full animate-spin"></div>
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 mb-6 flex items-center gap-3">
+                      <div className="relative">
+                        <svg className="w-6 h-6 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                        </svg>
+                        <div className="absolute -inset-1 bg-cyan-400/30 rounded-full blur-md animate-pulse"></div>
+                      </div>
+                      <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                        AI Event Report
+                      </span>
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      {/* Report Status */}
+                      <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                        <p className="text-sm text-emerald-200 font-medium">
+                          ✅ <strong className="text-emerald-100">AI Report Generated!</strong> The event analysis report is now available.
+                        </p>
+                      </div>
+                      
+                      {/* View Report Button */}
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleViewReport}
+                          className="flex-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl hover:from-violet-600 hover:via-cyan-600 hover:to-blue-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-cyan-500/25"
+                        >
+                          📄 View AI Report
+                        </button>
+                        
+                        <button
+                          onClick={handleDownloadReport}
+                          className="flex-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-500 text-white px-4 py-2 rounded-xl hover:from-indigo-600 hover:via-purple-600 hover:to-violet-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-purple-500/25"
+                        >
+                          📥 Download PDF
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+                             {/* AI Report Section - For when no report is available yet (visible to everyone) */}
+               {isPastEvent && !eventReport && (
+                <div className="relative bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 rounded-2xl shadow-2xl border border-indigo-400/40 p-6 overflow-hidden">
+                  {/* Dynamic AI Background Pattern */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500/8 via-indigo-500/8 via-cyan-500/8 to-blue-500/8"></div>
+                  
+                  {/* Enhanced Glowing Border Effect */}
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/25 via-indigo-500/25 via-cyan-500/25 to-blue-500/25 blur-2xl animate-pulse"></div>
+                  
+                  {/* Animated AI Circuit Pattern with Better Colors */}
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-400/50 rounded-full animate-ping"></div>
+                    <div className="absolute top-8 right-8 w-8 h-8 border border-violet-400/50 rounded-full animate-pulse"></div>
+                    <div className="absolute bottom-6 left-8 w-12 h-12 border border-indigo-400/50 rounded-full animate-bounce"></div>
+                    <div className="absolute bottom-8 right-4 w-6 h-6 border border-blue-400/50 rounded-full animate-ping"></div>
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-cyan-300/30 rounded-full animate-pulse"></div>
+                  </div>
+                  
+                  <div className="relative z-10">
+                    <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 mb-6 flex items-center gap-3">
+                      <div className="relative">
+                        <svg className="w-6 h-6 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                        </svg>
+                        <div className="absolute -inset-1 bg-cyan-400/30 rounded-full blur-md animate-pulse"></div>
+                      </div>
+                      <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                        AI Event Report
+                      </span>
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      {/* Report Status */}
+                      <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                        <p className="text-sm text-amber-200 font-medium">
+                          ⏳ <strong className="text-amber-100">AI Report Pending</strong> The event analysis report is not yet available.
+                        </p>
+                      </div>
+                      
+                      {/* Placeholder Content */}
+                      {reportLoading ? (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-400 mx-auto mb-3"></div>
+                          <span className="text-sm text-amber-200">Checking for available report...</span>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <div className="text-amber-400 mb-3 text-4xl">📋</div>
+                          <p className="text-sm text-amber-200 mb-2">No AI report available yet.</p>
+                          <p className="text-xs text-amber-300">Report will be visible to everyone once generated.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+             {/* Comments Section */}
+             {isPastEvent && (
+               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                   <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                     <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                   </svg>
+                   Volunteer Feedback & Comments
+                   {comments.length > 0 && (
+                     <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                       {comments.length}
+                     </span>
+                   )}
+                 </h3>
+                 
+                 <div className="space-y-3">
+                   <button
+                     onClick={() => {
+                       setShowComments(!showComments);
+                       if (!showComments && comments.length === 0) {
+                         fetchComments();
+                       }
+                     }}
+                     className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center gap-2"
+                   >
+                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                       <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                     </svg>
+                     {showComments ? 'Hide Comments' : 'Show Comments'}
+                   </button>
+
+                   {showComments && (
+                     <div className="mt-4">
+                       {commentsLoading ? (
+                         <div className="text-center py-4">
+                           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
+                           <span className="ml-3 text-gray-600">Loading comments...</span>
+                         </div>
+                       ) : comments.length > 0 ? (
+                         <div className="max-h-64 overflow-y-auto space-y-3 custom-scrollbar">
+                           {comments.map((comment, index) => (
+                             <div key={comment._id || index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                               <CommentAvatarAndName comment={comment} />
+                               <div className="mt-2 text-sm text-gray-700">
+                                 {comment.comment}
+                               </div>
+                               <div className="mt-2 text-xs text-gray-500 text-right">
+                                 {comment.submittedAt ? format(new Date(comment.submittedAt), 'MMM dd, yyyy') : 'Date not available'}
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       ) : (
+                         <div className="text-center py-4 text-gray-500">
+                           <svg className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                             <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                           </svg>
+                           <p className="text-sm font-medium">No comments yet</p>
+                           <p className="text-xs text-gray-400 mt-1">Comments will appear here once volunteers complete their questionnaires.</p>
+                         </div>
+                       )}
+                     </div>
+                   )}
+                 </div>
+               </div>
+             )}
+
+             {/* Event Actions & Status Section */}
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                 <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                   <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                 </svg>
+                 Event Actions & Status
+               </h3>
+               
+               <div className="space-y-4">
+                 {/* Banned Status */}
+                 {isBanned && (
+                   <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+                     🚫 You are banned from this event by the event creator. You cannot register.
+                   </div>
+                 )}
+
+                 {/* Removed Status */}
+                 {isRemoved && !isBanned && (
+                   <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
+                     ⚠️ You were removed from this event by an organizer. You can register again.
+                   </div>
+                 )}
+
+                                   {/* Entry QR Code - Only for live/upcoming events (automatically cleared when event completes) */}
+                  {!isPastEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
+                    <div className="text-center">
+                      <h4 className="text-md font-semibold mb-2 text-blue-800">Your Entry QR Code</h4>
+                      <img src={`http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
+                      <p className="mt-3 text-blue-800 text-sm">Show this to the organizer at the event entrance.</p>
+                    </div>
+                  )}
+
+                  {/* Exit QR Generation & Display - Only for live events (automatically cleared when event completes) */}
+                  {!isPastEvent && registrationDetails?.inTime && !registrationDetails?.outTime && (
+                    !showExitQr ? (
+                      <button onClick={handleGenerateExitQr} className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
+                        Generate Exit QR
+                      </button>
+                    ) : exitQrPath && (
+                      <div className="text-center">
+                        <h4 className="text-md font-semibold mb-2 text-green-800">Your Exit QR Code</h4>
+                        <img src={`http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
+                        <p className="mt-3 text-green-800 text-sm">Show this to the organizer at the exit to mark your out-time.</p>
+                      </div>
+                    )
+                  )}
+
+                 {/* Registration Button - Show for upcoming and live events if not banned */}
+                 {!isPastEvent && !isRegistered && !isBanned && (availableSlots > 0 || unlimitedVolunteers) && (
+                   <button onClick={() => setShowRegisterModal(true)} className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
+                     {isLiveEvent ? 'Register for Live Event' : 'Register for Event'}
+                   </button>
+                 )}
+                 
+                                   {/* Status Messages for Completed Events */}
+                  {isPastEvent && (
+                    <div className="space-y-3">
+                      <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                        🏁 This event has ended.
+                      </div>
+                      
+                      {/* QR Code Information */}
+                      <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm">
+                        🔒 <strong>QR codes automatically cleared.</strong> All entry and exit QR codes have been removed for security.
+                      </div>
+                      
+                      {/* Attendance Status Messages */}
+                      {isRegistered && !hasCompletedEvent && (
+                        <div className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2 rounded-lg text-sm">
+                          ⚠️ <strong>Event completed without attendance.</strong> You were registered but didn't attend this event.
+                        </div>
+                      )}
+                      
+                      {isRegistered && hasCompletedEvent && (
+                        <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm">
+                          ✅ <strong>Thank you for attending!</strong> Your attendance is complete.
+                        </div>
+                      )}
+                      
+                      {!isRegistered && (
+                        <div className="bg-gray-50 border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm">
+                          📝 <strong>Event completed.</strong> You were not registered for this event.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                 
+                 {/* Live Event Status for Unregistered Users */}
+                 {isLiveEvent && !isRegistered && (
+                   <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm text-center">
+                     🎯 This event is currently live! You can still register if slots are available.
+                   </div>
+                 )}
+                 
+                 {/* Live Event Status for Registered Users */}
+                 {isLiveEvent && isRegistered && (
+                   <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm text-center">
+                     🚀 Event is live! Make sure to check in with your QR code.
+                   </div>
+                 )}
+                 
+                 {/* Upcoming Event Status - Only for unregistered users */}
+                 {!isPastEvent && !isLiveEvent && !isRegistered && (
+                   <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 rounded-lg text-sm text-center">
+                     📅 This event is upcoming. Registration is open!
+                   </div>
+                 )}
+                 
+                 {/* Upcoming Event Status - For registered users */}
+                 {!isPastEvent && !isLiveEvent && isRegistered && (
+                   <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm text-center">
+                     ✅ You're registered for this upcoming event!
+                   </div>
+                 )}
+                 
+                 {/* Questionnaire Button */}
+                 {isPastEvent && isRegistered && !questionnaireCompleted && (
+                   <button onClick={() => setShowQuestionnaireModal(true)} className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm" disabled={questionnaireSubmitting}>
+                     {questionnaireSubmitting ? 'Submitting...' : 'Complete Questionnaire'}
+                   </button>
+                 )}
+                 {questionnaireCompleted && <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm text-center">✅ Questionnaire completed!</div>}
+                 
+                                   {/* Withdraw Button - Only for upcoming/live events */}
+                  {!isPastEvent && isRegistered && !registrationDetails?.inTime && (
+                    <button onClick={handleWithdrawRegistration} className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm">
+                      Withdraw Registration
+                    </button>
+                  )}
+                 
+                 {/* Event Information for All Users */}
+                 <div className="border-t border-gray-200 pt-4 mt-4">
+                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Event Status</h4>
+                   <div className="space-y-2 text-xs text-gray-600">
+                     <div className="flex justify-between">
+                       <span>Event Type:</span>
+                       <span className="font-medium">{event.eventType || "Not specified"}</span>
+                     </div>
+                     <div className="flex justify-between">
+                       <span>Location:</span>
+                       <span className="font-medium">{event.location}</span>
+                     </div>
+                     <div className="flex justify-between">
+                       <span>Start Time:</span>
+                       <span className="font-medium">
+                         {event.startDateTime ? format(new Date(event.startDateTime), 'hh:mm a, dd/MM/yyyy') : 'Not specified'}
+                       </span>
+                     </div>
+                     <div className="flex justify-between">
+                       <span>Volunteer Slots:</span>
+                       <span className="font-medium">{slotMessage}</span>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+
+           </div>
+
+           {/* Right Column - Event Details */}
+           <div className="xl:col-span-3 xl:overflow-y-auto xl:max-h-screen pr-2 pb-8 custom-scrollbar">
+
+                {/* Event Details - Organized like EventDetailsPage */}
+        
+        {/* Show event ended message if completed */}
+        {isPastEvent && (
+          <div className="text-red-600 font-semibold mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            This event has ended
+          </div>
+        )}
+
+        {/* Event Title and Calendar Button */}
+        <div className="flex justify-between items-start mb-6">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-blue-800 flex items-center gap-4">
                   {event.title}
                   {event.isRecurringInstance && (
-                    <span className="ml-3 text-lg bg-blue-100 text-blue-700 px-3 py-1 rounded">
+                <span className="text-lg bg-blue-100 text-blue-700 px-3 py-1 rounded">
                       Instance #{event.recurringInstanceNumber}
                     </span>
                   )}
@@ -844,195 +1400,355 @@ export default function VolunteerEventDetailsPage() {
               </div>
             </div>
             
-            {/* --- ACTION/STATUS SECTION --- */}
-            <div className="my-6 p-4 bg-gray-50 rounded-lg border text-center">
-              {/* Banned Status */}
-              {isBanned && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                  🚫 You are banned from this event by the event creator. You cannot register.
-                </div>
-              )}
+        {/* Event Description */}
+        <p className="text-gray-700 mb-6 text-lg leading-relaxed">{event.description}</p>
 
-              {/* Removed Status */}
-              {isRemoved && !isBanned && (
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                  ⚠️ You were removed from this event by an organizer. You can register again.
-                </div>
-              )}
-
-              {/* Entry QR Code */}
-              {!hasCompletedEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
-                <div className="flex flex-col items-center">
-                  <h3 className="text-lg font-semibold mb-2">Your Entry QR Code</h3>
-                  <img src={`http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="border border-gray-300 p-2 w-64 h-64" />
-                  <p className="mt-3 text-blue-800 text-sm max-w-xs">Show this to the organizer at the event entrance.</p>
-                </div>
-              )}
-
-              {/* Exit QR Generation & Display */}
-              {!hasCompletedEvent && registrationDetails?.inTime && !registrationDetails?.outTime && (
-                !showExitQr ? (
-                  <button onClick={handleGenerateExitQr} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Generate Exit QR</button>
-                ) : exitQrPath && (
-                  <div className="flex flex-col items-center">
-                    <h3 className="text-lg font-semibold mb-2">Your Exit QR Code</h3>
-                    <img src={`http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="border border-gray-300 p-2 w-64 h-64" />
-                    <p className="mt-3 text-blue-800 text-sm max-w-xs">Show this to the organizer at the exit to mark your out-time.</p>
-                  </div>
-                )
-              )}
-
-              {/* Registration Button - Only show if not banned */}
-              {!isPastEvent && !isLiveEvent && !isRegistered && !isBanned && (availableSlots > 0 || unlimitedVolunteers) && (
-                <button onClick={() => setShowRegisterModal(true)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Register</button>
-              )}
-              
-              {/* Status Messages */}
-              {isPastEvent ? <p className="text-red-600 font-semibold">This event has ended.</p> : null}
-              {hasCompletedEvent && <p className="text-green-700 font-semibold">Thank you for attending! Your attendance is complete.</p>}
-              
-              {/* Questionnaire Button */}
-              {isPastEvent && isRegistered && !questionnaireCompleted && (
-                <button onClick={() => setShowQuestionnaireModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" disabled={questionnaireSubmitting}>
-                  {questionnaireSubmitting ? 'Submitting...' : 'Complete Questionnaire'}
-                </button>
-              )}
-              {questionnaireCompleted && <p className="text-green-700 font-semibold mt-4">✅ Questionnaire completed!</p>}
-              
-              {/* Withdraw Button */}
-              {!hasCompletedEvent && isRegistered && !registrationDetails?.inTime && (
-                <button onClick={handleWithdrawRegistration} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4">Withdraw Registration</button>
-              )}
-            </div>
-
-            {/* Event Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <p><span className="font-semibold text-gray-700">Organization:</span> {event.organization?.name || "N/A"}</p>
-                <p><span className="font-semibold text-gray-700">Location:</span> {event.location}</p>
-                <p><span className="font-semibold text-gray-700">Timing:</span> {`(${format(new Date(event.startDateTime), 'hh:mm a, d MMM yyyy')}) — (${format(new Date(event.endDateTime), 'hh:mm a, d MMM yyyy')})`}</p>
-                <p><span className="font-semibold text-gray-700">Type:</span> {event.eventType || "Not specified"}</p>
-                <p><span className="font-semibold text-gray-700">Volunteer Slots:</span> <span className={slotColor}>{slotMessage}</span></p>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-700">Description:</h3>
-                <p className="text-gray-700 mt-1">{event.description}</p>
-              </div>
-            </div>
-
-            {/* Map Location */}
-            {event.mapLocation?.lat && event.mapLocation?.lng && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Event Location Map</h3>
-                <StaticMap 
-                  key={`${event.mapLocation.lat}-${event.mapLocation.lng}-${event.mapLocation.address}`}
-                  lat={event.mapLocation.lat} 
-                  lng={event.mapLocation.lng} 
-                />
-                {event.mapLocation.address && <p className="text-gray-600 mt-2 text-sm">{event.mapLocation.address}</p>}
-              </div>
-            )}
+        {/* Event Details Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Location Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>
+              Event Location
+            </h3>
             
-            {/* Logistics Section */}
-            <div className="border-t pt-6 mt-6">
-              <h2 className="text-xl font-semibold text-blue-700 mb-3">Volunteer Logistics</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700">
-                <p><span className="font-semibold">Water Provided:</span> {event.waterProvided ? "Yes" : "No"}</p>
-                <p><span className="font-semibold">Medical Support:</span> {event.medicalSupport ? "Yes" : "No"}</p>
-                <p><span className="font-semibold">Precautions:</span> {event.precautions || "None"}</p>
-                <p><span className="font-semibold">Instructions:</span> {event.instructions || "None"}</p>
-              </div>
-            </div>
-
-            {/* AI Summary */}
-            <div className="mt-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 rounded shadow">
-              <h2 className="text-xl font-bold text-yellow-700 mb-2">AI Event Summary</h2>
-              {event.summary?.trim() ? (
-                <p className="text-gray-800 whitespace-pre-line">{event.summary}</p>
+            {/* Location Text */}
+            <p className="text-gray-700 mb-3">{event.location}</p>
+            
+            {/* Map Display */}
+            <div className="mt-4">
+              {event.mapLocation && event.mapLocation.lat && event.mapLocation.lng ? (
+                // Show actual map with coordinates
+                <div>
+                  <StaticMap 
+                    key={`${event.mapLocation.lat}-${event.mapLocation.lng}-${event.mapLocation.address}`}
+                    lat={event.mapLocation.lat} 
+                    lng={event.mapLocation.lng} 
+                  />
+                  {event.mapLocation.address && (
+                    <p className="text-gray-600 mt-2 text-sm">{event.mapLocation.address}</p>
+                  )}
+                </div>
               ) : (
-                <p className="italic text-gray-500">Generating AI summary...</p>
+                // Show fallback map or location display
+                <div className="bg-gray-100 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center justify-center h-48 text-gray-500">
+                    <div className="text-center">
+                      <svg className="w-16 h-16 mx-auto mb-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-sm font-medium">Location: {event.location}</p>
+                      <p className="text-xs text-gray-400 mt-1">Map coordinates not available</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Additional Location Info */}
+            {event.mapLocation && event.mapLocation.address && (
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Detailed Address</p>
+                    <p className="text-sm text-blue-700">{event.mapLocation.address}</p>
+                  </div>
+                </div>
+                </div>
+              )}
+          </div>
+
+          {/* Timing Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              Event Timing
+            </h3>
+            <div className="space-y-2">
+              <div>
+                <span className="font-medium text-gray-700">Start:</span>
+                <p className="text-gray-600">
+                  {event && event.startDateTime ? format(new Date(event.startDateTime), 'hh:mm a, d MMMM yyyy') : 'Not specified'}
+                </p>
+                </div>
+              <div>
+                <span className="font-medium text-gray-700">End:</span>
+                <p className="text-gray-600">
+                  {event && event.endDateTime ? format(new Date(event.endDateTime), 'hh:mm a, d MMMM yyyy') : 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Type:</span>
+                <p className="text-gray-600">{event.eventType || "Not specified"}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Volunteer Slots:</span>
+                <p className="text-gray-600">{slotMessage}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Event Registration & Category Section */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              Registration & Category
+            </h3>
+            <div className="space-y-2">
+              <div>
+                <span className="font-medium text-gray-700">Category:</span>
+                <p className="text-gray-600">{event.category || "Not specified"}</p>
+                  </div>
+              <div>
+                <span className="font-medium text-gray-700">Group Registration:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${event.groupRegistration ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                  {event.groupRegistration ? "Enabled" : "Disabled"}
+                </span>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Recurring Event:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${event.recurringEvent ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                  {event.recurringEvent ? "Yes" : "No"}
+                </span>
+              </div>
+              {event.recurringEvent && (
+                <div>
+                  <span className="font-medium text-gray-700">Recurring Pattern:</span>
+                  <p className="text-gray-600">{event.recurringType} - {event.recurringValue}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Event Details */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            Event Details
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              {event.groupRegistration && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  <span className="text-gray-700">Group Registration Enabled</span>
+                </div>
+              )}
+              {event.recurringEvent && (
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                  <span className="text-gray-700">Recurs {event.recurringType} on {event.recurringValue}</span>
+                </div>
+              )}
+              <div>
+                <span className="font-medium text-gray-700">Instructions:</span>
+                <p className="text-gray-600 mt-1">{event.instructions || "None"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {event.equipmentNeeded?.length > 0 && (
+                <div>
+                  <span className="font-medium text-gray-700">Equipment Needed:</span>
+                  <ul className="list-disc list-inside text-gray-600 mt-1">
+                    {event.equipmentNeeded.map((eq, i) => (
+                      <li key={i}>{eq}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
 
-            {/* AI Report */}
-            {isPastEvent && isRegistered && (
-              <div className="mt-8 p-6 bg-green-50 border-l-4 border-green-400 rounded shadow">
-                <h2 className="text-xl font-bold text-green-700 mb-4">AI Event Report</h2>
-                {reportLoading ? (
-                  <div className="flex items-center text-gray-600">... Checking for available report ...</div>
-                ) : eventReport ? (
-                  <div className="flex gap-4">
-                    <button onClick={handleViewReport} className="px-6 py-3 bg-green-600 text-white rounded font-semibold hover:bg-green-700">📄 View Report</button>
-                    <button onClick={handleDownloadReport} className="px-6 py-3 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700">📥 Download PDF</button>
-                  </div>
-                ) : (
-                  <div className="text-gray-600">📋 No report available yet.</div>
-                )}
+            <div className="space-y-3">
+              <div>
+                <span className="font-medium text-gray-700">Focus Area:</span>
+                <p className="text-gray-600 mt-1">{event.focusArea || "Not specified"}</p>
               </div>
-            )}
-            
-            {/* Comments Section */}
-            {isPastEvent && (
-              <div className="mt-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold text-gray-800">Volunteer Feedback & Comments</h3>
-                  <button
-                    onClick={() => {
-                      setShowComments(!showComments);
-                      if (!showComments && comments.length === 0) {
-                        fetchComments();
-                      }
-                    }}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
-                  >
-                    {showComments ? 'Hide Comments' : 'Show Comments'}
-                  </button>
+              <div>
+                <span className="font-medium text-gray-700">Target Audience:</span>
+                <p className="text-gray-600 mt-1">{event.targetAudience || "General public"}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Event Status:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${
+                  event.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                  event.status === 'ongoing' ? 'bg-blue-100 text-blue-700' : 
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {event.status || "upcoming"}
+                </span>
+            </div>
+              </div>
+              </div>
+            </div>
+
+        {/* Volunteer Logistics */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+            </svg>
+            Volunteer Logistics
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700">Drinking Water:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${event.waterProvided ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {event.waterProvided ? "Yes" : "No"}
+                </span>
+                  </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700">Medical Support:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${event.medicalSupport ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {event.medicalSupport ? "Yes" : "No"}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-700">Recommended Age Group:</span>
+                <p className="text-gray-600 mt-1">{event.ageGroup || "Not specified"}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="font-medium text-gray-700">Special Precautions:</span>
+                <p className="text-gray-600 mt-1">{event.precautions || "None"}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Public Transport:</span>
+                <p className="text-gray-600 mt-1">{event.publicTransport || "Not mentioned"}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Contact Person:</span>
+                <p className="text-gray-600 mt-1">{event.contactPerson || "Not listed"}</p>
+              </div>
                 </div>
                 
-                {showComments && (
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    {commentsLoading ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                        <span className="ml-3 text-gray-600">Loading comments...</span>
+            <div className="space-y-3">
+              <div>
+                <span className="font-medium text-gray-700">Parking Available:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${event.parkingAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {event.parkingAvailable ? "Yes" : "No"}
+                </span>
                       </div>
-                    ) : comments.length > 0 ? (
-                      <div className="space-y-4">
-                        {comments.map((comment, index) => (
-                          <div key={comment._id || index} className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                            <div className="flex items-start space-x-3">
-                              <CommentAvatarAndName comment={comment} />
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span
-                                    className="text-sm text-gray-500"
-                                  >
-                                    {format(new Date(comment.submittedAt), 'dd/MM/yyyy HH:mm')}
+              <div>
+                <span className="font-medium text-gray-700">Accessibility:</span>
+                <p className="text-gray-600 mt-1">{event.accessibility || "Standard"}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Weather Dependent:</span>
+                <span className={`px-2 py-1 rounded text-sm font-medium ${event.weatherDependent ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                  {event.weatherDependent ? "Yes" : "No"}
                                   </span>
                                 </div>
-                                <p className="text-gray-700 leading-relaxed">{comment.comment}</p>
                               </div>
                             </div>
                           </div>
-                        ))}
 
+                 {/* AI Summary Section - New container with proper spacing */}
+         <div className="relative mb-8 mx-4">
+           {/* AI Summary with gradient border */}
+           <div className="relative group">
+             {/* Animated gradient border with AI colors - positioned to overlap left column */}
+             <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400/60 via-purple-400/60 to-cyan-400/60 rounded-xl blur-sm opacity-90 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-gradient-x -left-1 z-10"></div>
+             
+             {/* Secondary subtle gradient layer for enhanced border effect */}
+             <div className="absolute -inset-1 bg-gradient-to-r from-blue-300/40 via-purple-300/40 to-cyan-300/40 rounded-xl blur-md opacity-60 group-hover:opacity-80 transition duration-1000 group-hover:duration-200 animate-gradient-x -left-1.5 z-5"></div>
+             
+             {/* Main content card - smaller size with proper positioning */}
+             <div className="relative bg-white/90 backdrop-blur-sm rounded-xl shadow-xl p-6 border border-white/20 z-20">
+               {/* Header with enhanced AI styling - smaller */}
+               <div className="flex items-center gap-3 mb-4">
+                 <div className="relative">
+                   {/* Animated background circle */}
+                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-600 to-cyan-500 rounded-full blur-sm animate-pulse"></div>
+                   {/* Main icon container - smaller */}
+                   <div className="relative w-10 h-10 bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+                     <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                       <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                     </svg>
+                   </div>
+                   {/* Floating particles effect - smaller */}
+                   <div className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-bounce"></div>
+                   <div className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.5s'}}></div>
+                 </div>
+                 
+                 <div className="flex-1">
+                   <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent tracking-tight">
+                     AI Event Summary
+                   </h3>
+                   <p className="text-xs text-gray-500 mt-1 font-medium tracking-wide">Powered by advanced AI analysis</p>
+                 </div>
+                 
+                 {/* AI status indicator - smaller */}
+                 <div className="flex items-center gap-1.5 px-2 py-1 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full border border-green-200">
+                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                   <span className="text-xs font-medium text-green-700">AI Active</span>
+                 </div>
+               </div>
+               
+               {/* Content with enhanced styling */}
+               <div className="relative">
+                 {/* Subtle pattern overlay */}
+                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-purple-50/30 rounded-lg pointer-events-none"></div>
+                 
+                 <div className="relative">
+                   {event.summary && event.summary.trim() ? (
+                     <div className="text-gray-800 whitespace-pre-line leading-relaxed text-lg font-normal tracking-wide">
+                       <div className="prose prose-gray max-w-none">
+                         <p className="text-gray-700 leading-7 mb-4 first:mt-0 last:mb-0 text-justify">
+                           {event.summary}
+                         </p>
+                       </div>
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <div className="text-gray-500 mb-2">💬</div>
-                        <p className="text-gray-600">No volunteer feedback available yet.</p>
-                        <p className="text-sm text-gray-500 mt-1">Comments will appear here once volunteers complete their questionnaires.</p>
+                     <div className="flex items-center gap-3 text-gray-500 italic">
+                       <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                       <span className="text-sm font-medium">Generating AI summary...</span>
                       </div>
                     )}
                   </div>
-                )}
               </div>
-            )}
+               
+               {/* Bottom accent - smaller */}
+               <div className="mt-4 pt-3 border-t border-gradient-to-r from-blue-200 via-purple-200 to-cyan-200">
+                 <div className="flex items-center justify-between text-xs text-gray-500">
+                   <span className="font-medium tracking-wide">Generated with advanced AI algorithms</span>
+                   <div className="flex items-center gap-1">
+                     <div className="w-1.5 h-1.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse"></div>
+                     <span className="font-medium">Real-time analysis</span>
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </div>
+
+        {/* Event Images Carousel */}
+        {event.eventImages?.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+              </svg>
+              Event Images
+            </h3>
             
-            {/* Image Carousel */}
-            {hasImages && (
-              <div className="mt-10">
-                <h2 className="text-xl font-semibold text-blue-700 mb-2 text-center">Event Images</h2>
                 <div className="relative w-full max-w-4xl mx-auto bg-gray-100 flex items-center justify-center rounded-lg shadow-lg" style={{ minHeight: '420px', maxHeight: '520px' }}>
                   <button onClick={handlePrev} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-blue-700 rounded-full shadow p-2 z-10">&#8592;</button>
                   <img src={`${imageBaseUrl}${images[carouselIndex]}`} alt={`Event ${carouselIndex + 1}`} className="max-h-[420px] aspect-video rounded-lg border-4 border-white shadow-lg object-contain bg-white" style={{ maxWidth: '95%' }} />
@@ -1041,6 +1757,8 @@ export default function VolunteerEventDetailsPage() {
               </div>
             )}
           </div>
+      
+      {/* Close the grid layout divs */}
         </div>
       </div>
       
@@ -1082,6 +1800,23 @@ export default function VolunteerEventDetailsPage() {
           </div>
         </div>
       )}
+      
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
     </div>
   );
 }

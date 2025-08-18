@@ -1,6 +1,7 @@
 // src/pages/EventDetailsPage.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
@@ -21,6 +22,7 @@ import StaticMap from '../components/event/StaticMap'; // Import the new compone
 import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
 import EventQuestionnaireModal from "../components/event/EventQuestionnaireModal";
+import ImageCarousel from "../components/event/ImageCarousel";
 import { checkReportEligibility, generateEventReport } from "../utils/reportUtils";
 import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../utils/calendarUtils";
 import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
@@ -336,13 +338,6 @@ export default function EventDetailsPage() {
     };
   }, [showCalendarOptions]);
 
-  // Check report eligibility when event loads
-  useEffect(() => {
-    if (event && isCreator) {
-      checkEligibility();
-    }
-  }, [event, isCreator]);
-
   // Check calendar status
   useEffect(() => {
     const checkCalendarStatus = async () => {
@@ -381,11 +376,11 @@ export default function EventDetailsPage() {
 
     try {
       await axiosInstance.delete(`/api/events/${id}`);
-      alert("Event deleted successfully.");
+      toast.success("🎉 Event deleted successfully.");
       navigate(-1); // or navigate('/your-organizations') if you prefer
     } catch (err) {
       console.error("Failed to delete event:", err);
-      alert("Failed to delete event.");
+      toast.error("❌ Failed to delete event.");
     }
   };
 
@@ -413,9 +408,9 @@ export default function EventDetailsPage() {
       await fetchAndSetEvent();
       // Clear join request status for this user after leaving
       setJoinRequestStatus(null);
-      alert('You have left as an organizer for this event.');
+      toast.success('✅ You have left as an organizer for this event.');
     } catch (err) {
-      alert('Failed to leave as organizer.');
+      toast.error('❌ Failed to leave as organizer.');
     }
   };
 
@@ -439,9 +434,10 @@ export default function EventDetailsPage() {
   const handleApproveJoinRequest = async (userId) => {
     try {
       await axiosInstance.post(`/api/events/${id}/approve-join-request`, { userId });
+      toast.success("Join request approved.");
       await fetchAndSetEvent();
     } catch (err) {
-      alert('Failed to approve join request.');
+      toast.error('❌ Failed to approve join request.');
     }
   };
 
@@ -449,9 +445,10 @@ export default function EventDetailsPage() {
   const handleRejectJoinRequest = async (userId) => {
     try {
       await axiosInstance.post(`/api/events/${id}/reject-join-request`, { userId });
+      toast.success("Join request rejected.");
       await fetchAndSetEvent();
     } catch (err) {
-      alert('Failed to reject join request.');
+      toast.error('❌ Failed to reject join request.');
     }
   };
 
@@ -512,7 +509,7 @@ export default function EventDetailsPage() {
         setShowQuestionnaireModal(false);
       }, 1000);
     } catch (err) {
-      alert("Failed to submit questionnaire.");
+      toast.error("❌ Failed to submit questionnaire.");
     }
   };
 
@@ -530,13 +527,12 @@ export default function EventDetailsPage() {
     }
   );
   
-  // Check if user is eligible to generate certificate (for organizers, not creators)
+  // Check if user is eligible to generate certificate (for organizers and creators)
   const canGenerateCertificate = isPast && 
-    isTeamMember && 
-    !isCreator && // Only non-creator organizers can generate certificates
+    (isTeamMember || isCreator) && // Both team members and creators can generate certificates
     myQuestionnaireCompleted && 
     myCertificateAssignment && 
-    myCertificateAssignment.role === 'organizer' &&
+    (myCertificateAssignment.role === 'organizer' || myCertificateAssignment.role === 'creator') &&
     !myCertificateAssignment.filePath; // No filePath means certificate not generated yet
   
   // Check if certificate is already generated
@@ -545,7 +541,7 @@ export default function EventDetailsPage() {
   // Certificate generation handler
   const handleGenerateCertificate = async () => {
     if (!canGenerateCertificate) {
-      alert('You are not eligible to generate a certificate at this time.');
+      toast.warning('⚠️ You are not eligible to generate a certificate at this time.');
       return;
     }
     
@@ -565,11 +561,11 @@ export default function EventDetailsPage() {
       // Force a re-render by updating state
       setForceRefresh(prev => prev + 1);
       
-      alert('Certificate generated successfully! You can now download it.');
+      toast.success('🎉 Certificate generated successfully! You can now download it.');
     } catch (err) {
       console.error('Certificate generation error:', err);
       const errorMessage = err.response?.data?.message || 'Failed to generate certificate. Please try again.';
-      alert(errorMessage);
+      toast.error(`❌ ${errorMessage}`);
     } finally {
       setIsGeneratingCertificate(false);
     }
@@ -597,7 +593,7 @@ export default function EventDetailsPage() {
   };
 
   // Check report eligibility
-  const checkEligibility = async () => {
+  const checkEligibility = useCallback(async () => {
     if (!event?._id) return;
     
     const result = await checkReportEligibility(event._id);
@@ -606,7 +602,19 @@ export default function EventDetailsPage() {
     } else {
       console.error('Failed to check eligibility:', result.error);
     }
-  };
+  }, [event?._id]);
+
+  // Check report eligibility when event loads
+  // For creators: to manage reports and get detailed stats
+  // For all users: report existence is checked directly from event data
+  useEffect(() => {
+    if (event && isCreator) {
+      // For creators, get full eligibility data with stats
+      checkEligibility();
+    }
+  }, [event, isCreator, checkEligibility]);
+
+
 
   // Handle report generation
   const handleGenerateReport = async () => {
@@ -619,7 +627,7 @@ export default function EventDetailsPage() {
     
     if (result.success) {
       const message = result.data.isUpdate ? 'Report updated successfully!' : 'Report generated successfully!';
-      alert(message);
+      toast.success(`✅ ${message}`);
       // Refresh event data to get the updated report
       fetchAndSetEvent();
       // Refresh eligibility to update UI
@@ -627,7 +635,7 @@ export default function EventDetailsPage() {
     } else {
       setReportError(result.error);
       const action = reportEligibility?.reportGenerated ? 'update' : 'generate';
-      alert(`Failed to ${action} report: ${result.error}`);
+      toast.error(`❌ Failed to ${action} report: ${result.error}`);
     }
     
     setGeneratingReport(false);
@@ -706,10 +714,10 @@ export default function EventDetailsPage() {
       setShowRemoveConfirm(false);
       setSelectedVolunteer(null);
       
-      alert('Volunteer removed successfully!');
+      toast.success('✅ Volunteer removed successfully!');
     } catch (err) {
       console.error('Failed to remove volunteer:', err);
-      alert(err.response?.data?.message || 'Failed to remove volunteer');
+      toast.error(err.response?.data?.message || '❌ Failed to remove volunteer');
     } finally {
       setRemovingVolunteer(false);
     }
@@ -730,10 +738,10 @@ export default function EventDetailsPage() {
       setShowBanConfirm(false);
       setSelectedVolunteer(null);
       
-      alert('Volunteer banned successfully!');
+      toast.success('🚫 Volunteer banned successfully!');
     } catch (err) {
       console.error('Failed to ban volunteer:', err);
-      alert(err.response?.data?.message || 'Failed to ban volunteer');
+      toast.error(err.response?.data?.message || '❌ Failed to ban volunteer');
     } finally {
       setBanningVolunteer(false);
     }
@@ -761,7 +769,7 @@ export default function EventDetailsPage() {
         // If next instance was created, show info
         if (response.nextInstance) {
           setTimeout(() => {
-            alert(`Event completed successfully! Next instance created: ${response.nextInstance.title}`);
+            toast.success(`🎉 Event completed successfully! Next instance created: ${response.nextInstance.title}`);
           }, 1000);
         }
       } else {
@@ -790,10 +798,10 @@ export default function EventDetailsPage() {
       setShowRemoveOrganizerConfirm(false);
       setSelectedOrganizer(null);
       
-      alert('Organizer removed successfully!');
+      toast.success('✅ Organizer removed successfully!');
     } catch (err) {
       console.error('Failed to remove organizer:', err);
-      alert(err.response?.data?.message || 'Failed to remove organizer');
+      toast.error(err.response?.data?.message || '❌ Failed to remove organizer');
     } finally {
       setRemovingOrganizer(false);
     }
@@ -814,10 +822,10 @@ export default function EventDetailsPage() {
       setShowBanOrganizerConfirm(false);
       setSelectedOrganizer(null);
       
-      alert('Organizer banned successfully!');
+      toast.success('🚫 Organizer banned successfully!');
     } catch (err) {
       console.error('Failed to ban organizer:', err);
-      alert(err.response?.data?.message || 'Failed to ban organizer');
+      toast.error(err.response?.data?.message || '❌ Failed to ban organizer');
     } finally {
       setBanningOrganizer(false);
     }
@@ -838,10 +846,10 @@ export default function EventDetailsPage() {
       setShowUnbanVolunteerConfirm(false);
       setSelectedVolunteer(null);
       
-      alert('Volunteer unbanned successfully!');
+      toast.success('✅ Volunteer unbanned successfully!');
     } catch (err) {
       console.error('Failed to unban volunteer:', err);
-      alert(err.response?.data?.message || 'Failed to unban volunteer');
+      toast.error(err.response?.data?.message || '❌ Failed to unban volunteer');
     } finally {
       setUnbanningVolunteer(false);
     }
@@ -862,10 +870,10 @@ export default function EventDetailsPage() {
       setShowUnbanOrganizerConfirm(false);
       setSelectedOrganizer(null);
       
-      alert('Organizer unbanned successfully!');
+      toast.success('✅ Organizer unbanned successfully!');
     } catch (err) {
       console.error('Failed to unban organizer:', err);
-      alert(err.response?.data?.message || 'Failed to unban organizer');
+      toast.error(err.response?.data?.message || '❌ Failed to unban organizer');
     } finally {
       setUnbanningOrganizer(false);
     }
@@ -1429,12 +1437,487 @@ export default function EventDetailsPage() {
             -webkit-box-orient: vertical;
             overflow: hidden;
           }
+
+          /* Hide scrollbar for thumbnail navigation */
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+
+          /* Enhanced carousel animations */
+          .carousel-slide-enter {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          .carousel-slide-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+          }
+          .carousel-slide-exit {
+            opacity: 1;
+            transform: scale(1);
+          }
+          .carousel-slide-exit-active {
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+          }
+
+          /* Smooth hover effects for carousel controls */
+          .carousel-control {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .carousel-control:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          }
         `}</style>
       <div className="pt-24 w-full px-6">
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 max-w-none xl:h-[calc(100vh-8rem)]">
           {/* Left Column - Action Cards */}
           <div className="xl:col-span-1 space-y-6 xl:overflow-y-auto xl:max-h-screen pr-2 pb-8 custom-scrollbar">
+            {/* Questionnaire Section for Organizers - AT THE TOP */}
+            {/* Show to: organizers for past events ONLY if they are part of the event (not just requested to join) */}
+            {isOrganizer && isPastEvent && isTeamMember && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                  </svg>
+                  Organizer Feedback
+                </h3>
+                
+                <div className="space-y-3">
+                  {myOrganizerObj && !myQuestionnaireCompleted ? (
+                    <>
+                      <p className="text-sm text-gray-600">
+                        Complete your questionnaire to generate your certificate.
+                      </p>
+                      <button
+                        onClick={handleOpenQuestionnaireModal}
+                        className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                      >
+                        Complete Questionnaire
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center py-2">
+                      <div className="text-green-600 font-medium mb-2">✅ Questionnaire Completed</div>
+                      <p className="text-sm text-gray-600">Thank you for your feedback!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Certificate Section for Organizers & Creators - BELOW QUESTIONNAIRE */}
+            {/* Show to: organizers (only if part of event) and creators for past events */}
+            {((isOrganizer && isTeamMember) || isCreator) && isPastEvent && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                  </svg>
+                  Your Certificate
+                </h3>
+                
+                <div className="space-y-3">
+                  {!myQuestionnaireCompleted ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <p className="text-sm text-amber-800">
+                        📝 <strong>Complete your questionnaire first</strong> to be eligible for a certificate.
+                      </p>
+                    </div>
+                  ) : !myCertificateAssignment ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800">
+                        ⏳ <strong>Questionnaire completed!</strong> Certificates will be available once the event creator assigns awards.
+                      </p>
+                    </div>
+                  ) : certificateGenerated ? (
+                    <div className="space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <p className="text-sm text-green-800">
+                          🎉 <strong>Certificate ready!</strong> You can now download your certificate.
+                        </p>
+                      </div>
+                      <a
+                        href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm text-center block"
+                      >
+                        📄 Download Certificate
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <p className="text-sm text-green-800">
+                          🎖️ <strong>Award assigned!</strong> You can now generate your certificate.
+                        </p>
+                        <p className="text-xs text-green-700 mt-1">
+                          Award: <span className="font-medium">{myCertificateAssignment.award}</span>
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleGenerateCertificate}
+                        disabled={!canGenerateCertificate || isGeneratingCertificate}
+                        className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isGeneratingCertificate ? "🔄 Generating..." : "🎨 Generate Certificate"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+
+
+
+            {/* AI Event Report Section - Visible to Everyone Once Generated */}
+            {/* Show to: ALL users for past events when report exists, regardless of role */}
+            {isPastEvent && event?.report?.isGenerated && (
+              <div className="relative bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 rounded-2xl shadow-2xl border border-indigo-400/40 p-6 overflow-hidden">
+                {/* Dynamic AI Background Pattern */}
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500/8 via-indigo-500/8 via-cyan-500/8 to-blue-500/8"></div>
+                
+                {/* Enhanced Glowing Border Effect */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/25 via-indigo-500/25 via-cyan-500/25 to-blue-500/25 blur-2xl animate-pulse"></div>
+                
+                {/* Animated AI Circuit Pattern with Better Colors */}
+                <div className="absolute inset-0 opacity-20">
+                  <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-400/50 rounded-full animate-ping"></div>
+                  <div className="absolute top-8 right-8 w-8 h-8 border border-violet-400/50 rounded-full animate-pulse"></div>
+                  <div className="absolute bottom-6 left-8 w-12 h-12 border border-indigo-400/50 rounded-full animate-bounce"></div>
+                  <div className="absolute bottom-8 right-4 w-6 h-6 border border-blue-400/50 rounded-full animate-ping"></div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-cyan-300/30 rounded-full animate-spin"></div>
+                </div>
+                
+                <div className="relative z-10">
+                  <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 mb-6 flex items-center gap-3">
+                    <div className="relative">
+                      <svg className="w-6 h-6 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                      </svg>
+                      <div className="absolute -inset-1 bg-cyan-400/30 rounded-full blur-md animate-pulse"></div>
+                    </div>
+                    <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                      AI Event Report
+                    </span>
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Report Status */}
+                    <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                      <p className="text-sm text-emerald-200 font-medium">
+                        ✅ <strong className="text-emerald-100">AI Report Generated!</strong> The event analysis report is now available.
+                      </p>
+                    </div>
+                    
+                    {/* Show detailed stats only for creators */}
+                    {isCreator && reportEligibility && (
+                      <>
+                        {/* AI Event Report Stats */}
+                        <div className="bg-gradient-to-r from-violet-900/30 to-indigo-900/30 border border-violet-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                          <h4 className="text-md font-semibold text-violet-200 mb-3 flex items-center gap-2">
+                            <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+                            AI Event Report
+                          </h4>
+                          
+                                                    {/* Organizer Questionnaires */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-violet-300">Organizer Questionnaires</span>
+                              <span className="text-sm font-semibold text-violet-200">
+                                {reportEligibility.completedOrganizerQuestionnaires}/{reportEligibility.totalOrganizers} completed ({reportEligibility.organizerCompletionRate}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-violet-900/40 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  reportEligibility.organizerCompletionRate >= 50 ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : 'bg-gradient-to-r from-amber-400 to-orange-400'
+                                }`}
+                                style={{ width: `${Math.min(reportEligibility.organizerCompletionRate, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          
+                          {/* Volunteer Questionnaires */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium text-violet-300">Volunteer Questionnaires</span>
+                              <span className="text-sm font-semibold text-violet-200">
+                                {reportEligibility.completedVolunteerQuestionnaires}/{reportEligibility.totalVolunteers} completed ({reportEligibility.volunteerCompletionRate}%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-violet-900/40 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  reportEligibility.volunteerCompletionRate >= 50 ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : 'bg-gradient-to-r from-amber-400 to-orange-400'
+                                }`}
+                                style={{ width: `${Math.min(reportEligibility.volunteerCompletionRate, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Event Statistics */}
+                        <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                          <h4 className="text-md font-semibold text-cyan-200 mb-3 flex items-center gap-2">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                            Event Statistics
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-cyan-300">
+                                {(reportEligibility.totalOrganizers || 0) + (reportEligibility.totalVolunteers || 0)}
+                              </div>
+                              <div className="text-xs text-cyan-400">Total Participants</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-lg font-bold text-cyan-300">
+                                {Math.round(((reportEligibility.completedOrganizerQuestionnaires + reportEligibility.completedVolunteerQuestionnaires) /
+                                  ((reportEligibility.totalOrganizers || 0) + (reportEligibility.totalVolunteers || 0))) * 100)}%
+                              </div>
+                              <div className="text-xs text-cyan-400">Completion Rate</div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* View Report Button */}
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          // View report functionality for all users
+                          if (event?.report?.content) {
+                            const reportWindow = window.open('', '_blank');
+                            const htmlContent = `
+                              <!DOCTYPE html>
+                              <html>
+                              <head>
+                                <title>Event Report: ${event.title}</title>
+                                <style>
+                                  body {
+                                    font-family: 'Times New Roman', serif;
+                                    line-height: 1.8;
+                                    color: #2c3e50;
+                                    max-width: 900px;
+                                    margin: 0 auto;
+                                    padding: 40px;
+                                    background: #ffffff;
+                                  }
+                                  .report-header {
+                                    text-align: center;
+                                    border-bottom: 3px solid #2c5530;
+                                    padding-bottom: 20px;
+                                    margin-bottom: 40px;
+                                  }
+                                  .report-title {
+                                    font-size: 32px;
+                                    font-weight: bold;
+                                    color: #2c5530;
+                                    margin-bottom: 10px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 1px;
+                                  }
+                                  .report-subtitle {
+                                    font-size: 18px;
+                                    color: #7f8c8d;
+                                    font-style: italic;
+                                  }
+                                  h1 {
+                                    font-size: 28px;
+                                    color: #2c5530;
+                                    border-bottom: 2px solid #4CAF50;
+                                    padding-bottom: 10px;
+                                    margin-top: 40px;
+                                    margin-bottom: 20px;
+                                    font-weight: bold;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                  }
+                                  h2 {
+                                    font-size: 22px;
+                                    color: #34495e;
+                                    border-left: 5px solid #4CAF50;
+                                    padding-left: 20px;
+                                    margin-top: 35px;
+                                    margin-bottom: 15px;
+                                    font-weight: bold;
+                                    background: #f8f9fa;
+                                    padding-top: 10px;
+                                    padding-bottom: 10px;
+                                  }
+                                  h3 {
+                                    font-size: 18px;
+                                    color: #1976d2;
+                                    margin-top: 25px;
+                                    margin-bottom: 12px;
+                                    font-weight: bold;
+                                    border-bottom: 1px solid #e0e0e0;
+                                    padding-bottom: 5px;
+                                  }
+                                  p {
+                                    margin-bottom: 15px;
+                                    text-align: justify;
+                                    text-indent: 20px;
+                                  }
+                                  ul, ol {
+                                    margin-bottom: 15px;
+                                    padding-left: 30px;
+                                  }
+                                  li {
+                                    margin-bottom: 8px;
+                                    line-height: 1.6;
+                                  }
+                                  .section {
+                                    margin-bottom: 30px;
+                                    padding: 20px;
+                                    border-radius: 8px;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                  }
+                                  .executive-summary {
+                                    background: #e8f5e8;
+                                    border-left: 5px solid #4CAF50;
+                                  }
+                                  .impact-section {
+                                    background: #e3f2fd;
+                                    border-left: 5px solid #2196F3;
+                                  }
+                                  .recommendations {
+                                    background: #fff3e0;
+                                    border-left: 5px solid #FF9800;
+                                  }
+                                  .conclusion {
+                                    background: #f3e5f5;
+                                    border-left: 5px solid #9C27B0;
+                                  }
+                                  strong {
+                                    color: #2c5530;
+                                    font-weight: bold;
+                                  }
+                                  em {
+                                    color: #7f8c8d;
+                                    font-style: italic;
+                                  }
+                                  .page-break {
+                                    page-break-before: always;
+                                  }
+                                  @media print {
+                                    body { font-size: 12pt; }
+                                    h1 { font-size: 18pt; }
+                                    h2 { font-size: 16pt; }
+                                    h3 { font-size: 14pt; }
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="report-header">
+                                  <div class="report-title">Event Impact Report</div>
+                                  <div class="report-subtitle">${event.title}</div>
+                                </div>
+                                <div class="report-content">
+                                  ${event.report.content
+                                    .replace(/\n/g, '<br>')
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                    .replace(/# (.*?)(<br>|$)/g, '<h1>$1</h1>')
+                                  .replace(/## (.*?)(<br>|$)/g, '<h2>$1</h2>')
+                                  .replace(/### (.*?)(<br>|$)/g, '<h3>$1</h3>')
+                                  .replace(/(Executive Summary[\s\S]*?)(?=##|$)/gi, '<div class="section executive-summary">$1</div>')
+                                  .replace(/(Impact Assessment[\s\S]*?)(?=##|$)/gi, '<div class="section impact-section">$1</div>')
+                                  .replace(/(Recommendations[\s\S]*?)(?=##|$)/gi, '<div class="section recommendations">$1</div>')
+                                  .replace(/(Conclusion[\s\S]*?)(?=##|$)/gi, '<div class="section conclusion">$1</div>')}
+                                </div>
+                              </body>
+                              </html>
+                            `;
+                            reportWindow.document.write(htmlContent);
+                            reportWindow.document.close();
+                          }
+                        }}
+                        className="flex-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl hover:from-violet-600 hover:via-cyan-600 hover:to-blue-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-cyan-500/25"
+                      >
+                        📄 View AI Report
+                      </button>
+                      
+                      {/* Show update button only for creators */}
+                      {isCreator && reportEligibility && (
+                        <button
+                          onClick={handleGenerateReport}
+                          disabled={generatingReport}
+                          className="flex-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-500 text-white px-4 py-2 rounded-xl hover:from-indigo-600 hover:via-purple-600 hover:to-violet-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {generatingReport ? "🔄 Updating..." : "🔄 Update Report"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI Report Section - For when no report is available yet (visible to everyone) */}
+            {isPastEvent && !event?.report?.isGenerated && (
+              <div className="relative bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 rounded-2xl shadow-2xl border border-indigo-400/40 p-6 overflow-hidden">
+                {/* Dynamic AI Background Pattern */}
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500/8 via-indigo-500/8 via-cyan-500/8 to-blue-500/8"></div>
+                
+                {/* Enhanced Glowing Border Effect */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/25 via-indigo-500/25 via-cyan-500/25 to-blue-500/25 blur-2xl animate-pulse"></div>
+                
+                {/* Animated AI Circuit Pattern with Better Colors */}
+                <div className="absolute inset-0 opacity-20">
+                  <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-400/50 rounded-full animate-ping"></div>
+                  <div className="absolute top-8 right-8 w-8 h-8 border border-violet-400/50 rounded-full animate-pulse"></div>
+                  <div className="absolute bottom-6 left-8 w-12 h-12 border border-indigo-400/50 rounded-full animate-bounce"></div>
+                  <div className="absolute bottom-8 right-4 w-6 h-6 border border-blue-400/50 rounded-full animate-ping"></div>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-cyan-300/30 rounded-full animate-pulse"></div>
+                </div>
+                
+                <div className="relative z-10">
+                  <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 mb-6 flex items-center gap-3">
+                    <div className="relative">
+                      <svg className="w-6 h-6 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                      </svg>
+                      <div className="absolute -inset-1 bg-cyan-400/30 rounded-full blur-md animate-pulse"></div>
+                    </div>
+                    <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                      AI Event Report
+                    </span>
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Report Status */}
+                    <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                      <p className="text-sm text-amber-200 font-medium">
+                        ⏳ <strong className="text-amber-100">AI Report Pending</strong> The event analysis report is not yet available.
+                      </p>
+                    </div>
+                    
+                    {/* Placeholder Content */}
+                    <div className="text-center py-4">
+                      <div className="text-amber-400 mb-3 text-4xl">📋</div>
+                      <p className="text-sm text-amber-200 mb-2">No AI report available yet.</p>
+                      <p className="text-xs text-amber-300">Report will be visible to everyone once generated.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+
             {/* Event Actions Card */}
         {(canEdit || isTeamMember) && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1785,90 +2268,8 @@ export default function EventDetailsPage() {
 
 
 
-            {/* Certificate Section for Organizers */}
-            {/* Show to: organizers who have completed questionnaires */}
-            {isOrganizer && isPastEvent && myOrganizerObj && myQuestionnaireCompleted && myCertificateAssignment && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                  </svg>
-                  Your Certificate
-                </h3>
-                
-                <div className="space-y-3">
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <p className="text-sm text-yellow-800">
-                      <span className="font-medium">Award:</span> {myCertificateAssignment.award}
-                    </p>
-                  </div>
-                  
-                  {certificateGenerated ? (
-                    <a
-                      href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm text-center block"
-                    >
-                      📄 Download Certificate
-                    </a>
-                  ) : (
-                    <button
-                      onClick={handleGenerateCertificate}
-                      disabled={!canGenerateCertificate || isGeneratingCertificate}
-                      className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isGeneratingCertificate ? "🔄 Generating..." : "🎨 Generate Certificate"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
 
-            {/* AI Report Generation for Creators */}
-            {/* Show to: event creators for past events */}
-            {isCreator && isPastEvent && reportEligibility && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                  </svg>
-                  AI Report Generation
-                </h3>
-                
-                <div className="space-y-3">
-                  {reportEligibility.isEligible ? (
-                    <>
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <p className="text-sm text-green-800">
-                          ✅ Event is eligible for report generation (50%+ questionnaires completed)
-                        </p>
-                      </div>
-                      
-                      <button
-                        onClick={handleGenerateReport}
-                        disabled={generatingReport}
-                        className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {generatingReport ? "🔄 Generating..." : "📊 Generate AI Report"}
-                      </button>
-                    </>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-sm text-yellow-800">
-                        ⚠️ Need 50% questionnaire completion from both organizers and volunteers to generate report
-                      </p>
-                    </div>
-                  )}
-                  
-                  {reportError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-sm text-red-800">{reportError}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+
 
             {/* Questionnaire Section for Registered Volunteers */}
             {/* Show to: registered volunteers for past events */}
@@ -1881,7 +2282,7 @@ export default function EventDetailsPage() {
                   Event Feedback
                 </h3>
                 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <p className="text-sm text-gray-600">
                     Help us improve future events by sharing your experience.
                   </p>
@@ -1896,36 +2297,37 @@ export default function EventDetailsPage() {
               </div>
             )}
 
-            {/* Questionnaire Section for Organizers */}
-            {/* Show to: organizers for past events */}
-            {isOrganizer && isPastEvent && (
+            {/* Certificate Section for Volunteers - BELOW QUESTIONNAIRE */}
+            {/* Show to: registered volunteers for past events */}
+            {isRegisteredForEvent && !isOrganizer && isPastEvent && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+                  <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                   </svg>
-                  Organizer Feedback
+                  Your Certificate
                 </h3>
                 
                 <div className="space-y-3">
-                  {myOrganizerObj && !myQuestionnaireCompleted ? (
-                    <>
-                      <p className="text-sm text-gray-600">
-                        Complete your questionnaire to generate your certificate.
-                      </p>
-                      <button
-                        onClick={handleOpenQuestionnaireModal}
-                        className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                      >
-                        Complete Questionnaire
-                      </button>
-                    </>
-                  ) : (
-                    <div className="text-center py-2">
-                      <div className="text-green-600 font-medium mb-2">✅ Questionnaire Completed</div>
-                      <p className="text-sm text-gray-600">Thank you for your feedback!</p>
-                    </div>
-                  )}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p className="text-sm text-blue-800">
+                      📝 <strong>Complete your questionnaire first</strong> to be eligible for a certificate.
+                    </p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      After completing the questionnaire, certificates will be available once the event organizer assigns awards.
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={() => navigate(`/volunteer/events/${id}`)}
+                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    Go to Volunteer Event Page
+                  </button>
+                  
+                  <div className="text-xs text-gray-600 text-center">
+                    <p>Check your questionnaire status and certificate availability there.</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -2361,27 +2763,24 @@ export default function EventDetailsPage() {
               </div>
             </div>
 
-            {/* Event Images */}
-        {event.eventImages?.length > 0 && (
+            {/* Event Images Carousel */}
+            {event.eventImages?.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                   </svg>
-              Event Images
+                  Event Images
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {event.eventImages.map((img, idx) => (
-                <img
-                  key={img + '-' + idx}
-                  src={`${imageBaseUrl}${img}`}
-                  alt="Event"
-                      className="w-full rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                
+                <ImageCarousel 
+                  images={event.eventImages}
+                  imageBaseUrl={imageBaseUrl}
+                  autoPlay={true}
+                  interval={5000}
                 />
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
         {/* AI Summary Section - New container with proper spacing */}
         <div className="relative mb-8 mx-4">
@@ -2464,52 +2863,89 @@ export default function EventDetailsPage() {
 
         {/* AI Report Generation Section - Only for creator of past events */}
         {isCreator && isPast && (
-          <div className="mt-8 mb-8 p-6 bg-blue-50 border-l-4 border-blue-400 rounded shadow">
-            <h2 className="text-xl font-bold text-blue-700 mb-4">AI Event Report</h2>
+          <div className="relative mt-8 mb-8 bg-gradient-to-br from-slate-950 via-indigo-950 to-purple-950 rounded-2xl shadow-2xl border border-indigo-400/40 p-6 overflow-hidden">
+            {/* AI Background Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-500/8 via-indigo-500/8 via-cyan-500/8 to-blue-500/8"></div>
+            
+            {/* Enhanced Glowing Border Effect */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-500/25 via-indigo-500/25 via-cyan-500/25 to-blue-500/25 blur-2xl animate-pulse"></div>
+            
+            {/* Animated AI Circuit Pattern with Better Colors */}
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute top-4 left-4 w-16 h-16 border border-cyan-400/50 rounded-full animate-ping"></div>
+              <div className="absolute top-8 right-8 w-8 h-8 border border-violet-400/50 rounded-full animate-pulse"></div>
+              <div className="absolute bottom-6 left-8 w-12 h-12 border border-indigo-400/50 rounded-full animate-bounce"></div>
+              <div className="absolute bottom-8 right-4 w-6 h-6 border border-blue-400/50 rounded-full animate-ping"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 border border-cyan-300/30 rounded-full animate-spin"></div>
+            </div>
+            
+            <div className="relative z-10">
+              <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 mb-6 flex items-center gap-3">
+                <div className="relative">
+                  <svg className="w-6 h-6 text-cyan-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" clipRule="evenodd" />
+                  </svg>
+                  <div className="absolute -inset-1 bg-cyan-400/30 rounded-full blur-md animate-pulse"></div>
+                </div>
+                <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
+                  AI Event Report
+                </span>
+              </h2>
             
             {reportEligibility && (
               <div className="mb-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-semibold text-gray-700 mb-2">Organizer Questionnaires</h3>
+                  <div className="bg-gradient-to-r from-violet-900/30 to-indigo-900/30 border border-violet-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                    <h3 className="font-semibold text-violet-200 mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+                      Organizer Questionnaires
+                    </h3>
                     <div className="flex items-center">
                       <div className={`w-4 h-4 rounded-full mr-2 ${
-                        reportEligibility.organizerCompletionRate >= 50 ? 'bg-green-500' : 'bg-red-500'
+                        reportEligibility.organizerCompletionRate >= 50 ? 'bg-emerald-400' : 'bg-amber-400'
                       }`}></div>
-                      <span>{reportEligibility.completedOrganizerQuestionnaires}/{reportEligibility.totalOrganizers} completed ({reportEligibility.organizerCompletionRate}%)</span>
+                      <span className="text-violet-200">{reportEligibility.completedOrganizerQuestionnaires}/{reportEligibility.totalOrganizers} completed ({reportEligibility.organizerCompletionRate}%)</span>
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded shadow">
-                    <h3 className="font-semibold text-gray-700 mb-2">Volunteer Questionnaires</h3>
+                  <div className="bg-gradient-to-r from-violet-900/30 to-indigo-900/30 border border-violet-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                    <h3 className="font-semibold text-violet-200 mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
+                      Volunteer Questionnaires
+                    </h3>
                     <div className="flex items-center">
                       <div className={`w-4 h-4 rounded-full mr-2 ${
-                        reportEligibility.volunteerCompletionRate >= 50 ? 'bg-green-500' : 'bg-red-500'
+                        reportEligibility.volunteerCompletionRate >= 50 ? 'bg-emerald-400' : 'bg-amber-400'
                       }`}></div>
-                      <span>{reportEligibility.completedVolunteerQuestionnaires}/{reportEligibility.totalVolunteers} completed ({reportEligibility.volunteerCompletionRate}%)</span>
+                      <span className="text-violet-200">{reportEligibility.completedVolunteerQuestionnaires}/{reportEligibility.totalVolunteers} completed ({reportEligibility.volunteerCompletionRate}%)</span>
                     </div>
                   </div>
-                      <div className="bg-white p-4 rounded shadow">
-                        <h3 className="font-semibold text-gray-700 mb-2">Event Statistics</h3>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Total Participants:</span>
-                            <span className="font-medium">{(reportEligibility.totalOrganizers || 0) + (reportEligibility.totalVolunteers || 0)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Completion Rate:</span>
-                            <span className="font-medium">
-                              {Math.round(((reportEligibility.completedOrganizerQuestionnaires + reportEligibility.completedVolunteerQuestionnaires) / 
-                              ((reportEligibility.totalOrganizers || 0) + (reportEligibility.totalVolunteers || 0))) * 100)}%
-                            </span>
-                          </div>
+                  <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 border border-cyan-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                    <h3 className="font-semibold text-cyan-200 mb-3 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                      Event Statistics
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-cyan-300">Total Participants:</span>
+                        <span className="font-medium text-cyan-200">{(reportEligibility.totalOrganizers || 0) + (reportEligibility.totalVolunteers || 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-cyan-300">Completion Rate:</span>
+                        <span className="font-medium text-cyan-200">
+                          {Math.round(((reportEligibility.completedOrganizerQuestionnaires + reportEligibility.completedVolunteerQuestionnaires) / 
+                          ((reportEligibility.totalOrganizers || 0) + (reportEligibility.totalVolunteers || 0))) * 100)}%
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
                 {reportEligibility.reportGenerated ? (
                   <div>
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                      ✅ Report has been generated successfully!
+                    <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg mb-4">
+                      <p className="text-sm text-emerald-200 font-medium">
+                        ✅ <strong className="text-emerald-100">Report has been generated successfully!</strong>
+                      </p>
                     </div>
                     <div className="flex gap-4">
                       <button
@@ -2662,18 +3098,14 @@ export default function EventDetailsPage() {
                             reportWindow.document.close();
                           }
                         }}
-                        className="px-6 py-3 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition-colors"
+                        className="flex-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl hover:from-violet-600 hover:via-cyan-600 hover:to-blue-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-cyan-500/25"
                       >
                         📄 View Report
                       </button>
                       <button
                         onClick={handleGenerateReport}
                         disabled={generatingReport}
-                        className={`px-6 py-3 rounded font-semibold transition-colors ${
-                          generatingReport
-                            ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                            : 'bg-orange-600 text-white hover:bg-orange-700'
-                        }`}
+                        className="flex-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-500 text-white px-4 py-2 rounded-xl hover:from-indigo-600 hover:via-purple-600 hover:to-violet-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-purple-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {generatingReport ? (
                           <div className="flex items-center">
@@ -2688,20 +3120,18 @@ export default function EventDetailsPage() {
                   </div>
                 ) : reportEligibility.isEligible ? (
                   <div>
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                      ✅ Event is eligible for report generation (50%+ questionnaires completed)
+                    <div className="bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg mb-4">
+                      <p className="text-sm text-emerald-200 font-medium">
+                        ✅ <strong className="text-emerald-100">Event is eligible for report generation (50%+ questionnaires completed)</strong>
+                      </p>
                     </div>
                     <button
                       onClick={handleGenerateReport}
                       disabled={generatingReport}
-                      className={`px-6 py-3 rounded font-semibold transition-colors ${
-                        generatingReport
-                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
+                      className="w-full bg-gradient-to-r from-violet-500 via-cyan-500 to-blue-500 text-white px-4 py-2 rounded-xl hover:from-violet-600 hover:via-cyan-600 hover:to-blue-600 transition-all duration-300 text-sm font-medium shadow-lg hover:shadow-xl transform hover:scale-105 hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {generatingReport ? (
-                        <div className="flex items-center">
+                        <div className="flex items-center justify-center">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Generating Report...
                         </div>
@@ -2711,18 +3141,23 @@ export default function EventDetailsPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-                    ⚠️ Need 50% questionnaire completion from both organizers and volunteers to generate report
+                  <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg">
+                    <p className="text-sm text-amber-200 font-medium">
+                      ⚠️ <strong className="text-amber-100">Need 50% questionnaire completion from both organizers and volunteers to generate report</strong>
+                    </p>
                   </div>
                 )}
                 
                 {reportError && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mt-4">
-                    ❌ {reportError}
+                  <div className="bg-gradient-to-r from-red-900/30 to-pink-900/30 border border-red-400/50 rounded-xl p-4 backdrop-blur-sm shadow-lg mt-4">
+                    <p className="text-sm text-red-200 font-medium">
+                      ❌ <strong className="text-red-100">{reportError}</strong>
+                    </p>
                   </div>
                 )}
               </div>
             )}
+            </div>
           </div>
         )}
           </div>

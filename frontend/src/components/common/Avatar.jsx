@@ -30,11 +30,6 @@ const Avatar = ({
   const roleColor = getRoleColors(role);
   const borderClass = showBorder ? 'border-2' : '';
 
-  // Debug logging in development
-  if (process.env.NODE_ENV === 'development' && profileImageUrl) {
-    console.log('Avatar profile image URL:', profileImageUrl, 'for user:', user?.username || user?.name);
-  }
-
   const baseClasses = `rounded-full flex items-center justify-center overflow-hidden ${sizeClass} ${roleColor} ${borderClass} ${className}`;
 
   if (onClick) {
