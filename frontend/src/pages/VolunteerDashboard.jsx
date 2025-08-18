@@ -47,78 +47,89 @@ export default function VolunteerDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
       <Navbar />
 
-      <div className="pt-20 sm:pt-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="pt-16 sm:pt-20 px-2 sm:px-4 md:px-6 lg:px-8 w-full">
         {/* Header Section */}
-        <div className={`mb-6 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`mb-4 sm:mb-6 transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
           <div className="relative">
-            {/* User Name Display - More compact */}
-            <div className="text-center lg:text-left">
-              <div className="flex flex-col lg:flex-row items-center lg:items-baseline gap-2 lg:gap-3 mb-2">
-                <h1 className="text-2xl lg:text-4xl font-bold">
-                  <span className="bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 bg-clip-text text-transparent">
+            {/* User Name Display - More compact and responsive */}
+            <div className="text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row items-center sm:items-baseline gap-1 sm:gap-2 lg:gap-3 mb-2">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold">
+                  <span className="bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
                     Hello,
                   </span>
                 </h1>
-                <h2 className="text-3xl lg:text-5xl font-extrabold relative">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-extrabold relative">
                   <span className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent">
                     {user?.name || 'Volunteer'}
                   </span>
-                  {/* Underline Effect */}
-                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-full transform scale-x-0 animate-pulse" style={{ animationDuration: '2s' }}></div>
+                  {/* Enhanced Underline Effect */}
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 rounded-full transform scale-x-0 animate-pulse" 
+                       style={{ 
+                         animationDuration: '2s',
+                         animationDelay: '0.5s'
+                       }}></div>
                 </h2>
               </div>
-              <p className="text-base lg:text-lg text-slate-600 max-w-2.5xl mx-auto lg:mx-0">
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600 max-w-4xl mx-auto sm:mx-0 leading-relaxed">
                 Ready to make a difference? Let's explore amazing environmental events together! 🌱✨
               </p>
             </div>
           </div>
         </div>
 
-        {/* Tab Headers */}
-        <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-2 mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="flex space-x-2">
+        {/* Enhanced Tab Headers */}
+        <div className={`bg-white/80 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-xl border border-white/30 p-1 sm:p-2 mb-4 sm:mb-6 lg:mb-8 transition-all duration-1000 delay-200 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+          <div className="flex flex-wrap sm:flex-nowrap gap-1 sm:gap-2">
             <button
               onClick={() => handleTabChange("events")}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ease-out transform hover:scale-105 ${
                 activeTab === "events"
-                  ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg"
-                  : "text-slate-600 hover:text-emerald-600 hover:bg-slate-100/50"
+                  ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg scale-105"
+                  : "text-slate-600 hover:text-emerald-600 hover:bg-slate-100/60 hover:shadow-md"
               }`}
             >
-              <CalendarDaysIcon className="w-5 h-5" />
-              Events
+              <CalendarDaysIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">Events</span>
+              <span className="xs:hidden">Events</span>
             </button>
             <button
               onClick={() => handleTabChange("calendar")}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ease-out transform hover:scale-105 ${
                 activeTab === "calendar"
-                  ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg"
-                  : "text-slate-600 hover:text-emerald-600 hover:bg-slate-100/50"
+                  ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg scale-105"
+                  : "text-slate-600 hover:text-emerald-600 hover:bg-slate-100/60 hover:shadow-md"
               }`}
             >
-              <CalendarDaysIcon className="w-5 h-5" />
-              Calendar
+              <CalendarDaysIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">Calendar</span>
+              <span className="xs:hidden">Cal</span>
             </button>
             <button
               onClick={() => handleTabChange("organizations")}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ease-out transform hover:scale-105 ${
                 activeTab === "organizations"
-                  ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg"
-                  : "text-slate-600 hover:text-emerald-600 hover:bg-slate-100/50"
+                  ? "bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg scale-105"
+                  : "text-slate-600 hover:text-emerald-600 hover:bg-slate-100/60 hover:shadow-md"
               }`}
             >
-              <BuildingOfficeIcon className="w-5 h-5" />
-              Organizations
+              <BuildingOfficeIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden xs:inline">Organizations</span>
+              <span className="xs:hidden">Orgs</span>
             </button>
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div className={`transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {activeTab === "events" && <VolunteerEventsTab />}
+        {/* Enhanced Tab Content */}
+        <div className={`transition-all duration-1000 delay-300 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+          {activeTab === "events" && (
+            <div className="animate-fadeIn">
+              <VolunteerEventsTab />
+            </div>
+          )}
           {activeTab === "calendar" && user && (
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-              <div className="max-w-5xl mx-auto">
+            <div className="bg-white/80 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-xl border border-white/30 p-3 sm:p-4 lg:p-6 animate-fadeIn">
+              <div className="w-full">
                 <SimpleEventCalendar 
                   role="volunteer" 
                   userId={user._id} 
@@ -126,7 +137,11 @@ export default function VolunteerDashboard() {
               </div>
             </div>
           )}
-          {activeTab === "organizations" && <VolunteerOrganizationsTab />}
+          {activeTab === "organizations" && (
+            <div className="animate-fadeIn">
+              <VolunteerOrganizationsTab />
+            </div>
+          )}
         </div>
       </div>
       <Footer />

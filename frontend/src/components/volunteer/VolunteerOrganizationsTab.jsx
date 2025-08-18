@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import OrganizationCard from "../common/OrganizationCard";
+import { ChevronDownIcon } from "@heroicons/react/24/outline";
 
 const VolunteerOrganizationsTab = () => {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [visibleCount, setVisibleCount] = useState(6);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,19 +79,34 @@ const VolunteerOrganizationsTab = () => {
       <h2 className="text-xl font-semibold mb-4">All Organizations</h2>
 
       {filteredOrganizations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredOrganizations.map((org) => (
-            <div key={org._id} className="transform hover:-translate-y-1 transition-all duration-300">
-              <OrganizationCard
-                organization={org}
-                onClick={() => handleOrganizationClick(org)}
-                variant="default"
-                showStats={true}
-                autoSize={true}
-              />
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredOrganizations.slice(0, visibleCount).map((org) => (
+              <div key={org._id} className="transform hover:-translate-y-1 transition-all duration-300">
+                <OrganizationCard
+                  organization={org}
+                  onClick={() => handleOrganizationClick(org)}
+                  variant="default"
+                  showStats={true}
+                  autoSize={true}
+                />
+              </div>
+            ))}
+          </div>
+          {filteredOrganizations.length > visibleCount && (
+            <div className="flex justify-center mt-6">
+              <button
+                className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
+                onClick={() => setVisibleCount(v => v + 6)}
+              >
+                <span className="flex items-center justify-center">
+                  Show More Organizations
+                  <ChevronDownIcon className="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" />
+                </span>
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       ) : searchTerm ? (
         <p className="text-gray-500">No organizations found matching "{searchTerm}".</p>
       ) : (

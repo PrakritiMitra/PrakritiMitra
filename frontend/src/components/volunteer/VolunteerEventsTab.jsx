@@ -8,8 +8,8 @@ const VolunteerEventsTab = () => {
   const [pastEvents, setPastEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [upcomingVisible, setUpcomingVisible] = useState(3);
-  const [pastVisible, setPastVisible] = useState(3);
+  const [upcomingVisible, setUpcomingVisible] = useState(6);
+  const [pastVisible, setPastVisible] = useState(6);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -100,7 +100,7 @@ const VolunteerEventsTab = () => {
             <div className="flex justify-center mt-6">
               <button
                 className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
-                onClick={() => setUpcomingVisible(v => v + 3)}
+                onClick={() => setUpcomingVisible(v => v + 6)}
               >
                 <span className="flex items-center justify-center">
                   Show More Events
@@ -129,7 +129,7 @@ const VolunteerEventsTab = () => {
             <div className="flex justify-center mt-6">
               <button
                 className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
-                onClick={() => setPastVisible(v => v + 3)}
+                onClick={() => setPastVisible(v => v + 6)}
               >
                 <span className="flex items-center justify-center">
                   Show More Events
