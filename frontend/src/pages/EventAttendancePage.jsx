@@ -41,6 +41,7 @@ export default function EventAttendancePage() {
   const [showScanner, setShowScanner] = useState(false);
   const [volunteerEdit, setVolunteerEdit] = useState({}); // { [registrationId]: { type: 'in'|'out', value: '' } }
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [activeTab, setActiveTab] = useState('volunteer'); // 'volunteer' or 'organizer'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,12 +71,14 @@ export default function EventAttendancePage() {
 
   const handleOrganizerAttendance = async (organizerId, checked) => {
     try {
-      await updateOrganizerAttendance(eventId, organizerId, checked);
-      setOrganizers((prev) =>
-        prev.map((obj) =>
+      const response = await updateOrganizerAttendance(eventId, organizerId, checked);
+      
+      setOrganizers((prev) => {
+        const updated = prev.map((obj) =>
           obj.user._id === organizerId ? { ...obj, hasAttended: checked } : obj
-        )
       );
+        return updated;
+      });
     } catch (err) {
       alert("Failed to update organizer attendance");
     }
@@ -199,19 +202,19 @@ export default function EventAttendancePage() {
   
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="pt-24 max-w-5xl mx-auto px-4">
-        <button className="mb-4 text-blue-600 underline" onClick={() => navigate(-1)}>
-          ← Back
-        </button>
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-blue-800">Event Attendance</h1>
-          <div className="flex gap-2">
+      <div className="pt-24 px-4 sm:px-6">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
+          <div className="text-center lg:text-left">
+            <h1 className="text-2xl sm:text-3xl font-bold text-blue-800 mb-2">Event Attendance</h1>
+            <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-500 to-emerald-500 mx-auto lg:mx-0 rounded-full"></div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {/* Download Report Dropdown */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-transform transform hover:scale-105 disabled:opacity-50"
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition-transform transform hover:scale-105 disabled:opacity-50 text-sm sm:text-base"
                 onClick={() => document.getElementById('reportDropdown').classList.toggle('hidden')}
                 disabled={downloadingReport}
               >
@@ -250,7 +253,7 @@ export default function EventAttendancePage() {
               </div>
             </div>
             <button
-              className="px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-transform transform hover:scale-105"
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 transition-transform transform hover:scale-105 text-sm sm:text-base"
               onClick={() => setShowScanner(true)}
             >
               Scan Volunteer QR
@@ -258,118 +261,88 @@ export default function EventAttendancePage() {
           </div>
         </div>
 
-        {/* Real-time Attendance Dashboard */}
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-1 xl:grid-cols-5 gap-4 lg:gap-6 xl:gap-8 max-w-none xl:h-[calc(100vh-8rem)]">
+          {/* Left Column - Compact Event Overview */}
+          <div className="xl:col-span-2 space-y-4 xl:overflow-y-auto xl:max-h-screen pr-2 pb-8 custom-scrollbar">
         <AttendanceDashboard eventId={eventId} />
-
-        {showScanner && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-2xl p-8 relative w-full max-w-md">
-              <h3 className="text-xl font-semibold text-center mb-4 text-gray-800">Scan QR Code</h3>
-              <AttendanceQrScanner
-                onScan={handleScan}
-                onClose={() => setShowScanner(false)}
-              />
-            </div>
           </div>
-        )}
-        {loading ? (
-          <div>Loading...</div>
-        ) : error ? (
-          <div className="text-red-600">{error}</div>
-        ) : (
-          <>
-            {/* Organizers Table - Only show if current user is the event creator */}
+
+          {/* Right Column - Attendance Tables with Tabs */}
+          <div className="xl:col-span-3 xl:overflow-y-auto xl:max-h-screen custom-scrollbar">
+            <div className="bg-white rounded-lg shadow-lg p-4">
+              {/* Tab Navigation */}
+              <div className="flex justify-center mb-6">
+                <div className="flex flex-col sm:flex-row bg-gray-100 rounded-lg p-1 w-full sm:w-auto">
+                  <button
+                    onClick={() => setActiveTab('volunteer')}
+                    className={`px-4 sm:px-6 py-2 text-sm font-semibold rounded-md transition-all duration-300 ${
+                      activeTab === 'volunteer' 
+                        ? 'bg-white text-blue-600 shadow-sm' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Volunteer Attendance
+                  </button>
             {isEventCreator && (
-              <>
-                <h2 className="text-lg font-semibold text-blue-700 mb-2">Organizers</h2>
-                <div className="overflow-x-auto mb-8">
-                  <table className="min-w-full bg-white border rounded shadow">
-                    <thead>
-                      <tr>
-                        <th className="p-2 border">Photo</th>
-                        <th className="p-2 border">Name</th>
-                        <th className="p-2 border">Email</th>
-                        <th className="p-2 border">Phone</th>
-                        <th className="p-2 border">Attended</th>
-                        <th className="p-2 border">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {organizers.map((obj) => {
-                        // Use attendance-specific utilities for attendance records
-                        const attendanceUser = getAttendanceUserData(obj.user);
-                        const canNavigate = canNavigateToUser(obj.user);
-                        
-                        return (
-                          <tr key={obj.user?._id || obj._id} className="text-center">
-                            <td className="p-2 border">
-                              {getAttendanceProfileImageUrl(attendanceUser) ? (
-                                <img
-                                  src={getAttendanceProfileImageUrl(attendanceUser)}
-                                  alt={getAttendanceDisplayName(attendanceUser)}
-                                  className="w-10 h-10 rounded-full object-cover mx-auto"
-                                />
-                              ) : (
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto ${getRoleColors(attendanceUser.role)}`}>
-                                  <span className="text-sm font-bold">{getAttendanceAvatarInitial(attendanceUser)}</span>
-                                </div>
-                              )}
-                            </td>
-                            <td className={`p-2 border ${attendanceUser.isDeleted ? 'text-gray-500' : ''}`}>
-                              {getAttendanceUsernameDisplay(attendanceUser)}
-                            </td>
-                            <td className={`p-2 border ${attendanceUser.isDeleted ? 'text-gray-500' : ''}`}>
-                              {getAttendanceEmailDisplay(attendanceUser)}
-                            </td>
-                            <td className={`p-2 border ${attendanceUser.isDeleted ? 'text-gray-500' : ''}`}>
-                              {getAttendancePhoneDisplay(attendanceUser)}
-                            </td>
-                            <td className="p-2 border">
-                              <input
-                                type="checkbox"
-                                checked={!!obj.hasAttended}
-                                onChange={e => handleOrganizerAttendance(obj.user._id, e.target.checked)}
-                                disabled={attendanceUser.isDeleted}
-                              />
-                            </td>
-                            <td className="p-2 border">
-                              {obj.hasAttended ? (
-                                <span className="text-green-700 font-bold">Attended</span>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                    <button
+                      onClick={() => setActiveTab('organizer')}
+                      className={`px-4 sm:px-6 py-2 text-sm font-semibold rounded-md transition-all duration-300 ${
+                        activeTab === 'organizer' 
+                          ? 'bg-white text-blue-600 shadow-sm' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Organizer Attendance
+                    </button>
+                  )}
                 </div>
-              </>
-            )}
-            {/* Volunteers Table */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <UsersIcon className="w-6 h-6 text-white" />
+              </div>
+
+              {/* Tab Content with Slideshow Effect */}
+              <div className="relative overflow-x-hidden">
+                <div
+                  className="flex w-[200%] transition-transform duration-500 ease-in-out"
+                  style={{ 
+                    transform: activeTab === 'volunteer' ? 'translateX(0)' : 'translateX(-50%)'
+                  }}
+                >
+                  {/* Volunteer Tab */}
+                  <div className="w-1/2 p-2">
+                    {loading ? (
+                      <div className="text-center py-6">Loading volunteers...</div>
+                    ) : error ? (
+                      <div className="text-red-600 text-center py-6">{error}</div>
+                    ) : (
+                                             <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-emerald-200 p-4">
+                         <div className="flex flex-col sm:flex-row items-start gap-3 mb-6 p-3 sm:p-4 border border-emerald-100 rounded-xl bg-emerald-50/50">
+                           <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
+                             <UsersIcon className="w-7 h-7 text-white" />
+                           </div>
+                           <div className="flex-1 min-w-0 text-center sm:text-left">
+                             <h2 className="text-lg sm:text-xl font-bold text-emerald-800 mb-2">Volunteers</h2>
+                             <p className="text-gray-600 text-sm mb-3">Event participants and helpers</p>
+                             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                               <p className="text-emerald-800 text-sm font-medium">
+                                 ⚠️ <strong>Important:</strong> Volunteer attendance cannot be changed once In-Time has been set. 
+                                 Attendance is automatically marked when a volunteer scans their QR code and In-Time is recorded. 
+                                 This action cannot be undone.
+                               </p>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-emerald-800">Volunteers</h2>
-                  <p className="text-gray-600 text-sm">Event participants and helpers</p>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white/50 backdrop-blur-sm rounded-xl overflow-hidden">
                   <thead className="bg-gradient-to-r from-emerald-50 to-emerald-100">
                     <tr>
-                      <th className="p-4 text-left font-semibold text-emerald-800">Photo</th>
-                      <th className="p-4 text-left font-semibold text-emerald-800">Name</th>
-                      <th className="p-4 text-left font-semibold text-emerald-800">Email</th>
-                      <th className="p-4 text-left font-semibold text-emerald-800">Phone</th>
-                      <th className="p-4 text-center font-semibold text-emerald-800">Attended</th>
-                      <th className="p-4 text-center font-semibold text-emerald-800">Status</th>
-                      <th className="p-4 text-center font-semibold text-emerald-800">In-Time</th>
-                      <th className="p-4 text-center font-semibold text-emerald-800">Out-Time</th>
+                      <th className="p-2 sm:p-3 text-left font-semibold text-emerald-800 w-12 sm:w-16">Photo</th>
+                      <th className="p-2 sm:p-3 text-left font-semibold text-emerald-800 w-24 sm:w-32">Name</th>
+                      <th className="p-2 sm:p-3 text-left font-semibold text-emerald-800 w-28 sm:w-40 hidden sm:table-cell">Email</th>
+                      <th className="p-2 sm:p-3 text-left font-semibold text-emerald-800 w-20 sm:w-32 hidden sm:table-cell">Phone</th>
+                      <th className="p-2 sm:p-3 text-center font-semibold text-emerald-800 w-16 sm:w-20">Attended</th>
+                      <th className="p-2 sm:p-3 text-center font-semibold text-emerald-800 w-20 sm:w-24">Status</th>
+                      <th className="p-2 sm:p-3 text-center font-semibold text-emerald-800 w-32 sm:w-48 lg:w-64">In-Time</th>
+                      <th className="p-2 sm:p-3 text-center font-semibold text-emerald-800 w-32 sm:w-48 lg:w-64">Out-Time</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -381,29 +354,29 @@ export default function EventAttendancePage() {
                       
                       return (
                         <tr key={v._id} className={`hover:bg-gray-50/50 transition-all duration-300 ${attendanceVolunteer.isDeleted ? 'opacity-60' : ''}`}>
-                          <td className="p-4">
+                          <td className="p-2 sm:p-3 w-12 sm:w-16">
                             {getAttendanceProfileImageUrl(attendanceVolunteer) ? (
                               <img
                                 src={getAttendanceProfileImageUrl(attendanceVolunteer)}
                                 alt={getAttendanceDisplayName(attendanceVolunteer)}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-200"
+                                className="w-8 h-8 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-emerald-200"
                               />
                             ) : (
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 border-emerald-200 ${getRoleColors(attendanceVolunteer.role)}`}>
-                                <span className="text-sm font-bold">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
+                              <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 border-emerald-200 ${getRoleColors(attendanceVolunteer.role)}`}>
+                                <span className="text-xs sm:text-sm font-bold">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
                               </div>
                             )}
                           </td>
-                          <td className={`p-4 font-medium ${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-800'}`}>
+                          <td className={`p-2 sm:p-3 font-medium w-24 sm:w-32 ${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-800'} text-sm sm:text-base`}>
                             {getAttendanceDisplayName(attendanceVolunteer)}
                           </td>
-                          <td className={`p-4 ${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-600'}`}>
+                          <td className={`p-2 sm:p-3 w-28 sm:w-40 ${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-600'} hidden sm:table-cell text-sm`}>
                             {getAttendanceEmailDisplay(attendanceVolunteer)}
                           </td>
-                          <td className={`p-4 ${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-600'}`}>
+                          <td className={`p-2 sm:p-3 w-20 sm:w-32 ${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-600'} hidden sm:table-cell text-sm`}>
                             {getAttendancePhoneDisplay(attendanceVolunteer)}
                           </td>
-                          <td className="p-4 text-center">
+                          <td className="p-2 sm:p-3 text-center w-16 sm:w-20">
                             <input
                               type="checkbox"
                               checked={!!v.hasAttended}
@@ -412,18 +385,19 @@ export default function EventAttendancePage() {
                               className="w-5 h-5 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2 disabled:opacity-50"
                             />
                           </td>
-                          <td className="p-4 text-center">
+                          <td className="p-2 sm:p-3 text-center w-20 sm:w-24">
                             {v.hasAttended ? (
-                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
-                                <CheckCircleIcon className="w-4 h-4" />
-                                Attended
+                              <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs sm:text-sm font-semibold">
+                                <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="hidden sm:inline">Attended</span>
+                                <span className="sm:hidden">✓</span>
                               </span>
                             ) : (
                               <span className="text-gray-400">—</span>
                             )}
                           </td>
                           {/* In-Time column */}
-                          <td className="p-4 align-top">
+                          <td className="p-2 sm:p-3 align-top w-32 sm:w-48 lg:w-64">
                             <div className="flex items-center gap-2">
                               <span className={`${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-700'}`}>
                                 {formatDateTime(v.inTime)}
@@ -464,7 +438,7 @@ export default function EventAttendancePage() {
                             )}
                           </td>
                           {/* Out-Time column */}
-                          <td className="p-4 align-top">
+                          <td className="p-2 sm:p-3 align-top w-32 sm:w-48 lg:w-64">
                             <div className="flex items-center gap-2">
                               <span className={`${attendanceVolunteer.isDeleted ? 'text-gray-500' : 'text-gray-700'}`}>
                                 {formatDateTime(v.outTime)}
@@ -511,9 +485,155 @@ export default function EventAttendancePage() {
                 </table>
               </div>
             </div>
-          </>
+                    )}
+                  </div>
+
+                  {/* Organizer Tab - Always rendered but only visible for event creators */}
+                  <div className="w-1/2 p-2">
+                    {!isEventCreator ? (
+                      <div className="text-center py-6 text-gray-500">
+                        <p>Organizer attendance is only visible to event creators</p>
+                      </div>
+                    ) : loading ? (
+                      <div className="text-center py-6">Loading organizers...</div>
+                    ) : error ? (
+                      <div className="text-red-600 text-center py-6">{error}</div>
+                    ) : (
+                                             <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-blue-200 p-4">
+                         <div className="flex flex-col sm:flex-row items-start gap-3 mb-6 p-3 sm:p-4 border border-blue-100 rounded-xl bg-blue-50/50">
+                           <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 mx-auto sm:mx-0">
+                             <UsersIcon className="w-7 h-7 text-white" />
+                           </div>
+                           <div className="flex-1 min-w-0 text-center sm:text-left">
+                             <h2 className="text-lg sm:text-xl font-bold text-blue-800 mb-2">Organizers</h2>
+                             <p className="text-gray-600 text-sm mb-3">Event management team</p>
+                                                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                               <p className="text-blue-800 text-sm font-medium">
+                                 ℹ️ <strong>Note:</strong> Organizer attendance can be manually updated using the checkboxes below. 
+                                 This allows event creators to track team member participation.
+                               </p>
+                             </div>
+                           </div>
+                         </div>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full bg-white/50 backdrop-blur-sm rounded-xl overflow-hidden table-fixed">
+                            <thead className="bg-gradient-to-r from-blue-50 to-blue-100">
+                              <tr>
+                                <th className="p-2 sm:p-3 text-left font-semibold text-blue-800 w-12 sm:w-16">Photo</th>
+                                <th className="p-2 sm:p-3 text-left font-semibold text-blue-800 w-24 sm:w-32">Name</th>
+                                <th className="p-2 sm:p-3 text-left font-semibold text-blue-800 w-20 sm:w-32 hidden sm:table-cell">Phone</th>
+                                <th className="p-2 sm:p-3 text-left font-semibold text-blue-800 w-28 sm:w-40 hidden sm:table-cell">Email</th>
+                                <th className="p-2 sm:p-3 text-center font-semibold text-blue-800 w-16 sm:w-20">Attended</th>
+                                <th className="p-2 sm:p-3 text-center font-semibold text-blue-800 w-20 sm:w-24">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {organizers.map((obj) => {
+                                // Use attendance-specific utilities for attendance records
+                                const attendanceUser = getAttendanceUserData(obj.user);
+                                const canNavigate = canNavigateToUser(obj.user);
+                                
+                                return (
+                                  <tr key={obj.user?._id || obj._id} className={`hover:bg-gray-50/50 transition-all duration-300 ${attendanceUser.isDeleted ? 'opacity-60' : ''}`}>
+                                    <td className="p-2 sm:p-3 w-12 sm:w-16">
+                                      {getAttendanceProfileImageUrl(attendanceUser) ? (
+                                        <img
+                                          src={getAttendanceProfileImageUrl(attendanceUser)}
+                                          alt={getAttendanceDisplayName(attendanceUser)}
+                                          className="w-8 h-8 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-blue-200"
+                                        />
+                                      ) : (
+                                        <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 border-blue-200 ${getRoleColors(attendanceUser.role)}`}>
+                                          <span className="text-xs sm:text-sm font-bold">{getAttendanceAvatarInitial(attendanceUser)}</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className={`p-2 sm:p-3 font-medium w-24 sm:w-32 ${attendanceUser.isDeleted ? 'text-gray-500' : 'text-gray-800'} text-sm sm:text-base`}>
+                                      {getAttendanceUsernameDisplay(attendanceUser)}
+                                    </td>
+                                    <td className={`p-2 sm:p-3 w-20 sm:w-32 ${attendanceUser.isDeleted ? 'text-gray-500' : 'text-gray-600'} hidden sm:table-cell text-sm`}>
+                                      {getAttendancePhoneDisplay(attendanceUser)}
+                                    </td>
+                                    <td className={`p-2 sm:p-3 w-28 sm:w-40 ${attendanceUser.isDeleted ? 'text-gray-500' : 'text-gray-600'} hidden sm:table-cell text-sm`}>
+                                      {getAttendanceEmailDisplay(attendanceUser)}
+                                    </td>
+                                    <td className="p-2 sm:p-3 text-center w-16 sm:w-20">
+                                      <input
+                                        type="checkbox"
+                                        checked={!!obj.hasAttended}
+                                        onChange={e => handleOrganizerAttendance(obj.user._id, e.target.checked)}
+                                        disabled={attendanceUser.isDeleted}
+                                        className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 bg-blue-100 border-blue-300 rounded focus:ring-blue-500 focus:ring-2 disabled:opacity-50"
+                                      />
+                                    </td>
+                                    <td className="p-2 sm:p-3 text-center w-20 sm:w-24">
+                                      {obj.hasAttended ? (
+                                        <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs sm:text-sm font-semibold">
+                                          <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                          <span className="hidden sm:inline">Attended</span>
+                                          <span className="sm:hidden">✓</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-400">—</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {showScanner && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-6 lg:p-8 relative w-full max-w-sm sm:max-w-md">
+              <h3 className="text-lg sm:text-xl font-semibold text-center mb-4 text-gray-800">Scan QR Code</h3>
+              <AttendanceQrScanner
+                onScan={handleScan}
+                onClose={() => setShowScanner(false)}
+              />
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Custom Scrollbar Styles */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+        
+        @media (max-width: 1280px) {
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+          }
+        }
+        
+        @media (max-width: 640px) {
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 3px;
+          }
+        }
+      `}</style>
     </div>
   );
 } 

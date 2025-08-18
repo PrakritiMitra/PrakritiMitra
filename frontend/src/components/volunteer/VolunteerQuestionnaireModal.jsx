@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { Modal, Box, Typography, Button, TextField, Slider, Checkbox, FormControlLabel, IconButton, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
+import { Modal, Box, Typography, Button, TextField, Checkbox, FormControlLabel, ToggleButton, ToggleButtonGroup } from "@mui/material";
 
 // Helper: Emoji/Face rating
 const EmojiRating = ({ value, onChange, options }) => (
@@ -9,23 +7,81 @@ const EmojiRating = ({ value, onChange, options }) => (
     value={value}
     exclusive
     onChange={(_, v) => v && onChange(v)}
-    sx={{ mb: 2 }}
+    sx={{ 
+      mb: 2,
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '8px',
+      '& .MuiToggleButton-root': {
+        fontSize: '14px',
+        fontWeight: 500,
+        padding: '10px 16px',
+        borderRadius: '8px',
+        border: '2px solid #e5e7eb',
+        color: '#6b7280',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          backgroundColor: '#f3f4f6',
+          borderColor: '#3b82f6',
+          color: '#3b82f6',
+        },
+        '&.Mui-selected': {
+          backgroundColor: '#3b82f6',
+          borderColor: '#3b82f6',
+          color: 'white',
+          '&:hover': {
+            backgroundColor: '#2563eb',
+            borderColor: '#2563eb',
+          },
+        },
+      },
+    }}
   >
     {options.map(opt => (
-      <ToggleButton key={opt.value} value={opt.value} sx={{ fontSize: 24 }}>
-        {opt.emoji} <span style={{ marginLeft: 4 }}>{opt.label}</span>
+      <ToggleButton key={opt.value} value={opt.value}>
+        <span style={{ fontSize: '18px', marginRight: '6px' }}>{opt.emoji}</span>
+        <span style={{ fontSize: '14px' }}>{opt.label}</span>
       </ToggleButton>
     ))}
   </ToggleButtonGroup>
 );
 
-// Helper: Counter
-const Counter = ({ value, onChange, min = 0, max = 1000 }) => (
-  <Box display="flex" alignItems="center" mb={2}>
-    <IconButton onClick={() => onChange(Math.max(min, value - 1))}><RemoveIcon /></IconButton>
-    <Typography variant="h6" mx={2}>{value}</Typography>
-    <IconButton onClick={() => onChange(Math.min(max, value + 1))}><AddIcon /></IconButton>
-  </Box>
+// Helper: Number Input
+const NumberInput = ({ value, onChange, min = 0, max = 1000, unit }) => (
+  <TextField
+    type="number"
+    value={value}
+    onChange={(e) => {
+      const val = parseInt(e.target.value) || 0;
+      onChange(Math.max(min, Math.min(max, val)));
+    }}
+    inputProps={{ min, max }}
+    fullWidth
+    sx={{
+      '& .MuiOutlinedInput-root': {
+        borderRadius: '8px',
+        fontSize: '14px',
+        '& fieldset': {
+          borderColor: '#e2e8f0',
+          borderWidth: '2px',
+        },
+        '&:hover fieldset': {
+          borderColor: '#3b82f6',
+        },
+        '&.Mui-focused fieldset': {
+          borderColor: '#3b82f6',
+          borderWidth: '2px',
+        },
+      },
+    }}
+    InputProps={{
+      endAdornment: unit && (
+        <Typography sx={{ color: '#6b7280', fontSize: '14px', fontWeight: 500 }}>
+          {unit}
+        </Typography>
+      ),
+    }}
+  />
 );
 
 // Helper: Checkbox group
@@ -43,32 +99,44 @@ const CheckboxGroup = ({ options, value = [], onChange, icons }) => (
                 if (checked) onChange([...value, opt.value]);
                 else onChange(value.filter(v => v !== opt.value));
               }}
-              {...(icon ? { icon: <span style={{fontSize: 22}}>{icon}</span>, checkedIcon: <span style={{fontSize: 22}}>{icon}</span> } : {})}
+              sx={{
+                color: '#6b7280',
+                '&.Mui-checked': {
+                  color: '#3b82f6',
+                },
+                '& .MuiSvgIcon-root': {
+                  fontSize: '20px',
+                },
+              }}
+              {...(icon ? { icon: <span style={{fontSize: 18}}>{icon}</span>, checkedIcon: <span style={{fontSize: 18}}>{icon}</span> } : {})}
             />
           }
-          label={icon ? <span style={{ fontSize: 22 }}>{icon} {opt.label}</span> : opt.label}
+          label={
+            <Box display="flex" alignItems="center" gap={6}>
+              {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
+              <span style={{ fontSize: 14, fontWeight: 500, color: '#374151' }}>
+                {opt.label}
+              </span>
+            </Box>
+          }
+          sx={{
+            margin: 0,
+            padding: '6px 10px',
+            backgroundColor: value.includes(opt.value) ? '#eff6ff' : '#f9fafb',
+            borderRadius: '6px',
+            border: `1px solid ${value.includes(opt.value) ? '#3b82f6' : '#e5e7eb'}`,
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              backgroundColor: value.includes(opt.value) ? '#dbeafe' : '#f3f4f6',
+            },
+          }}
         />
       );
     })}
   </Box>
 );
 
-// Helper: Slider with value
-const SliderWithValue = ({ value, onChange, min, max, step, label, unit }) => (
-  <Box mb={2}>
-    <Typography gutterBottom>
-      {label}: <b>{value} {unit}</b>
-    </Typography>
-    <Slider
-      value={value}
-      min={min}
-      max={max}
-      step={step}
-      onChange={(_, v) => onChange(v)}
-      valueLabelDisplay="auto"
-    />
-  </Box>
-);
+
 
 // --- Domain-specific question sets for volunteers ---
 const VOLUNTEER_QUESTION_SETS = {
@@ -100,11 +168,14 @@ const VOLUNTEER_QUESTION_SETS = {
     { 
       key: "beachCleanliness", 
       label: "How clean was the beach after the event?", 
-      type: "slider", 
-      min: 0, 
-      max: 100, 
-      step: 5, 
-      unit: "%" 
+      type: "radio", 
+      options: [
+        { value: "veryClean", label: "Very Clean (80-100%)", emoji: "✨" },
+        { value: "clean", label: "Clean (60-80%)", emoji: "👍" },
+        { value: "moderate", label: "Moderate (40-60%)", emoji: "😐" },
+        { value: "dirty", label: "Still Dirty (20-40%)", emoji: "😞" },
+        { value: "veryDirty", label: "Very Dirty (0-20%)", emoji: "🤢" }
+      ]
     },
     { 
       key: "wouldRepeat", 
@@ -179,11 +250,10 @@ const VOLUNTEER_QUESTION_SETS = {
     { 
       key: "peopleTalked", 
       label: "How many people did you talk to?", 
-      type: "slider", 
+      type: "counter", 
       min: 0, 
       max: 100, 
-      step: 1, 
-      unit: "people" 
+      unit: "people"
     },
     { 
       key: "methods", 
@@ -308,11 +378,10 @@ const VOLUNTEER_QUESTION_SETS = {
     { 
       key: "studentsInGroup", 
       label: "How many students were in your group?", 
-      type: "slider", 
+      type: "counter", 
       min: 0, 
       max: 100, 
-      step: 1, 
-      unit: "students" 
+      unit: "students"
     },
     { 
       key: "gradeLevel", 
@@ -376,11 +445,14 @@ const COMMON_QUESTIONS = [
   { 
     key: "satisfaction", 
     label: "How satisfied are you with this event?", 
-    type: "slider", 
-    min: 1, 
-    max: 5, 
-    step: 1, 
-    unit: "stars" 
+    type: "radio", 
+    options: [
+      { value: "5", label: "⭐⭐⭐⭐⭐ Very Satisfied" },
+      { value: "4", label: "⭐⭐⭐⭐ Satisfied" },
+      { value: "3", label: "⭐⭐⭐ Neutral" },
+      { value: "2", label: "⭐⭐ Dissatisfied" },
+      { value: "1", label: "⭐ Very Dissatisfied" }
+    ]
   },
   { 
     key: "feeling", 
@@ -415,28 +487,19 @@ const renderQuestion = (q, answers, setAnswers) => {
     case "counter":
       return (
         <Box key={q.key} mb={2}>
-          <Typography>{q.label}</Typography>
-          <Counter
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#374151' }}>
+            {q.label}
+          </Typography>
+          <NumberInput
             value={answers[q.key] || 0}
             onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
             min={q.min}
             max={q.max}
+            unit={q.unit}
           />
         </Box>
       );
-    case "slider":
-      return (
-        <SliderWithValue
-          key={q.key}
-          value={answers[q.key] || q.min || 0}
-          onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-          min={q.min}
-          max={q.max}
-          step={q.step}
-          label={q.label}
-          unit={q.unit}
-        />
-      );
+
     case "checkboxes":
       return (
         <Box key={q.key} mb={2}>
@@ -463,11 +526,41 @@ const renderQuestion = (q, answers, setAnswers) => {
     case "radio":
       return (
         <Box key={q.key} mb={2}>
-          <Typography>{q.label}</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#374151' }}>
+            {q.label}
+          </Typography>
           <ToggleButtonGroup
             value={answers[q.key] || ""}
             exclusive
             onChange={(_, v) => v && setAnswers(a => ({ ...a, [q.key]: v }))}
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px',
+              '& .MuiToggleButton-root': {
+                fontSize: '14px',
+                fontWeight: 500,
+                padding: '10px 16px',
+                borderRadius: '8px',
+                border: '2px solid #e5e7eb',
+                color: '#6b7280',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  backgroundColor: '#f3f4f6',
+                  borderColor: '#3b82f6',
+                  color: '#3b82f6',
+                },
+                '&.Mui-selected': {
+                  backgroundColor: '#3b82f6',
+                  borderColor: '#3b82f6',
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: '#2563eb',
+                    borderColor: '#2563eb',
+                  },
+                },
+              },
+            }}
           >
             {q.options.map(opt => (
               <ToggleButton key={opt.value} value={opt.value}>
@@ -479,16 +572,36 @@ const renderQuestion = (q, answers, setAnswers) => {
       );
     case "text":
       return (
-        <TextField
-          key={q.key}
-          label={q.label}
-          fullWidth
-          margin="normal"
-          multiline
-          rows={3}
-          value={answers[q.key] || ""}
-          onChange={e => setAnswers(a => ({ ...a, [q.key]: e.target.value }))}
-        />
+        <Box key={q.key} mb={2}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: '#374151' }}>
+            {q.label}
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            value={answers[q.key] || ""}
+            onChange={e => setAnswers(a => ({ ...a, [q.key]: e.target.value }))}
+            variant="outlined"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+                fontSize: '14px',
+                '& fieldset': {
+                  borderColor: '#e2e8f0',
+                  borderWidth: '2px',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#3b82f6',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#3b82f6',
+                  borderWidth: '2px',
+                },
+              },
+            }}
+          />
+        </Box>
       );
     default:
       return null;
@@ -530,10 +643,50 @@ export default function VolunteerQuestionnaireModal({ open, onClose, eventType, 
         ) : (
           allQuestions.map(q => renderQuestion(q, answers, setAnswers))
         )}
-        <Box mt={2} display="flex" justifyContent="flex-end" gap={2}>
-          <Button onClick={onClose} variant="outlined">Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary" disabled={allQuestions.length === 0}>Submit</Button>
-        </Box>
+                 <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
+           <Button 
+             onClick={onClose} 
+             variant="outlined"
+             sx={{
+               fontSize: '14px',
+               fontWeight: 500,
+               padding: '10px 20px',
+               borderRadius: '8px',
+               textTransform: 'none',
+               minHeight: '44px',
+               borderColor: '#6b7280',
+               color: '#6b7280',
+               '&:hover': {
+                 borderColor: '#374151',
+                 backgroundColor: '#f9fafb',
+               },
+             }}
+           >
+             Cancel
+           </Button>
+           <Button 
+             onClick={handleSubmit} 
+             variant="contained" 
+             disabled={allQuestions.length === 0}
+             sx={{
+               fontSize: '14px',
+               fontWeight: 500,
+               padding: '10px 20px',
+               borderRadius: '8px',
+               textTransform: 'none',
+               minHeight: '44px',
+               backgroundColor: '#3b82f6',
+               '&:hover': {
+                 backgroundColor: '#2563eb',
+               },
+               '&:disabled': {
+                 backgroundColor: '#9ca3af',
+               },
+             }}
+           >
+             Submit
+           </Button>
+         </Box>
       </Box>
     </Modal>
   );

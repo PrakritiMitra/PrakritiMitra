@@ -1,65 +1,239 @@
 import React, { useState } from "react";
-import { Modal, Box, Typography, Button, TextField, Slider, Checkbox, FormControlLabel, IconButton, ToggleButton, ToggleButtonGroup, Autocomplete } from "@mui/material";
+import { Modal, Box, Typography, Button, TextField, Slider, Checkbox, FormControlLabel, IconButton, ToggleButton, ToggleButtonGroup, Autocomplete, Paper, Divider, Chip } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CircularProgress from '@mui/material/CircularProgress';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
 
-// Helper: Emoji/Face rating
+// Enhanced styling constants
+const QUESTIONNAIRE_STYLES = {
+  section: {
+    backgroundColor: '#f8fafc',
+    borderRadius: '16px',
+    padding: '24px',
+    marginBottom: '24px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '20px',
+    paddingBottom: '12px',
+    borderBottom: '2px solid #3b82f6',
+  },
+  sectionTitle: {
+    fontSize: '20px',
+    fontWeight: 700,
+    color: '#1e293b',
+    margin: 0,
+  },
+  questionCard: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '16px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      transform: 'translateY(-1px)',
+    },
+  },
+  questionLabel: {
+    fontSize: '16px',
+    fontWeight: 600,
+    color: '#374151',
+    marginBottom: '12px',
+    display: 'block',
+  },
+  progressBar: {
+    width: '100%',
+    height: '8px',
+    backgroundColor: '#e5e7eb',
+    borderRadius: '4px',
+    overflow: 'hidden',
+    marginBottom: '24px',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3b82f6',
+    borderRadius: '4px',
+    transition: 'width 0.3s ease',
+  },
+  button: {
+    fontSize: '14px',
+    fontWeight: 500,
+    padding: '10px 20px',
+    borderRadius: '8px',
+    textTransform: 'none',
+    minHeight: '44px',
+  },
+  toggleButton: {
+    fontSize: '14px',
+    fontWeight: 500,
+    padding: '12px 20px',
+    borderRadius: '8px',
+    border: '2px solid #e5e7eb',
+    color: '#6b7280',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: '#f3f4f6',
+      borderColor: '#3b82f6',
+      color: '#3b82f6',
+    },
+    '&.Mui-selected': {
+      backgroundColor: '#3b82f6',
+      borderColor: '#3b82f6',
+      color: 'white',
+      '&:hover': {
+        backgroundColor: '#2563eb',
+        borderColor: '#2563eb',
+      },
+    },
+  },
+};
+
+// Enhanced Emoji Rating with consistent styling
 const EmojiRating = ({ value, onChange, options }) => (
-  <ToggleButtonGroup
-    value={value}
-    exclusive
-    onChange={(_, v) => v && onChange(v)}
-    sx={{ mb: 2 }}
-  >
-    {options.map(opt => (
-      <ToggleButton key={opt.value} value={opt.value} sx={{ fontSize: 24 }}>
-        {opt.emoji} <span style={{ marginLeft: 4 }}>{opt.label}</span>
-      </ToggleButton>
-    ))}
-  </ToggleButtonGroup>
-);
-
-// Helper: Counter
-const Counter = ({ value, onChange, min = 0, max = 1000 }) => (
-  <Box display="flex" alignItems="center" mb={2}>
-    <IconButton onClick={() => onChange(Math.max(min, value - 1))}><RemoveIcon /></IconButton>
-    <Typography variant="h6" mx={2}>{value}</Typography>
-    <IconButton onClick={() => onChange(Math.min(max, value + 1))}><AddIcon /></IconButton>
+  <Box sx={QUESTIONNAIRE_STYLES.questionCard}>
+    <Typography sx={QUESTIONNAIRE_STYLES.questionLabel}>Rate your experience</Typography>
+    <ToggleButtonGroup
+      value={value}
+      exclusive
+      onChange={(_, v) => v && onChange(v)}
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        '& .MuiToggleButton-root': QUESTIONNAIRE_STYLES.toggleButton,
+      }}
+    >
+      {options.map(opt => (
+        <ToggleButton key={opt.value} value={opt.value}>
+          <span style={{ fontSize: '20px', marginRight: '8px' }}>{opt.emoji}</span>
+          <span style={{ fontSize: '14px' }}>{opt.label}</span>
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
   </Box>
 );
 
-// Helper: Checkbox group
-const CheckboxGroup = ({ options, value = [], onChange, icons }) => (
-  <Box display="flex" flexWrap="wrap" gap={2} mb={2}>
-    {options.map(opt => {
-      const icon = icons?.[opt.value];
-      return (
-        <FormControlLabel
-          key={opt.value}
-          control={
-            <Checkbox
-              checked={value.includes(opt.value)}
-              onChange={(_, checked) => {
-                if (checked) onChange([...value, opt.value]);
-                else onChange(value.filter(v => v !== opt.value));
-              }}
-              {...(icon ? { icon: <span style={{fontSize: 22}}>{icon}</span>, checkedIcon: <span style={{fontSize: 22}}>{icon}</span> } : {})}
-            />
-          }
-          label={icon ? <span style={{ fontSize: 22 }}>{icon} {opt.label}</span> : opt.label}
-        />
-      );
-    })}
+// Enhanced Number Input with better styling
+const NumberInput = ({ value, onChange, min = 0, max = 1000, label, unit }) => (
+  <Box sx={QUESTIONNAIRE_STYLES.questionCard}>
+    <Typography sx={QUESTIONNAIRE_STYLES.questionLabel}>{label}</Typography>
+    <TextField
+      type="number"
+      value={value}
+      onChange={(e) => {
+        const val = parseInt(e.target.value) || 0;
+        onChange(Math.max(min, Math.min(max, val)));
+      }}
+      inputProps={{ min, max }}
+      sx={{
+        width: '100%',
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '12px',
+          fontSize: '16px',
+          '& fieldset': {
+            borderColor: '#e2e8f0',
+            borderWidth: '2px',
+          },
+          '&:hover fieldset': {
+            borderColor: '#3b82f6',
+          },
+          '&.Mui-focused fieldset': {
+            borderColor: '#3b82f6',
+            borderWidth: '2px',
+          },
+        },
+      }}
+      InputProps={{
+        endAdornment: unit && (
+          <Typography sx={{ color: '#6b7280', fontSize: '14px', fontWeight: 500 }}>
+            {unit}
+          </Typography>
+        ),
+      }}
+    />
   </Box>
 );
 
-// Helper: Slider with value
+// Enhanced Checkbox group with consistent styling
+const CheckboxGroup = ({ options, value = [], onChange, icons, label }) => (
+  <Box sx={QUESTIONNAIRE_STYLES.questionCard}>
+    <Typography sx={QUESTIONNAIRE_STYLES.questionLabel}>{label}</Typography>
+    <Box display="flex" flexWrap="wrap" gap="8px">
+      {options.map(opt => {
+        const icon = icons?.[opt.value];
+        return (
+          <FormControlLabel
+            key={opt.value}
+            control={
+              <Checkbox
+                checked={value.includes(opt.value)}
+                onChange={(_, checked) => {
+                  if (checked) onChange([...value, opt.value]);
+                  else onChange(value.filter(v => v !== opt.value));
+                }}
+                sx={{
+                  color: '#6b7280',
+                  '&.Mui-checked': {
+                    color: '#3b82f6',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '20px',
+                  },
+                }}
+                {...(icon ? { 
+                  icon: <span style={{fontSize: '20px'}}>{icon}</span>, 
+                  checkedIcon: <span style={{fontSize: '20px'}}>{icon}</span> 
+                } : {})}
+              />
+            }
+            label={
+              <Box display="flex" alignItems="center" gap="6px">
+                {icon && <span style={{ fontSize: '18px' }}>{icon}</span>}
+                <span style={{ 
+                  fontSize: '14px', 
+                  fontWeight: 500,
+                  color: '#374151',
+                }}>
+                  {opt.label}
+                </span>
+              </Box>
+            }
+            sx={{
+              margin: 0,
+              padding: '8px 12px',
+              backgroundColor: value.includes(opt.value) ? '#eff6ff' : '#f9fafb',
+              borderRadius: '8px',
+              border: `1px solid ${value.includes(opt.value) ? '#3b82f6' : '#e5e7eb'}`,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                backgroundColor: value.includes(opt.value) ? '#dbeafe' : '#f3f4f6',
+              },
+            }}
+          />
+        );
+      })}
+    </Box>
+  </Box>
+);
+
+// Enhanced Slider with better styling
 const SliderWithValue = ({ value, onChange, min, max, step, label, unit }) => (
-  <Box mb={2}>
-    <Typography gutterBottom>
-      {label}: <b>{value} {unit}</b>
+  <Box sx={QUESTIONNAIRE_STYLES.questionCard}>
+    <Typography sx={QUESTIONNAIRE_STYLES.questionLabel}>
+      {label}: <Chip 
+        label={`${value} ${unit}`} 
+        color="primary" 
+        variant="outlined"
+        sx={{ marginLeft: '12px' }}
+      />
     </Typography>
     <Slider
       value={value}
@@ -68,24 +242,192 @@ const SliderWithValue = ({ value, onChange, min, max, step, label, unit }) => (
       step={step}
       onChange={(_, v) => onChange(v)}
       valueLabelDisplay="auto"
+      sx={{
+        color: '#3b82f6',
+        height: 8,
+        '& .MuiSlider-track': {
+          border: 'none',
+          height: 8,
+          borderRadius: 4,
+        },
+        '& .MuiSlider-rail': {
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: '#e5e7eb',
+        },
+        '& .MuiSlider-thumb': {
+          height: 24,
+          width: 24,
+          backgroundColor: '#3b82f6',
+          border: '2px solid white',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+          '&:hover, &.Mui-focusVisible': {
+            boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+          },
+        },
+      }}
     />
   </Box>
 );
 
+// Enhanced Radio group with consistent styling
+const RadioGroup = ({ options, value, onChange, label }) => (
+  <Box sx={QUESTIONNAIRE_STYLES.questionCard}>
+    <Typography sx={QUESTIONNAIRE_STYLES.questionLabel}>{label}</Typography>
+    <ToggleButtonGroup
+      value={value || ""}
+      exclusive
+      onChange={(_, v) => v && onChange(v)}
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        '& .MuiToggleButton-root': QUESTIONNAIRE_STYLES.toggleButton,
+      }}
+    >
+      {options.map(opt => (
+        <ToggleButton key={opt.value} value={opt.value}>
+          {opt.label}
+        </ToggleButton>
+      ))}
+    </ToggleButtonGroup>
+  </Box>
+);
+
+// Enhanced Text field with consistent styling
+const TextFieldEnhanced = ({ label, value, onChange, multiline = false, rows = 1 }) => (
+  <Box sx={QUESTIONNAIRE_STYLES.questionCard}>
+    <Typography sx={QUESTIONNAIRE_STYLES.questionLabel}>{label}</Typography>
+    <TextField
+      fullWidth
+      value={value || ""}
+      onChange={onChange}
+      multiline={multiline}
+      rows={rows}
+      variant="outlined"
+      sx={{
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '8px',
+          fontSize: '14px',
+          '& fieldset': {
+            borderColor: '#e2e8f0',
+            borderWidth: '2px',
+          },
+          '&:hover fieldset': {
+            borderColor: '#3b82f6',
+          },
+          '&.Mui-focused fieldset': {
+            borderColor: '#3b82f6',
+            borderWidth: '2px',
+          },
+        },
+      }}
+    />
+  </Box>
+);
+
+// Progress indicator component
+const ProgressIndicator = ({ current, total }) => {
+  const progress = (current / total) * 100;
+  return (
+    <Box sx={{ marginBottom: '24px' }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" marginBottom="8px">
+        <Typography variant="body2" color="text.secondary">
+          Question {current} of {total}
+        </Typography>
+        <Typography variant="body2" color="primary" fontWeight={600}>
+          {Math.round(progress)}% Complete
+        </Typography>
+      </Box>
+      <Box sx={QUESTIONNAIRE_STYLES.progressBar}>
+        <Box sx={{ ...QUESTIONNAIRE_STYLES.progressFill, width: `${progress}%` }} />
+      </Box>
+    </Box>
+  );
+};
+
+// Enhanced question rendering function
+function renderQuestion(q, answers, setAnswers) {
+  if (q.showIf && !q.showIf(answers)) return null;
+  
+  const commonProps = {
+    key: q.key,
+    label: q.label,
+    value: answers[q.key] || (q.type === 'slider' ? q.min : q.type === 'counter' ? 0 : ''),
+    onChange: (v) => setAnswers(a => ({ ...a, [q.key]: v })),
+  };
+
+  switch (q.type) {
+    case "slider":
+      return (
+        <SliderWithValue
+          {...commonProps}
+          min={q.min}
+          max={q.max}
+          step={q.step}
+          unit={q.unit}
+        />
+      );
+    case "counter":
+      const { key: counterKey, ...counterProps } = commonProps;
+      return (
+        <NumberInput
+          key={counterKey}
+          {...counterProps}
+          min={q.min}
+          max={q.max}
+          unit={q.unit}
+        />
+      );
+    case "checkboxes":
+      const { key: checkboxKey, ...checkboxProps } = commonProps;
+      return (
+        <CheckboxGroup
+          key={checkboxKey}
+          {...checkboxProps}
+          options={q.options}
+          icons={q.icons}
+        />
+      );
+    case "emoji":
+      const { key: emojiKey, ...emojiProps } = commonProps;
+      return (
+        <EmojiRating
+          key={emojiKey}
+          {...emojiProps}
+          options={q.options}
+        />
+      );
+    case "radio":
+      const { key: radioKey, ...radioProps } = commonProps;
+      return (
+        <RadioGroup
+          key={radioKey}
+          {...radioProps}
+          options={q.options}
+        />
+      );
+    case "text":
+      return (
+        <TextFieldEnhanced
+          {...commonProps}
+          onChange={(e) => setAnswers(a => ({ ...a, [q.key]: e.target.value }))}
+        />
+      );
+    default:
+      return null;
+  }
+}
+
 // --- Domain-specific question sets ---
 const QUESTION_SETS = {
   "beach cleanup": [
-    { key: "wasteKg", label: "How much total waste was collected?", type: "slider", min: 0, max: 500, step: 1, unit: "kg" },
+    { key: "wasteKg", label: "How much total waste was collected?", type: "counter", min: 0, max: 1000, unit: "kg" },
     { key: "wasteTypes", label: "What types of waste were found?", type: "checkboxes", options: [
       { value: "plastic", label: "Plastic" }, { value: "glass", label: "Glass" }, { value: "metal", label: "Metal" },
       { value: "organic", label: "Organic" }, { value: "hazardous", label: "Hazardous" }, { value: "ewaste", label: "E-waste" }
     ], icons: { plastic: "🧴", glass: "🍾", metal: "🧲", organic: "🍃", hazardous: "☣️", ewaste: "💻" } },
-    { key: "wasteBins", label: "Estimate quantities: Drag waste icons into bins", type: "bins", options: [
-      { value: "plastic", label: "Plastic", icon: "🧴" }, { value: "glass", label: "Glass", icon: "🍾" },
-      { value: "metal", label: "Metal", icon: "🧲" }, { value: "organic", label: "Organic", icon: "🍃" },
-      { value: "hazardous", label: "Hazardous", icon: "☣️" }
-    ] },
-    { key: "shorelineMeters", label: "How long was the shoreline cleaned?", type: "slider", min: 0, max: 2000, step: 10, unit: "meters" },
+    { key: "shorelineMeters", label: "How long was the shoreline cleaned?", type: "counter", min: 0, max: 5000, unit: "meters" },
     { key: "localsJoined", label: "Did any local citizens or groups join in?", type: "radio", options: [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }] },
     { key: "issues", label: "Were there any issues during the cleanup?", type: "checkboxes", options: [
       { value: "badWeather", label: "Bad weather" }, { value: "equipment", label: "Equipment shortage" }, { value: "other", label: "Other" }
@@ -101,7 +443,7 @@ const QUESTION_SETS = {
       { value: "neem", label: "Neem" }, { value: "banyan", label: "Banyan" }, { value: "mango", label: "Mango" }, { value: "other", label: "Other" }
     ] },
     { key: "speciesOther", label: "Other species", type: "text", showIf: (a) => a.species?.includes("other") },
-    { key: "area", label: "Area covered?", type: "slider", min: 0, max: 10000, step: 10, unit: "sq. ft" },
+    { key: "area", label: "Area covered?", type: "counter", min: 0, max: 10000, unit: "sq. ft" },
     { key: "locationType", label: "Was the planting location urban, rural, or forested?", type: "radio", options: [
       { value: "urban", label: "Urban" }, { value: "rural", label: "Rural" }, { value: "forested", label: "Forested" }
     ] },
@@ -120,7 +462,7 @@ const QUESTION_SETS = {
     ] }
   ],
   "awareness drive": [
-    { key: "peopleReached", label: "Estimated number of people reached?", type: "slider", min: 0, max: 10000, step: 10, unit: "people" },
+    { key: "peopleReached", label: "Estimated number of people reached?", type: "counter", min: 0, max: 10000, unit: "people" },
     { key: "mainTopic", label: "What was the main topic?", type: "checkboxes", options: [
       { value: "plasticBan", label: "Plastic Ban" }, { value: "ewaste", label: "E-Waste" }, { value: "treeProtection", label: "Tree Protection" }, { value: "climateChange", label: "Climate Change" }, { value: "other", label: "Other" }
     ] },
@@ -209,91 +551,6 @@ const FEEDBACK_QUESTIONS = [
   { key: "comments", label: "Any comments or suggestions?", type: "text" }
 ];
 
-function renderQuestion(q, answers, setAnswers) {
-  if (q.showIf && !q.showIf(answers)) return null;
-  switch (q.type) {
-    case "slider":
-      return (
-        <SliderWithValue
-          key={q.key}
-          value={answers[q.key] ?? q.min}
-          onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-          min={q.min}
-          max={q.max}
-          step={q.step}
-          label={q.label}
-          unit={q.unit}
-        />
-      );
-    case "counter":
-      return (
-        <Box key={q.key} mb={2}>
-          <Typography>{q.label}</Typography>
-          <Counter
-            value={answers[q.key] ?? 0}
-            onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-            min={q.min}
-            max={q.max}
-          />
-        </Box>
-      );
-    case "checkboxes":
-      return (
-        <Box key={q.key} mb={2}>
-          <Typography>{q.label}</Typography>
-          <CheckboxGroup
-            options={q.options}
-            value={answers[q.key] || []}
-            onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-            icons={q.icons}
-          />
-        </Box>
-      );
-    case "emoji":
-      return (
-        <Box key={q.key} mb={2}>
-          <Typography>{q.label}</Typography>
-          <EmojiRating
-            value={answers[q.key] || ""}
-            onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-            options={q.options}
-          />
-        </Box>
-      );
-    case "radio":
-      return (
-        <Box key={q.key} mb={2}>
-          <Typography>{q.label}</Typography>
-          <ToggleButtonGroup
-            value={answers[q.key] || ""}
-            exclusive
-            onChange={(_, v) => v && setAnswers(a => ({ ...a, [q.key]: v }))}
-          >
-            {q.options.map(opt => (
-              <ToggleButton key={opt.value} value={opt.value}>
-                {opt.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Box>
-      );
-    case "text":
-      return (
-        <TextField
-          key={q.key}
-          label={q.label}
-          fullWidth
-          margin="normal"
-          value={answers[q.key] || ""}
-          onChange={e => setAnswers(a => ({ ...a, [q.key]: e.target.value }))}
-        />
-      );
-    // Add more gamified types as needed
-    default:
-      return null;
-  }
-}
-
 export default function EventQuestionnaireModal({ open, onClose, eventType, onSubmit, isCreator, volunteerParticipants = [], organizerParticipants = [] }) {
   // If creator, use full question set; else, use feedback only
   const questions = isCreator
@@ -361,32 +618,78 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
   return (
     <Modal open={open} onClose={onClose}>
       <Box sx={{
-        p: 3,
+        p: 4,
         bgcolor: "white",
-        borderRadius: 2,
-        boxShadow: 3,
-        maxWidth: 500,
+        borderRadius: '20px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        maxWidth: 800,
         mx: "auto",
-        mt: 6,
-        maxHeight: '80vh',
+        mt: 4,
+        maxHeight: '90vh',
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}>
-        <Typography variant="h6" color="primary" gutterBottom>
-          Complete Event Questionnaire
-        </Typography>
+        {/* Header Section */}
+        <Box sx={{
+          textAlign: 'center',
+          marginBottom: '32px',
+          paddingBottom: '20px',
+          borderBottom: '2px solid #e2e8f0',
+        }}>
+          <Typography variant="h4" sx={{
+            color: '#1e293b',
+            fontWeight: 700,
+            marginBottom: '8px',
+          }}>
+            📋 Event Questionnaire
+          </Typography>
+          <Typography variant="body1" sx={{
+            color: '#64748b',
+            fontSize: '16px',
+          }}>
+            {eventType ? `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event Feedback` : 'Event Feedback'}
+          </Typography>
+        </Box>
+
+        {/* Progress Indicator */}
+        {questions.length > 0 && (
+          <ProgressIndicator 
+            current={Object.keys(answers).filter(key => answers[key] !== undefined && answers[key] !== '').length} 
+            total={questions.length} 
+          />
+        )}
+
+        {/* Questions Section */}
         {questions.length === 0 ? (
-          <Typography>No questionnaire for this event type.</Typography>
+          <Box sx={QUESTIONNAIRE_STYLES.section}>
+            <Typography variant="h6" sx={{ textAlign: 'center', color: '#64748b' }}>
+              No questionnaire available for this event type.
+            </Typography>
+          </Box>
         ) : (
-          questions.map(q => renderQuestion(q, answers, setAnswers))
+          <Box sx={QUESTIONNAIRE_STYLES.section}>
+            <Box sx={QUESTIONNAIRE_STYLES.sectionHeader}>
+              <span style={{ fontSize: '24px' }}>❓</span>
+              <Typography sx={QUESTIONNAIRE_STYLES.sectionTitle}>
+                Event Details & Feedback
+              </Typography>
+            </Box>
+            {questions.map(q => renderQuestion(q, answers, setAnswers))}
+          </Box>
         )}
         {/* Award selection for creator only */}
         {isCreator && (
           <>
             {/* Volunteer Awards Section */}
-            <Box mt={3} mb={2}>
-              <Typography variant="subtitle1" gutterBottom>Volunteer Awards</Typography>
+            <Box sx={QUESTIONNAIRE_STYLES.section}>
+              <Box sx={QUESTIONNAIRE_STYLES.sectionHeader}>
+                <span style={{ fontSize: '24px' }}>🏆</span>
+                <Typography sx={QUESTIONNAIRE_STYLES.sectionTitle}>
+                  Volunteer Awards
+                </Typography>
+              </Box>
               {/* Best Volunteer */}
               <Autocomplete
                 multiple
@@ -681,14 +984,27 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
           </>
         )}
         {/* Media upload section */}
-        <Box mt={2} mb={2}>
-          <Typography variant="subtitle1" gutterBottom>Upload Images & Videos</Typography>
+        <Box sx={QUESTIONNAIRE_STYLES.section}>
+          <Box sx={QUESTIONNAIRE_STYLES.sectionHeader}>
+            <span style={{ fontSize: '24px' }}>📸</span>
+            <Typography sx={QUESTIONNAIRE_STYLES.sectionTitle}>
+              Upload Images & Videos
+            </Typography>
+          </Box>
           <Button
             variant="outlined"
             component="label"
-            sx={{ mb: 1 }}
+            sx={{ 
+              mb: 2,
+              borderColor: '#3b82f6',
+              color: '#3b82f6',
+              '&:hover': {
+                borderColor: '#2563eb',
+                backgroundColor: '#eff6ff',
+              },
+            }}
           >
-            Select Files
+            📁 Select Files
             <input
               type="file"
               accept="image/*,video/*"
@@ -704,22 +1020,74 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
                   key={idx}
                   src={URL.createObjectURL(file)}
                   alt={file.name}
-                  style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }}
+                  style={{ 
+                    width: 80, 
+                    height: 80, 
+                    objectFit: 'cover', 
+                    borderRadius: '12px', 
+                    border: '2px solid #e2e8f0',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
                 />
               ) : file.type.startsWith('video/') ? (
                 <video
                   key={idx}
                   src={URL.createObjectURL(file)}
-                  style={{ width: 80, height: 80, borderRadius: 6, border: '1px solid #eee' }}
+                  style={{ 
+                    width: 80, 
+                    height: 80, 
+                    borderRadius: '12px', 
+                    border: '2px solid #e2e8f0',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
                   controls
                 />
               ) : null
             ))}
           </Box>
         </Box>
-        <Box mt={2} display="flex" justifyContent="flex-end" gap={2}>
-          <Button onClick={onClose} variant="outlined">Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary" disabled={questions.length === 0}>Submit</Button>
+
+        {/* Submit Buttons */}
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '16px',
+          marginTop: '24px',
+          paddingTop: '20px',
+          borderTop: '2px solid #e2e8f0',
+        }}>
+                     <Button 
+             onClick={onClose} 
+             variant="outlined"
+             sx={{
+               ...QUESTIONNAIRE_STYLES.button,
+               borderColor: '#6b7280',
+               color: '#6b7280',
+               '&:hover': {
+                 borderColor: '#374151',
+                 backgroundColor: '#f9fafb',
+               },
+             }}
+           >
+             Cancel
+           </Button>
+           <Button 
+             onClick={handleSubmit} 
+             variant="contained" 
+             disabled={questions.length === 0}
+             sx={{
+               ...QUESTIONNAIRE_STYLES.button,
+               backgroundColor: '#3b82f6',
+               '&:hover': {
+                 backgroundColor: '#2563eb',
+               },
+               '&:disabled': {
+                 backgroundColor: '#9ca3af',
+               },
+             }}
+           >
+             Submit Questionnaire
+           </Button>
         </Box>
       </Box>
     </Modal>

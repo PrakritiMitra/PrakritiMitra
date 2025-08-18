@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -57,6 +57,7 @@ const TimeSlotBuilder = ({
         return; // Don't allow removing existing slots
       }
     }
+    
     setTimeSlots(timeSlots.filter(slot => slot.id !== slotId));
   };
 
@@ -96,6 +97,7 @@ const TimeSlotBuilder = ({
         return; // Don't allow removing existing categories
       }
     }
+    
     setTimeSlots(timeSlots.map(slot => 
       slot.id === slotId 
         ? { ...slot, categories: slot.categories.filter(cat => cat.id !== categoryId) }
@@ -205,13 +207,18 @@ const TimeSlotBuilder = ({
 
   const validation = validateTimeSlots();
 
+
+
   return (
     <Box sx={{ mt: 3 }}>
       <FormControlLabel
         control={
           <Switch
             checked={timeSlotsEnabled}
-            onChange={(e) => setTimeSlotsEnabled(e.target.checked)}
+                         onChange={(e) => {
+               const enabled = e.target.checked;
+               setTimeSlotsEnabled(enabled);
+             }}
           />
         }
         label="Add Time Slots & Work Categories"
