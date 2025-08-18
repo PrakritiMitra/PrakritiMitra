@@ -10,10 +10,19 @@ const containerStyle = {
 const LIBRARIES = ['places']; // Define libraries as a constant
 
 function StaticMap({ lat, lng }) {
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
     libraries: LIBRARIES,
   });
+
+  if (loadError) {
+    const hasKey = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
+    return (
+      <div style={{ padding: 12, background: '#fff7ed', color: '#9a3412', borderRadius: 8, border: '1px solid #fdba74' }}>
+        {hasKey ? 'Failed to load Google Maps. Please check network and key restrictions.' : 'Google Maps API key is missing. Set VITE_GOOGLE_MAPS_API_KEY.'}
+      </div>
+    );
+  }
 
   if (!isLoaded) return <div>Loading map...</div>;
   if (!lat || !lng) return null; // Don't render if no coordinates

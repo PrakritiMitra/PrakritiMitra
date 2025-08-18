@@ -41,7 +41,7 @@ import SponsorProfilePage from "./pages/SponsorProfilePage";
 import PaymentStatusPage from "./pages/PaymentStatusPage";
 import IntentPaymentPage from "./pages/IntentPaymentPage";
 import ReceiptPage from "./pages/ReceiptPage";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
@@ -50,7 +50,7 @@ import TeamPage from "./pages/Team.jsx";
 import NotFoundPage from "./pages/NotFoundPage";
 import { ChatProvider, useChatContext } from "./context/ChatContext";
 
-const SUGGESTED_QUESTIONS = [
+const GENERAL_QUESTIONS = [
   "What is your pricing?",
   "How much does it cost?",
   "Tell me about your price plans.",
@@ -83,6 +83,29 @@ const SUGGESTED_QUESTIONS = [
   "How can I contribute?",
 ];
 
+const PERSONAL_QUESTIONS = [
+  "When is my next event?",
+  "How many events have I completed?",
+  "Which events am I registered for?",
+  "Show me my upcoming events",
+  "What events have I attended?",
+  "My next volunteering event",
+  "How many events did I complete?",
+  "My event history",
+  "Upcoming events I'm registered for",
+  "Show me my certificates",
+  "Did I get a certificate for my last event?",
+  "When did I join this NGO?",
+  "What are my upcoming events this week?",
+  "Events in Mumbai",
+  "Show me the details of my last event",
+  "My registered events",
+  "Events near Delhi",
+  "My certificates",
+  "Last event details",
+  "Member since",
+];
+
 function App() {
   return (
     <ChatProvider>
@@ -92,11 +115,90 @@ function App() {
 }
 
 function AppContent() {
-  const [messages, setMessages] = useState([
-    { sender: "bot", text: "Hi! How can I help you today?" },
-  ]);
+  const [messages, setMessages] = useState(() => {
+    // Load messages from localStorage on component mount
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = user._id;
+    
+    if (userId) {
+      const savedMessages = localStorage.getItem(`chatMessages_${userId}`);
+      if (savedMessages) {
+        try {
+          return JSON.parse(savedMessages);
+        } catch (error) {
+          console.error('Error parsing saved messages:', error);
+        }
+      }
+    }
+    return [
+      { sender: "bot", text: "Hi! How can I help you today?" },
+    ];
+  });
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const { rootChatOpen, openRootChat, closeRootChat } = useChatContext();
+
+  // Check authentication status and user ID on component mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = user._id;
+    
+    setIsAuthenticated(!!token);
+    setCurrentUserId(userId);
+  }, []);
+
+  // Save messages to localStorage whenever they change (user-specific)
+  useEffect(() => {
+    if (currentUserId) {
+      localStorage.setItem(`chatMessages_${currentUserId}`, JSON.stringify(messages));
+    }
+  }, [messages, currentUserId]);
+
+  // Clear chat history when user logs out or switches accounts
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user._id;
+      
+      // If user changed or logged out
+      if (userId !== currentUserId) {
+        setCurrentUserId(userId);
+        setIsAuthenticated(!!token);
+        
+        // Load new user's chat history or reset to default
+        if (userId && token) {
+          const savedMessages = localStorage.getItem(`chatMessages_${userId}`);
+          if (savedMessages) {
+            try {
+              setMessages(JSON.parse(savedMessages));
+            } catch (error) {
+              console.error('Error parsing saved messages:', error);
+              setMessages([{ sender: "bot", text: "Hi! How can I help you today?" }]);
+            }
+          } else {
+            setMessages([{ sender: "bot", text: "Hi! How can I help you today?" }]);
+          }
+        } else {
+          // User logged out - clear messages
+          setMessages([{ sender: "bot", text: "Hi! How can I help you today?" }]);
+        }
+      }
+    };
+
+    // Listen for storage changes (when user logs in/out in another tab)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check on focus (when user returns to this tab)
+    window.addEventListener('focus', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleStorageChange);
+    };
+  }, [currentUserId]);
 
   const handleSendMessage = async (msg) => {
     setMessages((prev) => [
@@ -111,9 +213,18 @@ function AppContent() {
         { sender: "bot", text: res.data.response },
       ]);
     } catch (err) {
+      let errorMessage = "Sorry, something went wrong. Please try again.";
+      
+      if (err.response?.status === 401) {
+        errorMessage = "Please log in to ask personal questions. You can login here: https://prakritimitra.com/login";
+        setIsAuthenticated(false);
+      } else if (err.response?.status === 500) {
+        errorMessage = "Sorry, I'm having trouble right now. Please try again later.";
+      }
+      
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Sorry, something went wrong. Please try again." },
+        { sender: "bot", text: errorMessage },
       ]);
     } finally {
       setLoading(false);
@@ -125,6 +236,11 @@ function AppContent() {
       handleSendMessage(suggestion);
     }
   };
+
+  // Combine questions based on authentication status
+  const suggestedQuestions = isAuthenticated 
+    ? [...PERSONAL_QUESTIONS, ...GENERAL_QUESTIONS]
+    : GENERAL_QUESTIONS;
 
   return (
     <>
@@ -442,7 +558,7 @@ function AppContent() {
         messages={messages}
         onSendMessage={handleSendMessage}
         loading={loading}
-        suggestions={SUGGESTED_QUESTIONS}
+        suggestions={suggestedQuestions}
         onQuickReply={handleQuickReply}
       />
     </>

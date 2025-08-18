@@ -132,6 +132,8 @@ export default function EventStepOne({
         lng: newLocation.lng,
         address: newLocation.address, // Update address from LocationPicker
       },
+      // Also reflect the chosen address in the simple text field so users see it immediately
+      location: newLocation.address || prev.location || '',
     }));
   };
 
