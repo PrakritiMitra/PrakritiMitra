@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import { toast } from 'react-toastify';
 
 import { format } from "date-fns";
 import { DocumentTextIcon } from "@heroicons/react/24/outline";
@@ -130,6 +131,9 @@ export default function VolunteerEventDetailsPage() {
   const [calendarStatus, setCalendarStatus] = useState({
     isRegistered: false, isInCalendar: false, canAddToCalendar: false, canRemoveFromCalendar: false
   });
+
+  // Withdrawal confirmation modal state
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
 
   // Custom hook for live slot information
   const { availableSlots, unlimitedVolunteers, loading: slotsLoading } = useEventSlots(id);
@@ -355,26 +359,26 @@ export default function VolunteerEventDetailsPage() {
         setIsRegistered(true);
         setRegistrationDetails(regDetailsRes.data.registration);
       }
-      alert("Registered successfully!");
+      toast.success("🎉 Registered successfully!");
     } catch (err) {
       console.error("Registration failed:", err);
       const errorMessage = err.response?.data?.message || "Failed to register. Please try again.";
-      alert(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
   const handleWithdrawRegistration = async () => {
     if (!event?._id) return;
-    if (!window.confirm('Are you sure you want to withdraw your registration for this event?')) return;
     
     try {
       // Use event ID for withdrawal as per backend route
       await axiosInstance.delete(`/api/registrations/${event._id}`);
       setIsRegistered(false);
       setRegistrationDetails(null);
-      alert('Registration withdrawn successfully.');
+      setShowWithdrawalModal(false);
+      toast.success('✅ Registration withdrawn successfully.');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to withdraw registration.');
+      toast.error(err.response?.data?.message || 'Failed to withdraw registration.');
     }
   };
 
@@ -385,13 +389,13 @@ export default function VolunteerEventDetailsPage() {
       setExitQrPath(res.data.exitQrPath);
       setShowExitQr(true);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to generate exit QR.');
+      toast.error(err.response?.data?.message || 'Failed to generate exit QR.');
     }
   };
   
   const handleQuestionnaireSubmit = async (answers) => {
     if (questionnaireCompleted) {
-      alert('You have already submitted your questionnaire.');
+      toast.warning('⚠️ You have already submitted your questionnaire.');
       return;
     }
     
@@ -406,11 +410,11 @@ export default function VolunteerEventDetailsPage() {
         setRegistrationDetails(prev => ({ ...prev, questionnaireCompleted: true }));
       }
       
-      alert('Questionnaire submitted successfully! Thank you for your feedback.');
+      toast.success('📝 Questionnaire submitted successfully! Thank you for your feedback.');
     } catch (err) {
       console.error('Questionnaire submission error:', err);
       const errorMessage = err.response?.data?.message || 'Failed to submit questionnaire. Please try again.';
-      alert(errorMessage);
+      toast.error(errorMessage);
       
       if (err.response?.status === 400 && err.response?.data?.message?.includes('already submitted')) {
         setQuestionnaireCompleted(true);
@@ -423,7 +427,7 @@ export default function VolunteerEventDetailsPage() {
 
   const handleGenerateCertificate = async () => {
     if (!isRegistered || !questionnaireCompleted || !event?._id) {
-      alert('You are not eligible to generate a certificate at this time.');
+      toast.warning('⚠️ You are not eligible to generate a certificate at this time.');
       return;
     }
     
@@ -432,10 +436,10 @@ export default function VolunteerEventDetailsPage() {
       await axiosInstance.post(`/api/events/${event._id}/generate-certificate`);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Allow backend time to process
       setForceRefresh(prev => prev + 1); // Trigger re-fetch of event data
-      alert('Certificate generated successfully! You can now download it.');
+      toast.success('🎖️ Certificate generated successfully! You can now download it.');
     } catch (err) {
       console.error('Certificate generation error:', err);
-      alert(err.response?.data?.message || 'Failed to generate certificate. Please try again.');
+      toast.error(err.response?.data?.message || 'Failed to generate certificate. Please try again.');
     } finally {
       setIsGeneratingCertificate(false);
     }
@@ -901,7 +905,7 @@ export default function VolunteerEventDetailsPage() {
               
               {/* Withdraw Button */}
               {!hasCompletedEvent && isRegistered && !registrationDetails?.inTime && (
-                <button onClick={handleWithdrawRegistration} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4">Withdraw Registration</button>
+                 <button onClick={() => setShowWithdrawalModal(true)} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 mt-4">Withdraw Registration</button>
               )}
             </div>
 
@@ -1082,6 +1086,41 @@ export default function VolunteerEventDetailsPage() {
           </div>
         </div>
       )}
+
+       {/* Withdrawal Confirmation Modal */}
+       {showWithdrawalModal && (
+         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setShowWithdrawalModal(false)}>
+           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out" onClick={(e) => e.stopPropagation()}>
+             <div className="p-6">
+               <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                 <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                 </svg>
+               </div>
+               <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                 Withdraw Registration
+               </h3>
+               <p className="text-gray-600 text-center mb-6">
+                 Are you sure you want to withdraw your registration for <span className="font-semibold text-gray-800">"{event?.title}"</span>? This action cannot be undone.
+               </p>
+               <div className="flex gap-3">
+                 <button
+                   onClick={() => setShowWithdrawalModal(false)}
+                   className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200 font-medium"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   onClick={handleWithdrawRegistration}
+                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+                 >
+                   Withdraw
+                 </button>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
     </div>
   );
 }

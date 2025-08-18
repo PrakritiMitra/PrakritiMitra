@@ -47,6 +47,7 @@ import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
 import FAQSection from "./pages/FAQSection";
 import TeamPage from "./pages/Team.jsx";
+import NotFoundPage from "./pages/NotFoundPage";
 import { ChatProvider, useChatContext } from "./context/ChatContext";
 
 const SUGGESTED_QUESTIONS = [
@@ -138,6 +139,7 @@ function AppContent() {
           <Route path="/recovery-confirmation" element={<RecoveryConfirmationPage />} />
           <Route path="/faqs" element={<FAQSection />} />
           <Route path="/team" element={<TeamPage />} />
+          <Route path="/test-404" element={<NotFoundPage />} />
 
           {/* Protected Routes */}
           <Route
@@ -428,6 +430,9 @@ function AppContent() {
               </PrivateRoute>
             }
           />
+          
+          {/* 404 Page - Must be last */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Router>
       <ChatBubble onClick={openRootChat} />
