@@ -141,6 +141,19 @@ export default function EventStepOne({
       ...prev,
       eventImages: [...(prev.eventImages || []), ...files]
     }));
+    
+    // Show success toast for uploaded images
+    if (files.length > 0) {
+      const fileNames = files.map(f => f.name).join(', ');
+      toast.success(`🖼️ ${files.length} image(s) uploaded: ${fileNames}`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   const handleLetterChange = (e) => {
@@ -150,6 +163,16 @@ export default function EventStepOne({
       setNewLetterFile(file);
       setLetterFile(file);
       console.log("[EventStepOne] Letter file set in state and parent");
+      
+      // Show success toast for uploaded letter
+      toast.success(`📄 Government approval letter uploaded: ${file.name}`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
     }
   };
 
@@ -160,7 +183,14 @@ export default function EventStepOne({
     if (formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && !formData.unlimitedVolunteers) {
       if (remainingVolunteers < 0) {
         // Show error and prevent proceeding
-        toast.error(`Cannot proceed: You have over-allocated ${Math.abs(remainingVolunteers)} volunteers. Please adjust your category limits before continuing.`);
+        toast.error(`❌ Cannot proceed: You have over-allocated ${Math.abs(remainingVolunteers)} volunteers. Please adjust your category limits before continuing.`, {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
         return;
       }
     }
@@ -177,17 +207,56 @@ export default function EventStepOne({
       ...prev,
       eventImages: [...(prev.eventImages || []), ...files]
     }));
+    
+    // Show success toast for additional images
+    if (files.length > 0) {
+      const fileNames = files.map(f => f.name).join(', ');
+      toast.success(`🖼️ ${files.length} additional image(s) added: ${fileNames}`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   const handleRemoveNewImage = (idx) => {
+    const removedImage = formData.eventImages[idx];
     setFormData(prev => ({
       ...prev,
       eventImages: prev.eventImages.filter((_, i) => i !== idx)
     }));
+    
+    // Show info toast for removed image
+    if (removedImage) {
+      toast.info(`🗑️ Image removed: ${removedImage.name}`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   const handleRemoveNewLetter = () => {
     console.log("[EventStepOne] Removing new letter:", newLetterFile?.name);
+    
+    if (newLetterFile) {
+      // Show warning toast for removed letter
+      toast.warning(`🗑️ Government approval letter removed: ${newLetterFile.name}`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
+    
     setNewLetterFile(null);
     setLetterFile(null);
     

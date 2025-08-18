@@ -763,6 +763,7 @@ exports.getOrganizerTeam = async (req, res) => {
         // Handle case where user might be null
         return {
           ...obj,
+          hasAttended: obj.hasAttended || false, // Explicitly preserve hasAttended
           user: {
             _id: null,
             name: 'Unknown User',
@@ -779,6 +780,7 @@ exports.getOrganizerTeam = async (req, res) => {
       if (obj.user.isDeleted) {
         return {
           ...obj,
+          hasAttended: obj.hasAttended || false, // Explicitly preserve hasAttended
           user: {
             _id: obj.user._id,
             name: obj.user.name || 'Deleted User',
@@ -794,6 +796,7 @@ exports.getOrganizerTeam = async (req, res) => {
       // Active user
       return {
         ...obj,
+        hasAttended: obj.hasAttended || false, // Explicitly preserve hasAttended
         user: {
           ...obj.user.toObject(),
           isDeleted: false
@@ -818,12 +821,16 @@ exports.updateOrganizerAttendance = async (req, res) => {
   try {
     const { eventId, organizerId } = req.params;
     const { hasAttended } = req.body;
+    
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ message: 'Event not found' });
+    
     const organizer = event.organizerTeam.find(obj => obj.user && obj.user.toString() === organizerId);
     if (!organizer) return res.status(404).json({ message: 'Organizer not found in team' });
+    
     organizer.hasAttended = !!hasAttended;
     await event.save();
+    
     res.json({ message: 'Attendance updated.', organizer });
   } catch (err) {
     res.status(500).json({ message: 'Server error updating organizer attendance.' });
@@ -946,12 +953,81 @@ exports.completeQuestionnaire = async (req, res) => {
           event.certificates.push({ user: id, role: 'organizer', award: 'Participation' });
         }
       });
+      
+      // Add certificate for the creator
+      const creatorId = req.user._id.toString();
+      const creatorAlreadyAssigned = event.certificates.some(c => c.user && c.user.toString() === creatorId);
+      if (!creatorAlreadyAssigned) {
+        event.certificates.push({ user: creatorId, role: 'creator', award: 'Event Creator' });
+      }
+    } else if (isCreator) {
+      // If creator completes questionnaire without awards, still create their certificate assignment
+      const creatorId = req.user._id.toString();
+      const creatorAlreadyAssigned = event.certificates.some(c => c.user && c.user.toString() === creatorId);
+      if (!creatorAlreadyAssigned) {
+        event.certificates.push({ user: creatorId, role: 'creator', award: 'Event Creator' });
+      }
     }
     await event.save();
     res.status(200).json({ message: 'Questionnaire completed', questionnaire: organizer.questionnaire });
   } catch (err) {
     console.error('Error in completeQuestionnaire:', err);
     res.status(500).json({ message: 'Failed to complete questionnaire', error: err.message });
+  }
+};
+
+// Add creator certificate assignment
+exports.addCreatorCertificate = async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.user._id;
+    
+    // Find the event
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+    
+    // Check if user is the creator
+    const isCreator = event.organizerTeam.length > 0 && 
+                     event.organizerTeam[0].user.toString() === userId.toString();
+    
+    if (!isCreator) {
+      return res.status(403).json({ message: 'Only the event creator can add creator certificates' });
+    }
+    
+    // Check if creator has completed questionnaire
+    const creatorOrganizer = event.organizerTeam.find(obj => obj.user.toString() === userId.toString());
+    if (!creatorOrganizer || !creatorOrganizer.questionnaire || !creatorOrganizer.questionnaire.completed) {
+      return res.status(400).json({ message: 'Creator must complete questionnaire first' });
+    }
+    
+    // Check if creator certificate already exists
+    const creatorCertificateExists = event.certificates.some(
+      cert => cert.user && cert.user.toString() === userId.toString() && cert.role === 'creator'
+    );
+    
+    if (creatorCertificateExists) {
+      return res.status(400).json({ message: 'Creator certificate already exists' });
+    }
+    
+    // Add creator certificate
+    event.certificates.push({ 
+      user: userId, 
+      role: 'creator', 
+      award: 'Event Creator' 
+    });
+    
+    await event.save();
+    
+    res.status(200).json({ 
+      message: 'Creator certificate assignment added successfully',
+      certificate: { user: userId, role: 'creator', award: 'Event Creator' }
+    });
+    
+  } catch (err) {
+    console.error('Error in addCreatorCertificate:', err);
+    res.status(500).json({ message: 'Failed to add creator certificate', error: err.message });
   }
 };
 
@@ -1007,6 +1083,12 @@ exports.generateCertificate = async (req, res) => {
       if (!organizer || !organizer.questionnaire || !organizer.questionnaire.completed) {
         return res.status(400).json({ message: 'You must complete your questionnaire before generating a certificate' });
       }
+    } else if (certificateAssignment.role === 'creator') {
+      // For creators: check if they have completed questionnaire
+      const creator = event.organizerTeam.find(obj => obj.user._id.toString() === userId.toString());
+      if (!creator || !creator.questionnaire || !creator.questionnaire.completed) {
+        return res.status(400).json({ message: 'You must complete your questionnaire before generating a certificate' });
+      }
     }
     
     // Get user details with safe fallbacks
@@ -1031,6 +1113,9 @@ exports.generateCertificate = async (req, res) => {
       if (award === 'Best Organizer') templateName = 'best_organizer';
       else if (award === 'Most Dedicated Organizer') templateName = 'most_dedicated_organizer';
       else if (award !== 'Participation') templateName = 'organizer_custom_award';
+    } else if (certificateAssignment.role === 'creator') {
+      if (award === 'Event Creator') templateName = 'event_creator';
+      else templateName = 'event_creator'; // Default to creator template
     }
     
     // Generate the certificate with safe user data

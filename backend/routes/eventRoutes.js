@@ -9,13 +9,8 @@ const Event = require("../models/event");
 
 // Get event count for statistics
 router.get('/count', async (req, res) => {
-  try {
-    console.log('🔹 Fetching event count...');
-    
+  try {    
     const eventCount = await Event.countDocuments();
-    
-    console.log(`✅ Event count: ${eventCount}`);
-    
     res.json({ eventCount });
   } catch (error) {
     console.error('❌ Error getting event count:', error);
@@ -91,6 +86,9 @@ router.delete('/:id', protect, eventController.deleteEvent);
 
 // Complete questionnaire for an event
 router.post('/:id/complete-questionnaire', protect, requireOrganizer, completedEventUpload.array('media', 10), eventController.completeQuestionnaire);
+
+// Add creator certificate assignment
+router.post('/:id/add-creator-certificate', protect, requireOrganizer, eventController.addCreatorCertificate);
 
 // Handle event completion and create next recurring instance if needed
 router.post('/:eventId/complete', protect, eventController.handleEventCompletion);

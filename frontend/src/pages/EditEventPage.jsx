@@ -1,6 +1,7 @@
 // src/pages/EditEventPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import axiosInstance from "../api/axiosInstance";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import ReadOnlyTimeSlotViewer from "../components/event/ReadOnlyTimeSlotViewer";
@@ -10,7 +11,6 @@ export default function EditEventPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({});
   const [questionnaireData, setQuestionnaireData] = useState({});
   const [existingLetter, setExistingLetter] = useState(null);
@@ -21,6 +21,8 @@ export default function EditEventPage() {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
+        
+
         const res = await axiosInstance.get(`/api/events/${id}`);
         const e = res.data;
         setEvent(e);
@@ -72,9 +74,20 @@ export default function EditEventPage() {
           contactPerson: e.contactPerson || "",
         });
 
-        setLoading(false);
+                 setLoading(false);
       } catch (err) {
         console.error("❌ Failed to load event:", err);
+        
+        // Show error toast
+        toast.error("❌ Failed to load event. Redirecting to home page.", {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        
         navigate("/");
       }
     };
@@ -97,67 +110,32 @@ export default function EditEventPage() {
       existingImages: prev.existingImages.filter((img) => img !== filename),
     }));
     setRemovedImages((prev) => [...prev, filename]);
+    
+    // Show success toast
+    toast.success(`🖼️ Image "${filename}" marked for removal`, {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
   };
 
   // 🔴 Remove letter file
   const handleRemoveExistingLetter = () => {
     setExistingLetter(null);
     setRemovedLetter(true);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setSaving(true);
-      
-      const data = new FormData();
-      for (const key in formData) {
-        if (key === "equipmentNeeded") {
-          formData.equipmentNeeded.forEach((item) =>
-            data.append("equipmentNeeded", item)
-          );
-        } else if (key === "eventImages") {
-          formData.eventImages.forEach((file) =>
-            data.append("eventImages", file)
-          );
-        } else if (key === "govtApprovalLetter") {
-          if (formData.govtApprovalLetter) {
-            data.append("govtApprovalLetter", formData.govtApprovalLetter);
-          }
-        } else if (key === "mapLocation") {
-          // Handle mapLocation object properly
-          if (formData.mapLocation) {
-            data.append("mapLocation[address]", formData.mapLocation.address || "");
-            data.append("mapLocation[lat]", formData.mapLocation.lat || "");
-            data.append("mapLocation[lng]", formData.mapLocation.lng || "");
-          }
-        } else {
-          data.append(key, formData[key]);
-        }
-      }
-
-      // Questionnaire
-      for (const key in questionnaireData) {
-        data.append(key, questionnaireData[key]);
-      }
-
-      // Append removed files
-      removedImages.forEach((img) => data.append("removedImages", img));
-      if (removedLetter) {
-        data.append("removedLetter", "true");
-      }
-
-      const response = await axiosInstance.put(`/api/events/${id}`, data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      
-      alert("Event updated successfully");
-      navigate(`/events/${id}`, { replace: true });
-    } catch (err) {
-      console.error("❌ Failed to update event:", err);
-      alert("Failed to update event");
-    } finally {
-      setSaving(false);
-    }
+    
+    // Show warning toast
+    toast.warning("📄 Government approval letter marked for removal", {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    });
   };
 
   if (loading) {
@@ -202,69 +180,18 @@ export default function EditEventPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Navbar />
       
-      {/* Professional Action Bar - Fixed at top */}
-      <div className="fixed top-16 lg:top-20 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-3">
-            {/* Left side - Back button and title */}
-            <div className="flex items-center space-x-4">
-              <button
-                className="text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200 flex items-center group"
-                onClick={() => navigate(`/events/${id}`)}
-              >
-                <span className="transform group-hover:-translate-x-1 transition-transform duration-200">←</span>
-                <span className="ml-1">Back to Event</span>
-              </button>
-              <div className="hidden sm:block w-px h-6 bg-gray-300"></div>
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-800 truncate max-w-xs sm:max-w-md lg:max-w-lg">
-                Edit: {event.title}
-              </h1>
-            </div>
-
-            {/* Right side - Action buttons */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate(`/events/${id}`)}
-                className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md hover:from-gray-600 hover:to-gray-700 transition-all duration-200 text-sm font-medium"
-              >
-                Cancel
-              </button>
-              
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                className={`px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-sm font-medium ${
-                  saving
-                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-green-600 to-emerald-700 text-white hover:from-green-700 hover:to-emerald-800 transform hover:scale-105'
-                }`}
-              >
-                {saving ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </div>
-                ) : (
-                  'Save Changes'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content Area - Adjusted padding for fixed action bar */}
       <div className="pt-32 lg:pt-36 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Event Information Header */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-800 to-indigo-800 bg-clip-text text-transparent mb-2">
                   Edit Event Details
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  Update your event information, settings, and requirements
+                  Update your event information, settings, and requirements using the form below
                 </p>
                 
                 {/* Event Status Indicators */}
@@ -303,7 +230,7 @@ export default function EditEventPage() {
         {/* Time Slots Information - If Enabled */}
         {formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && (
           <div className="mb-8">
-            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg p-6">
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-yellow-800 mb-4 flex items-center">
                 <span className="w-3 h-3 bg-yellow-500 rounded-full mr-3"></span>
                 Time Slots Configuration
@@ -317,58 +244,108 @@ export default function EditEventPage() {
         )}
 
         {/* Edit Form */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-blue-800 flex items-center">
               <span className="w-3 h-3 bg-blue-500 rounded-full mr-3"></span>
               Event Configuration
             </h3>
             <p className="text-blue-700 text-sm mt-1">
-              Modify your event details, requirements, and settings below
+              Modify your event details, requirements, and settings below. Use the "Submit Event" button at the end of the form to save your changes.
             </p>
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center gap-2 text-amber-700">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">Important:</span>
+                <span className="text-sm">Only use the "Submit Event" button at the end of the form to save changes. Other save buttons may cause errors.</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Progress Indicator */}
+          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+            <div className="flex items-center justify-center space-x-8">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium">1</div>
+                <span className="text-sm text-gray-600">Basic Details</span>
+              </div>
+              <div className="w-8 h-0.5 bg-gray-300"></div>
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-xs font-medium">2</div>
+                <span className="text-sm text-gray-500">Questionnaire</span>
+              </div>
+              <div className="w-8 h-0.5 bg-gray-300"></div>
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-xs font-medium">3</div>
+                <span className="text-sm text-gray-500">Preview & Submit</span>
+              </div>
+            </div>
           </div>
           
           <div className="p-6">
-            <EventCreationWrapper
-              selectedOrgId={formData.organization}
-              organizationOptions={[]}
-              onClose={() => navigate(`/events/${id}`)}
-              isEdit={true}
-              eventId={id}
-              initialFormData={formData}
-              initialQuestionnaireData={questionnaireData}
-              readOnly={false}
-            />
+                         <EventCreationWrapper
+               selectedOrgId={formData.organization}
+               organizationOptions={[]}
+                               onClose={() => {
+                  // This will be called after successful submission
+                  toast.success("✅ Event editing completed successfully!", {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true,
+                  });
+                }}
+               isEdit={true}
+               eventId={id}
+               initialFormData={{
+                 ...formData,
+                 removedImages: removedImages,
+                 removedLetter: removedLetter
+               }}
+               initialQuestionnaireData={questionnaireData}
+               readOnly={false}
+             />
           </div>
         </div>
 
-        {/* Action Buttons - Bottom */}
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-end">
-          <button
-            onClick={() => navigate(`/events/${id}`)}
-            className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-200 transform hover:scale-105 shadow-md font-medium"
-          >
-            Cancel Changes
-          </button>
-          
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className={`px-8 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-md font-medium ${
-              saving
-                ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                : 'bg-gradient-to-r from-green-600 to-emerald-700 text-white hover:from-green-700 hover:to-emerald-800'
-            }`}
-          >
-            {saving ? (
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                Saving Changes...
+        {/* Help Text */}
+        <div className="mt-8 text-center">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 max-w-3xl mx-auto shadow-sm">
+            <div className="flex items-center justify-center gap-3 text-blue-700 mb-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
               </div>
-            ) : (
-              'Save Event Changes'
-            )}
-          </button>
+              <span className="font-semibold text-lg">How to Save Changes</span>
+            </div>
+            <div className="space-y-3 text-blue-600">
+              <p className="text-base">
+                Navigate through the form steps using the navigation buttons at the bottom of each step.
+              </p>
+              <div className="flex items-center justify-center gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span>Step 1: Basic Details</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span>Step 2: Questionnaire</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span>Step 3: Preview & Submit</span>
+                </div>
+              </div>
+              <p className="text-base font-medium">
+                When you reach the final preview step, click the <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm">Submit Event</span> button to save all your changes.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
