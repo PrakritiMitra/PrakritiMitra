@@ -14,7 +14,8 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowRightIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 
 export default function OrganizerDashboard() {
@@ -23,8 +24,9 @@ export default function OrganizerDashboard() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [events, setEvents] = useState([]);
-  const [upcomingVisible, setUpcomingVisible] = useState(4);
-  const [pastVisible, setPastVisible] = useState(4);
+  const [upcomingVisible, setUpcomingVisible] = useState(0);
+  const [pastVisible, setPastVisible] = useState(0);
+  const [gridColumns, setGridColumns] = useState(1);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -86,12 +88,73 @@ export default function OrganizerDashboard() {
       });
   }, [user]);
 
+  // Calculate optimal initial display based on grid columns
+  const calculateOptimalDisplay = (totalEvents, columns) => {
+    if (totalEvents === 0) return 0;
+    
+    // Show 1 complete row by default
+    const oneRow = columns;
+    
+    // If we have less than 1 complete row, show all
+    if (totalEvents <= oneRow) return totalEvents;
+    
+    // If we have more than 1 complete row, show 1 complete row
+    return oneRow;
+  };
+
+  // Smart show more/less functions
+  const showMore = (currentVisible, totalEvents, columns) => {
+    const currentRows = Math.ceil(currentVisible / columns);
+    const nextRow = currentRows + 1;
+    const nextVisible = nextRow * columns;
+    
+    // Don't exceed total events
+    return Math.min(nextVisible, totalEvents);
+  };
+
+  const showLess = (currentVisible, columns) => {
+    const currentRows = Math.ceil(currentVisible / columns);
+    if (currentRows <= 1) return columns; // Keep at least 1 row
+    
+    const prevRow = currentRows - 1;
+    return prevRow * columns;
+  };
+
+  // Update grid columns based on screen size
+  useEffect(() => {
+    const updateGridColumns = () => {
+      if (window.innerWidth >= 1280) { // xl breakpoint
+        setGridColumns(3);
+      } else if (window.innerWidth >= 1024) { // lg breakpoint
+        setGridColumns(2);
+      } else if (window.innerWidth >= 640) { // sm breakpoint
+        setGridColumns(2);
+      } else {
+        setGridColumns(1);
+      }
+    };
+
+    updateGridColumns();
+    window.addEventListener('resize', updateGridColumns);
+    return () => window.removeEventListener('resize', updateGridColumns);
+  }, []);
+
   // Helper to get the event's date for filtering
   // Only consider events with valid startDateTime
   const now = new Date();
   const validEvents = events.filter(e => e.startDateTime && !isNaN(new Date(e.startDateTime)));
   const upcoming = validEvents.filter(e => new Date(e.startDateTime) >= now).sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime));
   const past = validEvents.filter(e => new Date(e.startDateTime) < now).sort((a, b) => new Date(b.startDateTime) - new Date(a.startDateTime));
+
+  // Set optimal initial display when events or grid columns change
+  useEffect(() => {
+    if (upcoming.length > 0) {
+      setUpcomingVisible(calculateOptimalDisplay(upcoming.length, gridColumns));
+    }
+    if (past.length > 0) {
+      setPastVisible(calculateOptimalDisplay(past.length, gridColumns));
+    }
+  }, [upcoming.length, past.length, gridColumns]);
 
   // Loading skeleton component
   const LoadingSkeleton = () => (
@@ -225,17 +288,55 @@ export default function OrganizerDashboard() {
                       </div>
                     ))}
                   </div>
+                  {/* Smart Show More/Less Controls */}
                   {upcoming.length > upcomingVisible && (
-                    <div className="flex justify-center mt-8">
-                      <button
-                        className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
-                        onClick={() => setUpcomingVisible(v => v + 4)}
-                      >
-                        <span className="flex items-center justify-center">
-                          Show More Events
-                          <ChevronDownIcon className="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" />
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+                      {/* Show More Button */}
+                      <div className="relative">
+                        <button
+                          className="group relative px-8 py-4 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-0 overflow-hidden"
+                          onClick={() => setUpcomingVisible(showMore(upcomingVisible, upcoming.length, gridColumns))}
+                        >
+                          {/* Animated background overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                          
+                          <span className="relative flex items-center justify-center gap-2">
+                            <span className="text-sm sm:text-base">Show More Events</span>
+                            <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-y-1 transition-transform duration-300" />
+                          </span>
+                        </button>
+                        
+                        {/* Event count badge - positioned outside button container */}
+                        <div className="absolute -top-2 -right-2 bg-white text-emerald-600 text-xs font-bold px-2 py-1 rounded-full shadow-md border-2 border-emerald-500 z-10">
+                          +{Math.min(gridColumns, upcoming.length - upcomingVisible)}
+                        </div>
+                      </div>
+                      
+                      {/* Show Less Button */}
+                      {upcomingVisible > gridColumns && (
+                        <button
+                          className="group relative px-8 py-4 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-300 hover:border-slate-400"
+                          onClick={() => setUpcomingVisible(showLess(upcomingVisible, gridColumns))}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-y-1 transition-transform duration-300" />
+                            <span className="text-sm sm:text-base">Show Less Events</span>
+                          </span>
+                          
+                          {/* Event count badge */}
+                          <div className="absolute -top-2 -right-2 bg-white text-slate-600 text-xs font-bold px-2 py-1 rounded-full shadow-md border-2 border-slate-400">
+                            -{gridColumns}
+                          </div>
+                        </button>
+                      )}
+                      
+                      {/* Events Info Display */}
+                      <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                        <span>
+                          Showing <span className="font-semibold text-slate-700">{upcomingVisible}</span> of <span className="font-semibold text-slate-700">{upcoming.length}</span> events
                         </span>
-                      </button>
+                      </div>
                     </div>
                   )}
                 </>
@@ -275,17 +376,55 @@ export default function OrganizerDashboard() {
                       </div>
                     ))}
                   </div>
+                  {/* Smart Show More/Less Controls */}
                   {past.length > pastVisible && (
-                    <div className="flex justify-center mt-8">
-                      <button
-                        className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
-                        onClick={() => setPastVisible(v => v + 4)}
-                      >
-                        <span className="flex items-center justify-center">
-                          Show More Events
-                          <ChevronDownIcon className="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" />
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+                      {/* Show More Button */}
+                      <div className="relative">
+                        <button
+                          className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-0 overflow-hidden"
+                          onClick={() => setPastVisible(showMore(pastVisible, past.length, gridColumns))}
+                        >
+                          {/* Animated background overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                          
+                          <span className="relative flex items-center justify-center gap-2">
+                            <span className="text-sm sm:text-base">Show More Events</span>
+                            <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-y-1 transition-transform duration-300" />
+                          </span>
+                        </button>
+                        
+                        {/* Event count badge - positioned outside button container */}
+                        <div className="absolute -top-2 -right-2 bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full shadow-md border-2 border-blue-500 z-10">
+                          +{Math.min(gridColumns, past.length - pastVisible)}
+                        </div>
+                      </div>
+                      
+                      {/* Show Less Button */}
+                      {pastVisible > gridColumns && (
+                        <button
+                          className="group relative px-8 py-4 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-300 hover:border-slate-400"
+                          onClick={() => setPastVisible(showLess(pastVisible, gridColumns))}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-y-1 transition-transform duration-300" />
+                            <span className="text-sm sm:text-base">Show Less Events</span>
+                          </span>
+                          
+                          {/* Event count badge */}
+                          <div className="absolute -top-2 -right-2 bg-white text-slate-600 text-xs font-bold px-2 py-1 rounded-full shadow-md border-2 border-slate-400">
+                            -{gridColumns}
+                          </div>
+                        </button>
+                      )}
+                      
+                      {/* Events Info Display */}
+                      <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                        <span>
+                          Showing <span className="font-semibold text-slate-700">{pastVisible}</span> of <span className="font-semibold text-slate-700">{past.length}</span> events
                         </span>
-                      </button>
+                      </div>
                     </div>
                   )}
                 </>

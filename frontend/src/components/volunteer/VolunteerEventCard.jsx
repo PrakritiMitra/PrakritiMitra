@@ -311,7 +311,7 @@ const VolunteerEventCard = ({ event }) => {
       onClick={() => navigate(`/volunteer/events/${effectiveEventId}`)}
     >
       {/* Status Badges */}
-      <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+      <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 items-end">
         {isLiveEvent && (
           <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow animate-pulse">
             LIVE

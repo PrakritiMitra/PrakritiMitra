@@ -301,7 +301,7 @@ export default function EventCard({ event }) {
       <Link to={`/events/${effectiveEventId}`}>
         <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden relative min-h-[280px] flex flex-col">
           {/* Status Badges */}
-          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2 items-end">
             {isLive && (
               <div className="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow animate-pulse">
                 LIVE
