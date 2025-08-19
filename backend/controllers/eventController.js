@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const fs = require("fs");
 const path = require("path");
 const { deleteFromCloudinary, isCloudinaryUrl } = require('../utils/cloudinaryUtils');
+const { cloudinary } = require('../config/cloudinary');
 const Organization = require("../models/organization");
 const axios = require('axios');
 const User = require('../models/user');
@@ -127,8 +128,8 @@ exports.createEvent = async (req, res) => {
     })();
 
     // File handling
-    const images = req.files?.eventImages?.map((f) => f.filename) || [];
-    const approvalLetter = req.files?.govtApprovalLetter?.[0]?.filename || null;
+    const images = req.files?.eventImages?.map((f) => f.path || f.filename) || [];
+    const approvalLetter = req.files?.govtApprovalLetter?.[0]?.path || req.files?.govtApprovalLetter?.[0]?.filename || null;
 
     // Build the event object
     const eventData = {
@@ -382,13 +383,14 @@ exports.updateEvent = async (req, res) => {
 
     // ✅ Add new uploaded images (if any)
     if (req.files?.eventImages) {
-      const newImages = req.files.eventImages.map((f) => f.filename);
+      const newImages = req.files.eventImages.map((f) => f.path || f.filename);
       event.eventImages = [...event.eventImages, ...newImages];
     }
 
     // ✅ Add new approval letter (if uploaded)
     if (req.files?.govtApprovalLetter?.length) {
-      event.govtApprovalLetter = req.files.govtApprovalLetter[0].filename;
+      const f = req.files.govtApprovalLetter[0];
+      event.govtApprovalLetter = f.path || f.filename;
     }
 
     // Form fields
