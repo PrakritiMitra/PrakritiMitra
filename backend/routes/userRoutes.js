@@ -4,21 +4,7 @@ const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
 const User = require('../models/user');
 const { profileMultiUpload } = require('../middlewares/upload');
-const fs = require('fs');
-const path = require('path');
-
-// Helper function to safely delete files
-const deleteFile = (filePath, fileName) => {
-  try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      return true;
-    }
-  } catch (error) {
-    console.error(`Error deleting file ${fileName}:`, error);
-  }
-  return false;
-};
+const { deleteFromCloudinary, isCloudinaryUrl } = require('../utils/cloudinaryUtils');
 
 // Get user counts for statistics - MUST BE BEFORE /:id route
 router.get('/counts', async (req, res) => {
@@ -131,9 +117,17 @@ router.get('/organizers', protect, async (req, res) => {
   }
 });
 
-router.put('/profile', protect, profileMultiUpload, async (req, res) => {
-  try {
-    const userId = req.user._id;
+router.put('/profile', protect, async (req, res) => {
+  // Run multer and capture errors explicitly to surface Cloudinary issues
+  profileMultiUpload(req, res, async (multerErr) => {
+    if (multerErr) {
+      console.error('Profile upload error (multer/cloudinary):', multerErr);
+      return res.status(500).json({ success: false, message: 'File upload failed', error: multerErr.message });
+    }
+
+    let updateData = {};
+    try {
+      const userId = req.user._id;
     
     // Get current user data to check for existing files
     const currentUser = await User.findById(userId);
@@ -144,7 +138,7 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
       });
     }
     
-    const updateData = { ...req.body };
+      updateData = { ...req.body };
 
     // Parse socials if sent as JSON string
     if (updateData.socials) {
@@ -195,33 +189,47 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
 
     // Handle profile image upload
     if (req.files?.profileImage?.[0]) {
-      // Delete old profile image if it exists
-      if (currentUser.profileImage) {
-        const oldProfileImagePath = path.join(__dirname, '../uploads/Profiles', currentUser.profileImage);
-        deleteFile(oldProfileImagePath, currentUser.profileImage);
+      // Delete old profile image from Cloudinary if it exists
+      if (currentUser.profileImage && isCloudinaryUrl(currentUser.profileImage)) {
+        try {
+          await deleteFromCloudinary(currentUser.profileImage);
+        } catch (error) {
+          console.error('Error deleting old profile image from Cloudinary:', error);
+        }
       }
-      updateData.profileImage = req.files.profileImage[0].filename;
+      // With Cloudinary, the file URL is available in req.files.profileImage[0].path
+      updateData.profileImage = req.files.profileImage[0].path;
     } else if (req.body.removeProfileImage === 'true') {
       // Handle profile image removal
-      if (currentUser.profileImage) {
-        const oldProfileImagePath = path.join(__dirname, '../uploads/Profiles', currentUser.profileImage);
-        deleteFile(oldProfileImagePath, currentUser.profileImage);
+      if (currentUser.profileImage && isCloudinaryUrl(currentUser.profileImage)) {
+        try {
+          await deleteFromCloudinary(currentUser.profileImage);
+        } catch (error) {
+          console.error('Error deleting profile image from Cloudinary:', error);
+        }
       }
       updateData.profileImage = null;
     }
     
     if (req.files?.govtIdProof?.[0]) {
-      // Delete old government ID proof if it exists
-      if (currentUser.govtIdProofUrl) {
-        const oldGovtIdPath = path.join(__dirname, '../uploads/Profiles', currentUser.govtIdProofUrl);
-        deleteFile(oldGovtIdPath, currentUser.govtIdProofUrl);
+      // Delete old government ID proof from Cloudinary if it exists
+      if (currentUser.govtIdProofUrl && isCloudinaryUrl(currentUser.govtIdProofUrl)) {
+        try {
+          await deleteFromCloudinary(currentUser.govtIdProofUrl);
+        } catch (error) {
+          console.error('Error deleting old govt ID proof from Cloudinary:', error);
+        }
       }
-      updateData.govtIdProofUrl = req.files.govtIdProof[0].filename;
+      // With Cloudinary, the file URL is available in req.files.govtIdProof[0].path
+      updateData.govtIdProofUrl = req.files.govtIdProof[0].path;
     } else if (req.body.removeGovtIdProof === 'true') {
       // Handle government ID proof removal
-      if (currentUser.govtIdProofUrl) {
-        const oldGovtIdPath = path.join(__dirname, '../uploads/Profiles', currentUser.govtIdProofUrl);
-        deleteFile(oldGovtIdPath, currentUser.govtIdProofUrl);
+      if (currentUser.govtIdProofUrl && isCloudinaryUrl(currentUser.govtIdProofUrl)) {
+        try {
+          await deleteFromCloudinary(currentUser.govtIdProofUrl);
+        } catch (error) {
+          console.error('Error deleting govt ID proof from Cloudinary:', error);
+        }
       }
       updateData.govtIdProofUrl = null;
     }
@@ -234,30 +242,31 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
       delete updateData.password;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { new: true, runValidators: true }
+      ).select('-password');
 
-    res.json({
-      success: true,
-      user: updatedUser,
-      message: 'Profile updated successfully'
-    });
-  } catch (error) {
-    console.error('Profile update error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      updateData: updateData
-    });
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update profile',
-      error: error.message
-    });
-  }
+      return res.json({
+        success: true,
+        user: updatedUser,
+        message: 'Profile updated successfully'
+      });
+    } catch (error) {
+      console.error('Profile update error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        updateData
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update profile',
+        error: error.message
+      });
+    }
+  });
 });
 
 // Public: Get user by ID (for organizer profile view)

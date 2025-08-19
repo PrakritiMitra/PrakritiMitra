@@ -8,7 +8,7 @@ const { chatUpload } = require('../middlewares/upload');
 router.get('/events/:eventId/messages', protect, chatboxController.getMessages);
 
 // POST /api/chatbox/upload
-router.post('/upload', protect, chatUpload.single('file'), chatboxController.uploadFile);
+router.post('/upload', protect, chatUpload, chatboxController.uploadFile);
 
 // PATCH /api/chatbox/messages/:messageId/pin
 router.patch('/messages/:messageId/pin', protect, requireOrganizer, chatboxController.pinMessage);

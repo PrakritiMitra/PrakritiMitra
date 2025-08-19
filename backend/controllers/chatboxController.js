@@ -77,8 +77,10 @@ exports.uploadFile = async (req, res) => {
     return res.status(400).json({ message: 'No file uploaded.' });
   }
 
+  // With Cloudinary, the file URL is already available in req.file.path
+  // Cloudinary automatically provides the secure URL
   res.json({
-    fileUrl: `/uploads/Chat/${req.file.filename}`,
+    fileUrl: req.file.path, // This will be the Cloudinary URL
     fileType: req.file.mimetype
   });
 };
