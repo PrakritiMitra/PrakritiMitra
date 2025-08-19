@@ -577,6 +577,17 @@ export default function VolunteerEventDetailsPage() {
   const certificateGenerated = userCertificates.length > 0 && userCertificates[0].filePath;
 
   const eventImage = defaultImages[event.eventType?.toLowerCase()] || defaultImages["default"];
+  const resolveCertificateUrl = (path) => {
+    if (!path) return null;
+    const normalized = path.replace(/\\/g, '/');
+    if (/^https?:\/\//i.test(normalized)) {
+      if (/res\.cloudinary\.com\/.+\/(raw|auto)\/upload\//i.test(normalized)) {
+        return normalized.replace('/upload/', '/upload/fl_inline/');
+      }
+      return normalized;
+    }
+    return `http://localhost:5000${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 pb-12 relative">
@@ -866,9 +877,10 @@ export default function VolunteerEventDetailsPage() {
                            </p>
                          </div>
                          <a 
-                           href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} 
+                           href={resolveCertificateUrl(userCertificates[0].filePath)} 
+                           target="_blank"
+                           rel="noopener noreferrer"
                            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm text-center block"
-                           download
                          >
                     📄 Download Certificate
                   </a>
@@ -1160,7 +1172,7 @@ export default function VolunteerEventDetailsPage() {
                   {!isPastEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
                     <div className="text-center">
                       <h4 className="text-md font-semibold mb-2 text-blue-800">Your Entry QR Code</h4>
-                      <img src={`http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
+                      <img src={registrationDetails.qrCodePath.startsWith('http') ? registrationDetails.qrCodePath : `http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
                       <p className="mt-3 text-blue-800 text-sm">Show this to the organizer at the event entrance.</p>
                     </div>
                   )}
@@ -1174,7 +1186,7 @@ export default function VolunteerEventDetailsPage() {
                     ) : exitQrPath && (
                       <div className="text-center">
                         <h4 className="text-md font-semibold mb-2 text-green-800">Your Exit QR Code</h4>
-                        <img src={`http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
+                        <img src={exitQrPath.startsWith('http') ? exitQrPath : `http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
                         <p className="mt-3 text-green-800 text-sm">Show this to the organizer at the exit to mark your out-time.</p>
                       </div>
                     )

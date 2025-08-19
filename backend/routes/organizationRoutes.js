@@ -19,7 +19,16 @@ router.get('/count', async (req, res) => {
 });
 
 // Register a new organization (organizer creates it)
-router.post('/register', protect, multiUpload, orgCtrl.registerOrganization);
+router.post('/register', protect, (req, res) => {
+  // Run multer and capture errors to surface Cloudinary issues clearly
+  multiUpload(req, res, (err) => {
+    if (err) {
+      console.error('Organization upload error (multer/cloudinary):', err);
+      return res.status(500).json({ message: 'File upload failed', error: err.message });
+    }
+    return orgCtrl.registerOrganization(req, res);
+  });
+});
 
 // Get the organization created by the current user
 router.get('/my', protect, orgCtrl.getMyOrganization);

@@ -101,6 +101,18 @@ export default function EventDetailsPage() {
   });
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
+  const resolveCertificateUrl = (path) => {
+    if (!path) return null;
+    const normalized = path.replace(/\\/g, '/');
+    if (/^https?:\/\//i.test(normalized)) {
+      // Force inline view for Cloudinary raw PDFs
+      if (/res\.cloudinary\.com\/.+\/(raw|auto)\/upload\//i.test(normalized)) {
+        return normalized.replace('/upload/', '/upload/fl_inline/');
+      }
+      return normalized;
+    }
+    return `http://localhost:5000${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+  };
   
   // Volunteer management states
   const [removingVolunteer, setRemovingVolunteer] = useState(false);
@@ -1547,7 +1559,7 @@ export default function EventDetailsPage() {
                         </p>
                       </div>
                       <a
-                        href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`}
+                        href={resolveCertificateUrl(myCertificateAssignment.filePath)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm text-center block"
