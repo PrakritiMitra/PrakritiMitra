@@ -21,6 +21,7 @@ import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterMod
 import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuestionnaireModal';
 import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap';
+import ImageCarousel from '../components/event/ImageCarousel';
 import Avatar from "../components/common/Avatar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 import { 
@@ -92,8 +93,7 @@ export default function VolunteerEventDetailsPage() {
   const user = getSafeUserData(userData); // Get safe user data
   const imageBaseUrl = "http://localhost:5000/uploads/Events/";
 
-  // Carousel state
-  const [carouselIndex, setCarouselIndex] = useState(0);
+
 
   // Organizer & Volunteer List state
   const [organizerTeam, setOrganizerTeam] = useState([]);
@@ -522,10 +522,7 @@ export default function VolunteerEventDetailsPage() {
     return <div className="min-h-screen flex items-center justify-center"><p className="text-red-500">{error}</p></div>;
   }
 
-  const images = event.eventImages || [];
-  const hasImages = images.length > 0;
-  const handlePrev = () => setCarouselIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
-  const handleNext = () => setCarouselIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+
 
   // Calendar functions
   const handleAddToCalendar = () => {
@@ -1660,6 +1657,25 @@ export default function VolunteerEventDetailsPage() {
                             </div>
                           </div>
 
+                 {/* Event Images Carousel */}
+                 {event.eventImages?.length > 0 && (
+                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+                     <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                       <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
+                         <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                       </svg>
+                       Event Images
+                     </h3>
+                     
+                     <ImageCarousel 
+                       images={event.eventImages}
+                       imageBaseUrl={imageBaseUrl}
+                       autoPlay={true}
+                       interval={5000}
+                     />
+                   </div>
+                 )}
+
                  {/* AI Summary Section - New container with proper spacing */}
          <div className="relative mb-8 mx-4">
            {/* AI Summary with gradient border */}
@@ -1739,30 +1755,13 @@ export default function VolunteerEventDetailsPage() {
            </div>
          </div>
 
-        {/* Event Images Carousel */}
-        {event.eventImages?.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-              </svg>
-              Event Images
-            </h3>
-            
-                <div className="relative w-full max-w-4xl mx-auto bg-gray-100 flex items-center justify-center rounded-lg shadow-lg" style={{ minHeight: '420px', maxHeight: '520px' }}>
-                  <button onClick={handlePrev} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-blue-700 rounded-full shadow p-2 z-10">&#8592;</button>
-                  <img src={`${imageBaseUrl}${images[carouselIndex]}`} alt={`Event ${carouselIndex + 1}`} className="max-h-[420px] aspect-video rounded-lg border-4 border-white shadow-lg object-contain bg-white" style={{ maxWidth: '95%' }} />
-                  <button onClick={handleNext} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-blue-700 rounded-full shadow p-2 z-10">&#8594;</button>
-                </div>
-              </div>
-            )}
-          </div>
-      
-      {/* Close the grid layout divs */}
-        </div>
       </div>
+    </div>
+
+
+  </div>
       
-      {/* --- MODALS & OVERLAYS --- */}
+  {/* --- MODALS & OVERLAYS --- */}
       
       {event && <EventChatbox eventId={event._id} currentUser={user} />}
 
@@ -1801,7 +1800,7 @@ export default function VolunteerEventDetailsPage() {
         </div>
       )}
       
-      <style jsx>{`
+      <style jsx="true">{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }

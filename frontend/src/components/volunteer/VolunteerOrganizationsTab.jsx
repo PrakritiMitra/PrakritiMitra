@@ -2,14 +2,65 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import OrganizationCard from "../common/OrganizationCard";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 
-const VolunteerOrganizationsTab = () => {
+const VolunteerOrganizationsTab = ({ searchTerm = "" }) => {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [visibleCount, setVisibleCount] = useState(6);
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [gridColumns, setGridColumns] = useState(1);
   const navigate = useNavigate();
+
+  // Calculate optimal initial display based on grid columns
+  const calculateOptimalDisplay = (totalOrgs, columns) => {
+    if (totalOrgs === 0) return 0;
+    
+    // Show 1 complete row by default
+    const oneRow = columns;
+    
+    // If we have less than 1 complete row, show all
+    if (totalOrgs <= oneRow) return totalOrgs;
+    
+    // If we have more than 1 complete row, show 1 complete row
+    return oneRow;
+  };
+
+  // Smart show more/less functions
+  const showMore = (currentVisible, totalOrgs, columns) => {
+    const currentRows = Math.ceil(currentVisible / columns);
+    const nextRow = currentRows + 1;
+    const nextVisible = nextRow * columns;
+    
+    // Don't exceed total organizations
+    return Math.min(nextVisible, totalOrgs);
+  };
+
+  const showLess = (currentVisible, columns) => {
+    const currentRows = Math.ceil(currentVisible / columns);
+    if (currentRows <= 1) return columns; // Keep at least 1 row
+    
+    const prevRow = currentRows - 1;
+    return prevRow * columns;
+  };
+
+  // Update grid columns based on screen size
+  useEffect(() => {
+    const updateGridColumns = () => {
+      if (window.innerWidth >= 1280) { // xl breakpoint
+        setGridColumns(4);
+      } else if (window.innerWidth >= 1024) { // lg breakpoint
+        setGridColumns(3);
+      } else if (window.innerWidth >= 768) { // md breakpoint
+        setGridColumns(2);
+      } else {
+        setGridColumns(1);
+      }
+    };
+
+    updateGridColumns();
+    window.addEventListener('resize', updateGridColumns);
+    return () => window.removeEventListener('resize', updateGridColumns);
+  }, []);
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -25,6 +76,13 @@ const VolunteerOrganizationsTab = () => {
 
     fetchOrganizations();
   }, []);
+
+  // Set optimal initial display when organizations or grid columns change
+  useEffect(() => {
+    if (organizations.length > 0) {
+      setVisibleCount(calculateOptimalDisplay(organizations.length, gridColumns));
+    }
+  }, [organizations.length, gridColumns]);
 
   // Filter organizations based on search term
   const filterOrganizations = (orgs) => {
@@ -57,30 +115,12 @@ const VolunteerOrganizationsTab = () => {
   if (loading) return <p>Loading organizations...</p>;
 
   return (
-    <div>
-      {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search organizations by name, description, city, state, or focus area..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-        </div>
-      </div>
-
-      <h2 className="text-xl font-semibold mb-4">All Organizations</h2>
+    <div className="px-2 sm:px-4">
+      <h2 className="text-xl font-semibold mb-8">All Organizations</h2>
 
       {filteredOrganizations.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredOrganizations.slice(0, visibleCount).map((org) => (
               <div key={org._id} className="transform hover:-translate-y-1 transition-all duration-300">
                 <OrganizationCard
@@ -93,19 +133,57 @@ const VolunteerOrganizationsTab = () => {
               </div>
             ))}
           </div>
-          {filteredOrganizations.length > visibleCount && (
-            <div className="flex justify-center mt-6">
+          {/* Smart Show More/Less Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+            {/* Show More Button */}
+            {filteredOrganizations.length > visibleCount && (
+              <div className="relative">
+                <button
+                  className="group relative px-8 py-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-0 overflow-hidden"
+                  onClick={() => setVisibleCount(showMore(visibleCount, filteredOrganizations.length, gridColumns))}
+                >
+                  {/* Animated background overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                  
+                  <span className="relative flex items-center justify-center gap-2">
+                    <span className="text-sm sm:text-base">Show More Organizations</span>
+                    <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-y-1 transition-transform duration-300" />
+                  </span>
+                </button>
+                
+                {/* Organization count badge - positioned outside button container */}
+                <div className="absolute -top-2 -right-2 bg-white text-purple-600 text-xs font-bold px-2 py-1 rounded-full shadow-md border-2 border-purple-500 z-10">
+                  +{Math.min(gridColumns, filteredOrganizations.length - visibleCount)}
+                </div>
+              </div>
+            )}
+            
+            {/* Show Less Button */}
+            {visibleCount > gridColumns && (
               <button
-                className="group px-6 py-3 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-200 hover:border-slate-300"
-                onClick={() => setVisibleCount(v => v + 6)}
+                className="group relative px-8 py-4 bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 text-slate-700 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 font-semibold border-2 border-slate-300 hover:border-slate-400"
+                onClick={() => setVisibleCount(showLess(visibleCount, gridColumns))}
               >
-                <span className="flex items-center justify-center">
-                  Show More Organizations
-                  <ChevronDownIcon className="w-4 h-4 ml-2 group-hover:translate-y-1 transition-transform" />
+                <span className="flex items-center justify-center gap-2">
+                  <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-y-1 transition-transform duration-300" />
+                  <span className="text-sm sm:text-base">Show Less Organizations</span>
                 </span>
+                
+                {/* Organization count badge */}
+                <div className="absolute -top-2 -right-2 bg-white text-slate-600 text-xs font-bold px-2 py-1 rounded-full shadow-md border-2 border-slate-400">
+                  -{gridColumns}
+                </div>
               </button>
+            )}
+            
+            {/* Organizations Info Display */}
+            <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+              <span>
+                Showing <span className="font-semibold text-slate-700">{visibleCount}</span> of <span className="font-semibold text-slate-700">{filteredOrganizations.length}</span> organizations
+              </span>
             </div>
-          )}
+          </div>
         </>
       ) : searchTerm ? (
         <p className="text-gray-500">No organizations found matching "{searchTerm}".</p>
