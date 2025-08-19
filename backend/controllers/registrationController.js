@@ -4,8 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require('uuid');
 const { updateCategoryVolunteerCount } = require('../utils/timeSlotUtils');
-const { cloudinary } = require('../config/cloudinary');
-const { deleteFromCloudinary, isCloudinaryUrl } = require('../utils/cloudinaryUtils');
 
 // Helper to create registration and QR code
 async function createRegistrationAndQRCode({ eventId, volunteerId, groupMembers, selectedTimeSlot }) {
@@ -23,46 +21,13 @@ async function createRegistrationAndQRCode({ eventId, volunteerId, groupMembers,
     volunteerId,
   });
 
-  try {
-    // Generate QR code as buffer
-    const qrBuffer = await QRCode.toBuffer(qrData);
-    
-    // Upload to Cloudinary using buffer
-    const uploadResult = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'prakriti-mitra/qrcodes',
-          public_id: `qr-${registration._id}-${Date.now()}`,
-          format: 'png'
-        },
-        (error, result) => {
-          if (error) {
-            console.error('QR Code upload error:', error);
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        }
-      );
-      uploadStream.end(qrBuffer);
-    });
-
-    // Store Cloudinary URL in registration
-    registration.qrCodePath = uploadResult.secure_url;
-    await registration.save();
-    
-    return registration;
-  } catch (error) {
-    console.error('Error generating QR code:', error);
-    // Fallback to local storage if Cloudinary fails
-    const fileName = `qr-${registration._id}-${Date.now()}.png`;
-    const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    await QRCode.toFile(filePath, qrData);
-    registration.qrCodePath = `/uploads/qrcodes/${fileName}`;
-    await registration.save();
-    return registration;
-  }
+  const fileName = `qr-${registration._id}-${Date.now()}.png`;
+  const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  await QRCode.toFile(filePath, qrData);
+  registration.qrCodePath = `/uploads/qrcodes/${fileName}`;
+  await registration.save();
+  return registration;
 }
 
 exports.registerForEvent = async (req, res) => {
@@ -251,45 +216,18 @@ exports.withdrawRegistration = async (req, res) => {
     if (!registration) {
       return res.status(404).json({ message: "Registration not found." });
     }
-    
-    // Delete QR code file if exists (handle both local and Cloudinary URLs)
+    // Delete QR code file if exists
     if (registration.qrCodePath) {
+      const qrPath = path.join(__dirname, "..", registration.qrCodePath);
       try {
-        if (isCloudinaryUrl(registration.qrCodePath)) {
-          await deleteFromCloudinary(registration.qrCodePath);
-        } else {
-          // Local file path
-          const qrPath = path.join(__dirname, "..", registration.qrCodePath);
-          if (fs.existsSync(qrPath)) {
-            fs.unlinkSync(qrPath);
-            console.log(`✅ Deleted local QR code file: ${qrPath}`);
-          }
+        if (fs.existsSync(qrPath)) {
+          fs.unlinkSync(qrPath);
         }
       } catch (err) {
         // Log but don't block deletion
         console.error("Failed to delete QR code file:", err);
       }
     }
-    
-    // Delete exit QR code if exists (handle both local and Cloudinary URLs)
-    if (registration.exitQrPath) {
-      try {
-        if (isCloudinaryUrl(registration.exitQrPath)) {
-          await deleteFromCloudinary(registration.exitQrPath);
-        } else {
-          // Local file path
-          const exitQrPath = path.join(__dirname, "..", registration.exitQrPath);
-          if (fs.existsSync(exitQrPath)) {
-            fs.unlinkSync(exitQrPath);
-            console.log(`✅ Deleted local exit QR code file: ${exitQrPath}`);
-          }
-        }
-      } catch (err) {
-        // Log but don't block deletion
-        console.error("Failed to delete exit QR code file:", err);
-      }
-    }
-    
     await Registration.deleteOne({ _id: registration._id });
 
     // Remove the user from the event's volunteers array
@@ -379,18 +317,12 @@ exports.updateAttendance = async (req, res) => {
       if (!registration.exitQrToken) {
         registration.exitQrToken = uuidv4();
       }
-      // Delete entry QR image if exists (handle both local and Cloudinary URLs)
+      // Delete entry QR image if exists
       if (registration.qrCodePath) {
+        const entryQrPath = path.join(__dirname, "..", registration.qrCodePath);
         try {
-          if (isCloudinaryUrl(registration.qrCodePath)) {
-            await deleteFromCloudinary(registration.qrCodePath);
-          } else {
-            // Local file path
-            const entryQrPath = path.join(__dirname, "..", registration.qrCodePath);
-            if (fs.existsSync(entryQrPath)) {
-              fs.unlinkSync(entryQrPath);
-              console.log(`✅ Deleted local entry QR code file: ${entryQrPath}`);
-            }
+          if (fs.existsSync(entryQrPath)) {
+            fs.unlinkSync(entryQrPath);
           }
         } catch (err) {
           console.error('Failed to delete entry QR code:', err);
@@ -589,18 +521,12 @@ exports.entryScan = async (req, res) => {
     if (!registration.inTime) {
       registration.inTime = new Date();
       registration.exitQrToken = uuidv4();
-      // Delete entry QR image if exists (handle both local and Cloudinary URLs)
+      // Delete entry QR image if exists
       if (registration.qrCodePath) {
+        const entryQrPath = path.join(__dirname, "..", registration.qrCodePath);
         try {
-          if (isCloudinaryUrl(registration.qrCodePath)) {
-            await deleteFromCloudinary(registration.qrCodePath);
-          } else {
-            // Local file path
-            const entryQrPath = path.join(__dirname, "..", registration.qrCodePath);
-            if (fs.existsSync(entryQrPath)) {
-              fs.unlinkSync(entryQrPath);
-              console.log(`✅ Deleted local entry QR code file: ${entryQrPath}`);
-            }
+          if (fs.existsSync(entryQrPath)) {
+            fs.unlinkSync(entryQrPath);
           }
         } catch (err) {
           console.error('Failed to delete entry QR code:', err);
@@ -629,50 +555,15 @@ exports.generateExitQr = async (req, res) => {
     if (!registration || !registration.exitQrToken) {
       return res.status(404).json({ message: 'Registration or exit QR token not found.' });
     }
-    
     // Generate exit QR code (token-based)
     const exitQrData = JSON.stringify({ exitQrToken: registration.exitQrToken });
-    
-    try {
-      // Generate QR code as buffer
-      const qrBuffer = await QRCode.toBuffer(exitQrData);
-      
-      // Upload to Cloudinary using buffer
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'prakriti-mitra/qrcodes',
-            public_id: `exitqr-${registration._id}-${Date.now()}`,
-            format: 'png'
-          },
-          (error, result) => {
-            if (error) {
-              console.error('Exit QR Code upload error:', error);
-              reject(error);
-            } else {
-              resolve(result);
-            }
-          }
-        );
-        uploadStream.end(qrBuffer);
-      });
-
-      // Store Cloudinary URL in registration
-      registration.exitQrPath = uploadResult.secure_url;
-      await registration.save();
-      return res.json({ exitQrPath: registration.exitQrPath });
-      
-    } catch (error) {
-      console.error('Error generating exit QR code:', error);
-      // Fallback to local storage if Cloudinary fails
-      const fileName = `exitqr-${registration._id}-${Date.now()}.png`;
-      const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      await QRCode.toFile(filePath, exitQrData);
-      registration.exitQrPath = `/uploads/qrcodes/${fileName}`;
-      await registration.save();
-      return res.json({ exitQrPath: registration.exitQrPath });
-    }
+    const fileName = `exitqr-${registration._id}-${Date.now()}.png`;
+    const filePath = path.join(__dirname, "..", "uploads", "qrcodes", fileName);
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    await QRCode.toFile(filePath, exitQrData);
+    registration.exitQrPath = `/uploads/qrcodes/${fileName}`;
+    await registration.save();
+    return res.json({ exitQrPath: registration.exitQrPath });
   } catch (err) {
     console.error('Exit QR generation error:', err);
     res.status(500).json({ message: 'Server error generating exit QR.' });
@@ -689,17 +580,12 @@ exports.exitScan = async (req, res) => {
     }
     if (!registration.outTime) {
       registration.outTime = new Date();
-      // Delete exit QR image if exists (handle both local and Cloudinary URLs)
+      // Delete exit QR image if exists
       if (registration.exitQrPath) {
+        const exitQrPath = path.join(__dirname, "..", registration.exitQrPath);
         try {
-          if (isCloudinaryUrl(registration.exitQrPath)) {
-            await deleteFromCloudinary(registration.exitQrPath);
-          } else {
-            // Local file path
-            const exitQrPath = path.join(__dirname, "..", registration.exitQrPath);
-            if (fs.existsSync(exitQrPath)) {
-              fs.unlinkSync(exitQrPath);
-            }
+          if (fs.existsSync(exitQrPath)) {
+            fs.unlinkSync(exitQrPath);
           }
         } catch (err) {
           console.error('Failed to delete exit QR code:', err);

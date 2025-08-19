@@ -1,22 +1,40 @@
 // backend/middleware/upload.js
 
 const multer = require('multer');
-const { 
-  organizationStorage, 
-  profileStorage, 
-  eventStorage, 
-  chatStorage, 
-  certificateStorage, 
-  qrCodeStorage 
-} = require('../config/cloudinary');
+const path = require('path');
+const fs = require('fs');
 
-// Create separate upload instances with Cloudinary storage
+// Organization storage - store in ./uploads/OrganizationDetails
+const organizationStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/OrganizationDetails';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+// Event storage - store in ./uploads/Events
+const eventStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/Events';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+// Create separate upload instances
 const organizationUpload = multer({ storage: organizationStorage });
 const eventUpload = multer({ storage: eventStorage });
-const profileUpload = multer({ storage: profileStorage });
-const chatUpload = multer({ storage: chatStorage });
-const certificateUpload = multer({ storage: certificateStorage });
-const qrCodeUpload = multer({ storage: qrCodeStorage });
 
 // For organization registration: support multiple files
 const multiUpload = organizationUpload.fields([
@@ -26,6 +44,22 @@ const multiUpload = organizationUpload.fields([
   { name: 'ngoRegistration', maxCount: 1 },
   { name: 'letterOfIntent', maxCount: 1 },
 ]);
+
+// Profile storage - store in ./uploads/Profiles
+const profileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/Profiles';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+const profileUpload = multer({ storage: profileStorage });
 
 // For profile uploads: support profile image and government ID proof
 const profileMultiUpload = profileUpload.fields([
@@ -42,17 +76,35 @@ const eventMultiUpload = eventUpload.fields([
   { name: 'govtApprovalLetter', maxCount: 1 },
 ]);
 
-// For chat file uploads
-const chatSingleUpload = chatUpload.single('file');
+// Chat storage - store in ./uploads/Chat
+const chatStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/Chat';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const chatUpload = multer({ storage: chatStorage });
 
-// For certificate uploads
-const certificateSingleUpload = certificateUpload.single('certificate');
-
-// For QR code uploads
-const qrCodeSingleUpload = qrCodeUpload.single('qrcode');
-
-// Legacy support - keep old function names for backward compatibility
-const completedEventUpload = eventUpload; // Use event storage for completed events
+// Completed Event storage - store in ./uploads/Events/Completed
+const completedEventStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = 'uploads/Events/Completed';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const completedEventUpload = multer({ storage: completedEventStorage });
 
 module.exports = {
   organizationUpload,
@@ -62,8 +114,6 @@ module.exports = {
   eventMultiUpload,
   profileMultiUpload,
   profileSingleUpload,
-  chatUpload: chatSingleUpload, // Export as single upload for chat
-  completedEventUpload,
-  certificateUpload: certificateSingleUpload,
-  qrCodeUpload: qrCodeSingleUpload,
+  chatUpload, // <-- Export chat upload
+  completedEventUpload, // <-- Export completed event upload
 };

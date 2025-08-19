@@ -3,7 +3,6 @@ const Organization = require('../models/organization');
 const User = require('../models/user');
 const fs = require('fs');
 const path = require('path');
-const { deleteFromCloudinary, isCloudinaryUrl } = require('../utils/cloudinaryUtils');
 
 // Register new organization
 exports.registerOrganization = async (req, res) => {
@@ -23,15 +22,13 @@ exports.registerOrganization = async (req, res) => {
       focusAreaOther
     } = req.body;
 
-    // Handle file uploads (Cloudinary URLs via multer-storage-cloudinary)
+    // Handle file uploads
     const files = req.files || {};
-    console.log('Organization register req.files keys:', Object.keys(files || {}));
-    if (files.logo) console.log('logo file meta:', files.logo[0]);
-    const logo = files.logo ? (files.logo[0].path || files.logo[0].filename) : undefined;
-    const gstCertificate = files.gstCertificate ? (files.gstCertificate[0].path || files.gstCertificate[0].filename) : undefined;
-    const panCard = files.panCard ? (files.panCard[0].path || files.panCard[0].filename) : undefined;
-    const ngoRegistration = files.ngoRegistration ? (files.ngoRegistration[0].path || files.ngoRegistration[0].filename) : undefined;
-    const letterOfIntent = files.letterOfIntent ? (files.letterOfIntent[0].path || files.letterOfIntent[0].filename) : undefined;
+    const logo = files.logo ? files.logo[0].filename : undefined;
+    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].filename : undefined;
+    const panCard = files.panCard ? files.panCard[0].filename : undefined;
+    const ngoRegistration = files.ngoRegistration ? files.ngoRegistration[0].filename : undefined;
+    const letterOfIntent = files.letterOfIntent ? files.letterOfIntent[0].filename : undefined;
 
     // Parse socialLinks if sent as JSON string
     let parsedSocialLinks = socialLinks;
@@ -541,21 +538,15 @@ exports.deleteOrganization = async (req, res) => {
 
     // ✅ Delete associated files before deleting the organization
     try {
-      // Delete logo (handle both Cloudinary and local files)
+      // Delete logo
       if (org.logo) {
-        if (isCloudinaryUrl(org.logo)) {
-          await deleteFromCloudinary(org.logo);
-          console.log(`✅ Deleted organization logo from Cloudinary`);
-        } else {
-          const logoPath = path.join(__dirname, "../uploads/OrganizationDetails", org.logo);
-          if (fs.existsSync(logoPath)) {
-            fs.unlinkSync(logoPath);
-            console.log(`✅ Deleted local organization logo: ${logoPath}`);
-          }
+        const logoPath = path.join(__dirname, "../uploads/OrganizationDetails", org.logo);
+        if (fs.existsSync(logoPath)) {
+          fs.unlinkSync(logoPath);
         }
       }
 
-      // Delete documents (handle both Cloudinary and local files)
+      // Delete documents
       if (org.documents) {
         const documents = [
           org.documents.gstCertificate,
@@ -564,20 +555,14 @@ exports.deleteOrganization = async (req, res) => {
           org.documents.letterOfIntent
         ];
 
-        for (const doc of documents) {
+        documents.forEach(doc => {
           if (doc) {
-            if (isCloudinaryUrl(doc)) {
-              await deleteFromCloudinary(doc);
-              console.log(`✅ Deleted organization document from Cloudinary`);
-            } else {
-              const docPath = path.join(__dirname, "../uploads/OrganizationDetails", doc);
-              if (fs.existsSync(docPath)) {
-                fs.unlinkSync(docPath);
-                console.log(`✅ Deleted local organization document: ${docPath}`);
-              }
+            const docPath = path.join(__dirname, "../uploads/OrganizationDetails", doc);
+            if (fs.existsSync(docPath)) {
+              fs.unlinkSync(docPath);
             }
           }
-        }
+        });
       }
     } catch (fileError) {
       console.error('⚠️ Error deleting files:', fileError);
