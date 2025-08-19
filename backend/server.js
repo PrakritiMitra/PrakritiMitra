@@ -1,9 +1,6 @@
 // backend/server.js
 const express = require('express');
 const dotenv = require('dotenv');
-// Load environment variables BEFORE importing anything that may use them
-dotenv.config();
-
 const connectDB = require('./config/db');
 const { errorHandler } = require('./utils/errorResponse');
 const authRoutes = require('./routes/authRoutes');
@@ -37,6 +34,7 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 
+dotenv.config();
 connectDB();
 
 const app = express();

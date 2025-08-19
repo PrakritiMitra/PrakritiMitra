@@ -5,7 +5,6 @@ const RecurringEventSeries = require('../models/recurringEventSeries');
 const mongoose = require('mongoose');
 const fs = require("fs");
 const path = require("path");
-const { deleteFromCloudinary, isCloudinaryUrl } = require('../utils/cloudinaryUtils');
 const Organization = require("../models/organization");
 const axios = require('axios');
 const User = require('../models/user');
@@ -353,15 +352,8 @@ exports.updateEvent = async (req, res) => {
       const toRemove = Array.isArray(removedImages) ? removedImages : [removedImages];
       event.eventImages = event.eventImages.filter((img) => {
         if (toRemove.includes(img)) {
-          // Handle both Cloudinary and local files
-          if (isCloudinaryUrl(img)) {
-            deleteFromCloudinary(img).catch(err => 
-              console.error('Error deleting Cloudinary image:', err)
-            );
-          } else {
           const imgPath = path.join(__dirname, "../uploads/Events", img);
           if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-          }
           return false;
         }
         return true;
@@ -370,13 +362,8 @@ exports.updateEvent = async (req, res) => {
 
     // ✅ Remove letter file if requested
     if (req.body.removedLetter === "true" && event.govtApprovalLetter) {
-      // Handle both Cloudinary and local files
-      if (isCloudinaryUrl(event.govtApprovalLetter)) {
-        await deleteFromCloudinary(event.govtApprovalLetter);
-      } else {
       const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
       if (fs.existsSync(letterPath)) fs.unlinkSync(letterPath);
-      }
       event.govtApprovalLetter = null;
     }
 
@@ -563,33 +550,21 @@ exports.deleteEvent = async (req, res) => {
 
     // ✅ Delete associated files before deleting the event
     try {
-      // Delete event images (handle both Cloudinary and local files)
+      // Delete event images
       if (event.eventImages && event.eventImages.length > 0) {
-        for (const img of event.eventImages) {
-          if (isCloudinaryUrl(img)) {
-            await deleteFromCloudinary(img);
-            console.log(`✅ Deleted event image from Cloudinary`);
-          } else {
+        event.eventImages.forEach(img => {
           const imgPath = path.join(__dirname, "../uploads/Events", img);
           if (fs.existsSync(imgPath)) {
             fs.unlinkSync(imgPath);
-              console.log(`✅ Deleted local event image: ${imgPath}`);
           }
-          }
-        }
+        });
       }
 
-      // Delete government approval letter (handle both Cloudinary and local files)
+      // Delete government approval letter
       if (event.govtApprovalLetter) {
-        if (isCloudinaryUrl(event.govtApprovalLetter)) {
-          await deleteFromCloudinary(event.govtApprovalLetter);
-          console.log(`✅ Deleted government approval letter from Cloudinary`);
-        } else {
         const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
         if (fs.existsSync(letterPath)) {
           fs.unlinkSync(letterPath);
-            console.log(`✅ Deleted local government approval letter: ${letterPath}`);
-          }
         }
       }
     } catch (fileError) {
