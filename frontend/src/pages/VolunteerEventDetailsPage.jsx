@@ -1767,13 +1767,13 @@ export default function VolunteerEventDetailsPage() {
            </div>
          </div>
 
-      </div>
-    </div>
-
-
-  </div>
+                </div>
+          </div>
       
-  {/* --- MODALS & OVERLAYS --- */}
+
+      </div>
+      
+      {/* --- MODALS & OVERLAYS --- */}
       
       {event && <EventChatbox eventId={event._id} currentUser={user} />}
 

@@ -84,6 +84,28 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
     return null;
   }
 
+  const pickFromObject = (imgObj) => imgObj?.secure_url || imgObj?.url || imgObj?.path || imgObj?.filename || '';
+  const toUrl = (val) => {
+    if (!val) return '';
+    const raw = String(val).trim().replace(/\\/g, '/');
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('/')) return `http://localhost:5000${raw}`;
+    return `${imageBaseUrl}${raw}`;
+  };
+  const resolveImageUrl = (img) => encodeURI(toUrl(typeof img === 'string' ? img : pickFromObject(img)));
+
+  const [fallbackSrc, setFallbackSrc] = useState(null);
+  const handleImgError = (index) => (e) => {
+    const original = resolveImageUrl(images[index]);
+    if (original.includes('/uploads/Events/')) {
+      const alt = original.replace('/uploads/Events/', '/uploads/events/');
+      if (alt !== fallbackSrc) {
+        setFallbackSrc(alt);
+        e.currentTarget.src = alt;
+      }
+    }
+  };
+
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center">
@@ -120,9 +142,10 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
 
           {/* Main image */}
           <img
-            src={`${imageBaseUrl}${images[currentIndex]}`}
+            src={fallbackSrc || resolveImageUrl(images[currentIndex])}
             alt={`Event ${currentIndex + 1}`}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onError={handleImgError(currentIndex)}
           />
 
           {/* Image counter */}
@@ -146,9 +169,10 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
             onTouchEnd={onTouchEnd}
           >
             <img
-              src={`${imageBaseUrl}${images[currentIndex]}`}
+              src={fallbackSrc || resolveImageUrl(images[currentIndex])}
               alt={`Event ${currentIndex + 1}`}
               className="w-full h-full object-cover transition-all duration-500 ease-in-out"
+              onError={handleImgError(currentIndex)}
             />
           
           {/* Gradient overlay for better text visibility */}
@@ -224,7 +248,7 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
                 }`}
               >
                 <img
-                  src={`${imageBaseUrl}${img}`}
+                  src={resolveImageUrl(img)}
                   alt={`Thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
