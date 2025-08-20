@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
-const { multiUpload } = require('../middlewares/upload');
+const { sponsorMultiUpload } = require('../middlewares/upload');
 const sponsorController = require('../controllers/sponsorController');
 
 // Public routes (for browsing sponsors)
@@ -13,9 +13,9 @@ router.get('/:userId', sponsorController.getSponsorByUserId);
 router.use(protect);
 
 // Sponsor profile management
-router.post('/', multiUpload, sponsorController.createSponsor);
+router.post('/', sponsorMultiUpload, sponsorController.createSponsor);
 router.get('/profile/me', sponsorController.getSponsorByUserId);
-router.put('/:id', multiUpload, sponsorController.updateSponsor);
+router.put('/:id', sponsorMultiUpload, sponsorController.updateSponsor);
 router.delete('/:id', sponsorController.deleteSponsor);
 
 // Sponsor statistics

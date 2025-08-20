@@ -41,8 +41,9 @@ const registrationSchema = new mongoose.Schema({
   ],
   // Entry QR code (generated at registration, deleted after entry scan)
   qrCodePath: {
-    type: String, // e.g., /uploads/qrcodes/qr-abc123.png
-    default: null,
+    url: { type: String, default: null }, // Cloudinary URL
+    publicId: { type: String, default: null }, // Cloudinary public ID for deletion
+    filename: { type: String, default: null }, // Original filename for reference
   },
   // In-time (set when entry QR is scanned by organizer)
   inTime: {
@@ -63,8 +64,9 @@ const registrationSchema = new mongoose.Schema({
   },
   // Exit QR code (generated on demand after inTime, deleted after exit scan)
   exitQrPath: {
-    type: String, // e.g., /uploads/qrcodes/exitqr-abc123.png
-    default: null,
+    url: { type: String, default: null }, // Cloudinary URL
+    publicId: { type: String, default: null }, // Cloudinary public ID for deletion
+    filename: { type: String, default: null }, // Original filename for reference
   },
   createdAt: {
     type: Date,

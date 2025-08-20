@@ -1,11 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 }) => {
+const ImageCarousel = ({ images, autoPlay = true, interval = 5000 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
+
+  // Helper function to get image source
+  const getImageSrc = (image) => {
+    // Handle Cloudinary structure
+    if (image && typeof image === 'object' && image.url) {
+      return image.url;
+    }
+    // Fallback for invalid data
+    return '';
+  };
+
+  // Helper function to get image alt text
+  const getImageAlt = (image, index) => {
+    if (image && typeof image === 'object' && image.filename) {
+      return image.filename;
+    }
+    return `Event ${index + 1}`;
+  };
 
   // Auto-advance slides
   useEffect(() => {
@@ -142,8 +160,9 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
 
           {/* Main image */}
           <img
-            src={fallbackSrc || resolveImageUrl(images[currentIndex])}
-            alt={`Event ${currentIndex + 1}`}
+            src={getImageSrc(images[currentIndex])}
+            alt={getImageAlt(images[currentIndex], currentIndex)}
+
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
             onError={handleImgError(currentIndex)}
           />
@@ -169,8 +188,9 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
             onTouchEnd={onTouchEnd}
           >
             <img
-              src={fallbackSrc || resolveImageUrl(images[currentIndex])}
-              alt={`Event ${currentIndex + 1}`}
+              src={getImageSrc(images[currentIndex])}
+              alt={getImageAlt(images[currentIndex], currentIndex)}
+
               className="w-full h-full object-cover transition-all duration-500 ease-in-out"
               onError={handleImgError(currentIndex)}
             />
@@ -248,8 +268,9 @@ const ImageCarousel = ({ images, imageBaseUrl, autoPlay = true, interval = 5000 
                 }`}
               >
                 <img
-                  src={resolveImageUrl(img)}
-                  alt={`Thumbnail ${index + 1}`}
+                  src={getImageSrc(img)}
+                  alt={getImageAlt(img, index)}
+
                   className="w-full h-full object-cover"
                 />
               </button>

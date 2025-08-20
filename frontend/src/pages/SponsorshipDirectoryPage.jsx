@@ -198,9 +198,9 @@ export default function SponsorshipDirectoryPage() {
                   {/* Sponsor Header */}
                   <div className="flex items-center mb-4">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mr-4">
-                      {sponsor.business?.logo ? (
+                      {sponsor.business?.logo?.url ? (
                         <img
-                          src={`http://localhost:5000/uploads/sponsors/${sponsor.business.logo}`}
+                          src={sponsor.business.logo.url}
                           alt={sponsor.business.name}
                           className="w-16 h-16 rounded-full object-cover"
                         />

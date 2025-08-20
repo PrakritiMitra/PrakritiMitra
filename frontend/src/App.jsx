@@ -46,10 +46,11 @@ import axios from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
 import FAQSection from "./pages/FAQSection";
-import TeamPage from "./pages/Team.jsx";
+
 import NotFoundPage from "./pages/NotFoundPage";
 import { ChatProvider, useChatContext } from "./context/ChatContext";
-import ToastContainer from "./components/common/ToastContainer";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const GENERAL_QUESTIONS = [
   "What is your pricing?",
@@ -138,16 +139,50 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [isAuthChecked, setIsAuthChecked] = useState(false); // Add this flag
   const { rootChatOpen, openRootChat, closeRootChat } = useChatContext();
 
   // Check authentication status and user ID on component mount
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const userId = user._id;
+    const checkAuth = () => {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const userId = user._id;
+      
+      setIsAuthenticated(!!token);
+      setCurrentUserId(userId);
+      setIsAuthChecked(true); // Mark auth check as complete
+    };
+
+    checkAuth();
+
+    // Listen for custom events from login/logout
+    const handleUserDataUpdate = (event) => {
+      if (event.detail?.user) {
+        setIsAuthenticated(true);
+        setCurrentUserId(event.detail.user._id);
+      }
+    };
+
+    const handleLogout = () => {
+      setIsAuthenticated(false);
+      setCurrentUserId(null);
+    };
+
+    // Listen for route changes to re-check auth
+    const handleRouteChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('userDataUpdated', handleUserDataUpdate);
+    window.addEventListener('userLoggedOut', handleLogout);
+    window.addEventListener('popstate', handleRouteChange);
     
-    setIsAuthenticated(!!token);
-    setCurrentUserId(userId);
+    return () => {
+      window.removeEventListener('userDataUpdated', handleUserDataUpdate);
+      window.removeEventListener('userLoggedOut', handleLogout);
+      window.removeEventListener('popstate', handleRouteChange);
+    };
   }, []);
 
   // Save messages to localStorage whenever they change (user-specific)
@@ -255,7 +290,6 @@ function AppContent() {
           <Route path="/recover-account" element={<RecoverAccountPage />} />
           <Route path="/recovery-confirmation" element={<RecoveryConfirmationPage />} />
           <Route path="/faqs" element={<FAQSection />} />
-          <Route path="/team" element={<TeamPage />} />
           <Route path="/test-404" element={<NotFoundPage />} />
 
           {/* Protected Routes */}
@@ -562,7 +596,7 @@ function AppContent() {
         suggestions={suggestedQuestions}
         onQuickReply={handleQuickReply}
       />
-      <ToastContainer />
+              {/* <ToastContainer /> */}
     </>
   );
 }

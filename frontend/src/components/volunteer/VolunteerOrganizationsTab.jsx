@@ -83,13 +83,14 @@ const VolunteerOrganizationsTab = ({ searchTerm = "" }) => {
 
   // Set optimal initial display when organizations or grid columns change
   useEffect(() => {
-    if (organizations.length > 0) {
+    if (organizations && Array.isArray(organizations) && organizations.length > 0) {
       setVisibleCount(calculateOptimalDisplay(organizations.length, gridColumns));
     }
   }, [organizations.length, gridColumns]);
 
   // Filter organizations based on search term
   const filterOrganizations = (orgs) => {
+    if (!orgs || !Array.isArray(orgs)) return [];
     if (!searchTerm.trim()) return orgs;
     
     const searchLower = searchTerm.toLowerCase();
@@ -122,7 +123,7 @@ const VolunteerOrganizationsTab = ({ searchTerm = "" }) => {
     <div className="px-2 sm:px-4">
       <h2 className="text-xl font-semibold mb-8">All Organizations</h2>
 
-      {filteredOrganizations.length > 0 ? (
+      {filteredOrganizations && Array.isArray(filteredOrganizations) && filteredOrganizations.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredOrganizations.slice(0, visibleCount).map((org) => (

@@ -82,12 +82,16 @@ const eventSchema = new mongoose.Schema({
 
   eventImages: [
     {
-      type: String, // filenames of uploaded images
+      url: { type: String, required: true }, // Cloudinary URL
+      publicId: { type: String, required: true }, // Cloudinary public ID for deletion
+      filename: { type: String }, // Original filename for reference
     },
   ],
 
   govtApprovalLetter: {
-    type: String, // filename of uploaded PDF/image
+    url: { type: String }, // Cloudinary URL
+    publicId: { type: String }, // Cloudinary public ID for deletion
+    filename: { type: String }, // Original filename for reference
   },
 
   instructions: {
@@ -217,7 +221,14 @@ const eventSchema = new mongoose.Schema({
       questionnaire: {
         completed: { type: Boolean, default: false },
         answers: { type: Object, default: {} },
-        submittedAt: { type: Date }
+        submittedAt: { type: Date },
+        media: [
+          {
+            url: { type: String }, // Cloudinary URL
+            publicId: { type: String }, // Cloudinary public ID for deletion
+            filename: { type: String }, // Original filename for reference
+          }
+        ]
       }
     }
   ],
@@ -269,7 +280,11 @@ const eventSchema = new mongoose.Schema({
       role: { type: String, enum: ['volunteer', 'organizer', 'creator'] }, // NEW
       award: { type: String },
       certId: { type: String },
-      filePath: { type: String },
+      filePath: {
+        url: { type: String }, // Cloudinary URL
+        publicId: { type: String }, // Cloudinary public ID for deletion
+        filename: { type: String } // Original filename for reference
+      },
       issuedAt: { type: Date },
       verificationUrl: { type: String },
       name: { type: String },

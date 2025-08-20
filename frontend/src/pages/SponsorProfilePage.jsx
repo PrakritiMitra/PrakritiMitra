@@ -193,8 +193,8 @@ export default function SponsorProfilePage() {
                       className="w-20 h-20 rounded-full object-cover"
                     />
                   ) : (
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center ${getRoleColors('sponsor')}`}>
-                      <span className="text-2xl font-bold">{getAvatarInitial(user)}</span>
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center border-2 border-purple-200 shadow-sm">
+                      <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                     </div>
                   )}
                 </div>

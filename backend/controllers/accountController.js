@@ -36,7 +36,35 @@ async function anonymizeUserData(userId, deletionId, originalUserData) {
     // 1. Anonymize Messages (already handled by Message model)
     await Message.handleUserDeletion(userId);
     
-    // 2. Anonymize Registrations
+    // 2. Clean up sponsor files from Cloudinary
+    const Sponsor = require('./sponsor');
+    const sponsor = await Sponsor.findOne({ user: userId });
+    if (sponsor && sponsor.business) {
+      try {
+        const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
+        
+        // Delete logo if it exists
+        if (sponsor.business.logo?.publicId) {
+          await deleteFromCloudinary(sponsor.business.logo.publicId);
+          console.log(`🗑️ Deleted sponsor logo from Cloudinary: ${sponsor.business.logo.publicId}`);
+        }
+        
+        // Delete business documents if they exist
+        if (sponsor.business.documents) {
+          for (const [docType, docData] of Object.entries(sponsor.business.documents)) {
+            if (docData && docData.publicId) {
+              await deleteFromCloudinary(docData.publicId);
+              console.log(`🗑️ Deleted sponsor ${docType} from Cloudinary: ${docData.publicId}`);
+            }
+          }
+        }
+      } catch (fileError) {
+        console.error('⚠️ Error deleting sponsor files from Cloudinary:', fileError);
+        // Continue with anonymization even if file deletion fails
+      }
+    }
+    
+    // 3. Anonymize Registrations
     await Registration.updateMany(
       { volunteerId: userId },
       { 
@@ -57,7 +85,7 @@ async function anonymizeUserData(userId, deletionId, originalUserData) {
       }
     );
     
-    // 3. Anonymize Events (where user is creator or organizer)
+    // 4. Anonymize Events (where user is creator or organizer)
     await Event.updateMany(
       { createdBy: userId },
       { 
@@ -120,7 +148,7 @@ async function anonymizeUserData(userId, deletionId, originalUserData) {
       }
     );
     
-    // 4. Anonymize Organizations
+    // 5. Anonymize Organizations
     await Organization.updateMany(
       { createdBy: userId },
       { 

@@ -61,8 +61,8 @@ export default function VolunteerOrganizationPage() {
   }, [id]);
 
   const now = new Date();
-  const upcoming = events.filter((e) => new Date(e.startDateTime) >= now);
-  const past = events.filter((e) => new Date(e.startDateTime) < now);
+  const upcoming = events && Array.isArray(events) ? events.filter((e) => new Date(e.startDateTime) >= now) : [];
+  const past = events && Array.isArray(events) ? events.filter((e) => new Date(e.startDateTime) < now) : [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -100,7 +100,7 @@ export default function VolunteerOrganizationPage() {
             <h2 className="text-xl font-semibold mt-8 mb-2 text-blue-700">
               Upcoming Events
             </h2>
-            {upcoming.length === 0 ? (
+            {!upcoming || !Array.isArray(upcoming) || upcoming.length === 0 ? (
               <p className="text-gray-500">No upcoming events.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -114,7 +114,7 @@ export default function VolunteerOrganizationPage() {
             <h2 className="text-xl font-semibold mt-10 mb-2 text-gray-700">
               Past Events
             </h2>
-            {past.length === 0 ? (
+            {!past || !Array.isArray(past) || past.length === 0 ? (
               <p className="text-gray-500">No past events.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

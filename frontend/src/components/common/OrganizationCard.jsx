@@ -1,16 +1,18 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
-  BuildingOfficeIcon,
-  UsersIcon,
-  CalendarIcon,
+  CalendarIcon, 
+  UsersIcon, 
+  HeartIcon, 
+  StarIcon,
   MapPinIcon,
   GlobeAltIcon,
   ShieldCheckIcon,
-  StarIcon,
+  BuildingOfficeIcon,
   ClockIcon,
-  TrophyIcon,
-  HeartIcon
+  TrophyIcon
 } from '@heroicons/react/24/outline';
+import { getOrganizationLogoUrl, hasOrganizationLogo } from '../../utils/avatarUtils';
 
 const OrganizationCard = ({ 
   organization, 
@@ -56,16 +58,16 @@ const OrganizationCard = ({
   } = organization;
 
   // Calculate member count (fallback to team length if memberCount not provided)
-  const finalMemberCount = memberCount || team?.length || 0;
-  const approvedMembers = team?.filter(member => member.status === 'approved').length || 0;
-  const pendingMembers = team?.filter(member => member.status === 'pending').length || 0;
+  const finalMemberCount = memberCount || (team && Array.isArray(team) ? team.length : 0);
+  const approvedMembers = team && Array.isArray(team) ? team.filter(member => member.status === 'approved').length : 0;
+  const pendingMembers = team && Array.isArray(team) ? team.filter(member => member.status === 'pending').length : 0;
 
   // Calculate event statistics (fallback to events array if counts not provided)
   const now = new Date();
   const finalUpcomingEvents = upcomingEvents !== undefined ? upcomingEvents : 
-    events?.filter(event => new Date(event.startDateTime) >= now).length || 0;
+    (events && Array.isArray(events) ? events.filter(event => new Date(event.startDateTime) >= now).length : 0);
   const finalPastEvents = pastEvents !== undefined ? pastEvents : 
-    events?.filter(event => new Date(event.startDateTime) < now).length || 0;
+    (events && Array.isArray(events) ? events.filter(event => new Date(event.startDateTime) < now).length : 0);
   const finalTotalEvents = totalEvents !== undefined ? totalEvents : 
     (finalUpcomingEvents + finalPastEvents);
 
@@ -116,10 +118,7 @@ const OrganizationCard = ({
   const getLogoUrl = () => {
     if (logoUrl) return logoUrl;
     if (logo) {
-      // Handle different logo file paths
-      if (logo.startsWith('http')) return logo;
-      if (logo.includes('uploads/organizationdetails/')) return logo;
-      return `http://localhost:5000/uploads/organizationdetails/${logo.replace(/\\/g, '/')}`;
+      return getOrganizationLogoUrl({ logo });
     }
     return null;
   };

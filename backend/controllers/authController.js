@@ -155,8 +155,20 @@ exports.signupVolunteer = async (req, res) => {
 
     const user = new User(userData);
 
-    const profileImage = req.files?.profileImage?.[0]?.filename || null;
-    user.profileImage = profileImage;
+    // Handle profile image upload to Cloudinary
+let profileImageUrl = null;
+if (req.files?.profileImage?.[0]) {
+  const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+  const uploadResult = await uploadToCloudinary(req.files.profileImage[0], 'profiles');
+  
+  if (uploadResult.success) {
+    profileImageUrl = uploadResult.url;
+    user.profileImage = profileImageUrl;
+  } else {
+    console.error('Profile image upload failed:', uploadResult.error);
+    return res.status(500).json({ message: 'Failed to upload profile image' });
+  }
+}
 
     await user.save();
 
@@ -307,9 +319,6 @@ exports.signupOrganizer = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const profileImage = req.files?.profileImage?.[0]?.filename || null;
-    const govtIdProof = req.files?.govtIdProof?.[0]?.filename || null;
-
     // Create user data object with explicit undefined for OAuth fields
     const userData = {
       name,
@@ -348,11 +357,30 @@ exports.signupOrganizer = async (req, res) => {
     
     // Handle file uploads if any
     if (req.files) {
-      if (req.files.profileImage?.[0]?.filename) {
-        user.profileImage = req.files.profileImage[0].filename;
+      // Handle profile image upload to Cloudinary
+      if (req.files.profileImage?.[0]) {
+        const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+        const uploadResult = await uploadToCloudinary(req.files.profileImage[0], 'profiles');
+        
+        if (uploadResult.success) {
+          user.profileImage = uploadResult.url;
+        } else {
+          console.error('Profile image upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload profile image' });
+        }
       }
-      if (req.files.govtIdProof?.[0]?.filename) {
-        user.govtIdProofUrl = req.files.govtIdProof[0].filename;
+      
+      // Handle government ID proof upload to Cloudinary
+      if (req.files.govtIdProof?.[0]) {
+        const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+        const uploadResult = await uploadToCloudinary(req.files.govtIdProof[0], 'documents');
+        
+        if (uploadResult.success) {
+          user.govtIdProofUrl = uploadResult.url;
+        } else {
+          console.error('Government ID proof upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload government ID proof' });
+        }
       }
     }
     

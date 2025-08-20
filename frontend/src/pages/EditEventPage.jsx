@@ -104,26 +104,34 @@ export default function EditEventPage() {
   };
 
   // 🔴 Remove specific image
-  const handleRemoveExistingImage = (filename) => {
-    setFormData((prev) => ({
-      ...prev,
-      existingImages: prev.existingImages.filter((img) => img !== filename),
-    }));
-    setRemovedImages((prev) => [...prev, filename]);
-    
-    // Show success toast
-    toast.success(`🖼️ Image "${filename}" marked for removal`, {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
+  const handleRemoveExistingImage = (image) => {
+    // Handle Cloudinary structure
+    if (typeof image === 'object' && image.publicId) {
+      setFormData((prev) => ({
+        ...prev,
+        existingImages: prev.existingImages.filter((img) => img.publicId !== image.publicId),
+      }));
+      setRemovedImages((prev) => [...prev, image.publicId]);
+      
+      // Show success toast
+      toast.success(`🖼️ Image "${image.filename || 'Event Image'}" marked for removal`, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+      });
+    }
   };
 
   // 🔴 Remove letter file
   const handleRemoveExistingLetter = () => {
+    // Handle Cloudinary structure
+    if (existingLetter && typeof existingLetter === 'object' && existingLetter.publicId) {
+      setRemovedImages((prev) => [...prev, existingLetter.publicId]);
+    }
+    
     setExistingLetter(null);
     setRemovedLetter(true);
     

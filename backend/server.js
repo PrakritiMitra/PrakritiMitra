@@ -2,6 +2,13 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+
+// Load environment variables first
+dotenv.config();
+
+// Configure Cloudinary immediately after loading environment variables
+require('./config/cloudinary');
+
 const { errorHandler } = require('./utils/errorResponse');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -34,7 +41,6 @@ const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
 
-dotenv.config();
 connectDB();
 
 const app = express();
@@ -62,11 +68,8 @@ app.use('/api/users', require('./routes/userRoutes'));
 // ✅ Parse incoming JSON requests
 app.use(express.json());
 
-// Make the 'uploads' folder publicly accessible
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/uploads/qrcodes', express.static(path.join(__dirname, 'uploads/qrcodes')));
-app.use('/uploads/certificates', express.static(path.join(__dirname, 'uploads/certificates')));
-app.use('/uploads/sponsors', express.static(path.join(__dirname, 'uploads/sponsors')));
+// Note: All file serving is now handled by Cloudinary
+// The uploads folder is no longer used for static file serving
 
 
 // ✅ Routes

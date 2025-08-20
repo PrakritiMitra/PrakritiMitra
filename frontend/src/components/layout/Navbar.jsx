@@ -154,6 +154,10 @@ export default function Navbar() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    
+    // Dispatch logout event to notify other components
+    window.dispatchEvent(new CustomEvent('userLoggedOut'));
+    
     navigate("/login");
   };
 
@@ -328,8 +332,8 @@ export default function Navbar() {
                                           className="w-12 h-12 rounded-full object-cover border-2 border-green-400 mr-3"
                                         />
                                       ) : (
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 border-green-400 mr-3 ${getRoleColors('volunteer')}`}>
-                                          <span className="font-bold text-lg">{getAvatarInitial(user)}</span>
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center border-2 border-green-200 mr-3 shadow-sm">
+                                          <span className="font-bold text-lg bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                                         </div>
                                       )}
                                       <div className="flex flex-col flex-1">
@@ -391,8 +395,8 @@ export default function Navbar() {
                                           className="w-12 h-12 rounded-full object-cover border-2 border-blue-400 mr-3"
                                         />
                                       ) : (
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 border-blue-400 mr-3 ${getRoleColors('organizer')}`}>
-                                          <span className="font-bold text-lg">{getAvatarInitial(user)}</span>
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 mr-3 shadow-sm">
+                                          <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                                         </div>
                                       )}
                                       <div className="flex flex-col flex-1">
@@ -699,8 +703,8 @@ export default function Navbar() {
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(getSafeUserRole(user))}`}>
-                        <span className="text-sm font-bold">{getAvatarInitial(user)}</span>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-sm">
+                        <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                       </div>
                     )}
                   </div>
@@ -879,8 +883,8 @@ export default function Navbar() {
                                               className="w-10 h-10 rounded-full object-cover border-2 border-green-400 mr-3"
                                             />
                                           ) : (
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 mr-3 ${getRoleColors('volunteer')}`}>
-                                              <span className="font-bold text-sm">{getAvatarInitial(user)}</span>
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center border-2 border-green-200 mr-3 shadow-sm">
+                                              <span className="font-bold text-sm bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                                             </div>
                                           )}
                                           <div className="flex flex-col flex-1">
@@ -924,8 +928,8 @@ export default function Navbar() {
                                               className="w-10 h-10 rounded-full object-cover border-2 border-blue-400 mr-3"
                                             />
                                           ) : (
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-blue-400 mr-3 ${getRoleColors('organizer')}`}>
-                                              <span className="font-bold text-sm">{getAvatarInitial(user)}</span>
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 mr-3 shadow-sm">
+                                              <span className="font-bold text-sm bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                                             </div>
                                           )}
                                           <div className="flex flex-col flex-1">
@@ -1170,8 +1174,8 @@ export default function Navbar() {
                               className="w-10 h-10 rounded-full object-cover"
                             />
                           ) : (
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getRoleColors(user?.role || 'user')}`}>
-                              <span className="text-sm font-bold">{getAvatarInitial(user)}</span>
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-sm">
+                              <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                             </div>
                           )}
                         </div>

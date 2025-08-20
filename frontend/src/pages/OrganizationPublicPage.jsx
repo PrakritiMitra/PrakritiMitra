@@ -8,7 +8,7 @@ import { getEventsByOrganization } from '../api/event';
 import EventCard from '../components/event/EventCard';
 import Navbar from '../components/layout/Navbar';
 import { OrganizationSponsorshipSection } from '../components/sponsor';
-import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../utils/avatarUtils';
+import { getProfileImageUrl, getAvatarInitial, getRoleColors, getOrganizationLogoUrl, getOrganizationDocumentUrl, hasOrganizationLogo } from '../utils/avatarUtils';
 import { 
   getSafeUserData, 
   getDisplayName, 
@@ -33,9 +33,6 @@ import {
   EyeIcon
 } from "@heroicons/react/24/outline";
 
-const orgFileUrl = (filename) =>
-  filename ? `http://localhost:5000/uploads/organizationdetails/${filename.replace(/\\/g, '/')}` : null;
-
 // Get organization initials for default logo
 const getOrganizationInitials = (name) => {
   if (!name || name.trim().length === 0) return '?';
@@ -54,21 +51,27 @@ const getOrganizationInitials = (name) => {
   return initials.length > 0 ? initials : '?';
 };
 
-function FilePreview({ filePath, label }) {
-  if (!filePath) return null;
-  const url = orgFileUrl(filePath);
-  if (filePath.match(/\.(jpg|jpeg|png|gif)$/i)) {
+function FilePreview({ organization, documentType, label }) {
+  if (!organization || !documentType) return null;
+  
+  const documentUrl = getOrganizationDocumentUrl(organization, documentType);
+  if (!documentUrl) return null;
+  
+  // Check if it's an image file
+  if (documentUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) || documentUrl.includes('cloudinary.com')) {
     return (
       <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group">
         <div className="font-semibold text-sm text-slate-700 mb-2 flex items-center gap-2">
           <DocumentTextIcon className="w-4 h-4" />
           {label}
         </div>
-        <img src={url} alt={label} className="max-w-[180px] max-h-[180px] rounded-lg shadow-sm group-hover:shadow-md transition-all duration-300" />
+        <img src={documentUrl} alt={label} className="max-w-[180px] max-h-[180px] rounded-lg shadow-sm group-hover:shadow-md transition-all duration-300" />
       </div>
     );
   }
-  if (filePath.match(/\.(pdf)$/i)) {
+  
+  // Check if it's a PDF file
+  if (documentUrl.match(/\.(pdf)$/i) || documentUrl.includes('cloudinary.com')) {
     return (
       <div className="bg-white/50 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 group">
         <div className="font-semibold text-sm text-slate-700 mb-2 flex items-center gap-2">
@@ -76,7 +79,7 @@ function FilePreview({ filePath, label }) {
           {label}
         </div>
         <a 
-          href={url} 
+          href={documentUrl} 
           target="_blank" 
           rel="noopener noreferrer" 
           className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-all duration-300 hover:scale-105"
@@ -87,6 +90,7 @@ function FilePreview({ filePath, label }) {
       </div>
     );
   }
+  
   return null;
 }
 
@@ -186,8 +190,8 @@ export default function OrganizationPublicPage() {
 
   // Event logic (same as OrganizationPage)
   const now = new Date();
-  const upcoming = events.filter((e) => new Date(e.startDateTime) >= now);
-  const past = events.filter((e) => new Date(e.startDateTime) < now);
+  const upcoming = events && Array.isArray(events) ? events.filter((e) => new Date(e.startDateTime) >= now) : [];
+  const past = events && Array.isArray(events) ? events.filter((e) => new Date(e.startDateTime) < now) : [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
@@ -198,12 +202,11 @@ export default function OrganizationPublicPage() {
         <div className={`bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-8 mb-8 transition-all duration-1000 hover:shadow-xl hover:scale-[1.02] ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
             <div className="w-32 h-32 rounded-2xl overflow-hidden shadow-lg border-4 border-white/20">
-              {logo ? (
-                <img src={orgFileUrl(logo)} alt={name} className="w-full h-full object-cover" />
+              {hasOrganizationLogo(org) ? (
+                <img src={getOrganizationLogoUrl(org)} alt={name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center text-white text-4xl font-bold relative">
                   {getOrganizationInitials(name)}
-                  <BuildingOfficeIcon className="absolute bottom-2 right-2 w-6 h-6 text-white/80" />
                 </div>
               )}
             </div>
@@ -327,7 +330,7 @@ export default function OrganizationPublicPage() {
             Social Media Links
           </h2>
           <div className="flex flex-wrap gap-4">
-            {socialLinks.length > 0 && socialLinks.map((link, idx) => {
+            {socialLinks && Array.isArray(socialLinks) && socialLinks.length > 0 && socialLinks.map((link, idx) => {
               if (!link) return null;
               
               // Determine social media platform and icon
@@ -397,12 +400,12 @@ export default function OrganizationPublicPage() {
                 >
                   {getSocialIcon(link)}
                   <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap z-10">
-                    {link.length > 30 ? link.substring(0, 30) + '...' : link}
+                    {link && typeof link === 'string' && link.length > 30 ? link.substring(0, 30) + '...' : link}
                   </div>
                 </a>
               );
             })}
-            {(!socialLinks || socialLinks.length === 0) && (
+            {(!socialLinks || !Array.isArray(socialLinks) || socialLinks.length === 0) && (
               <div className="text-center py-8 w-full">
                 <GlobeAltIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-500">No social media links provided.</p>
@@ -420,10 +423,10 @@ export default function OrganizationPublicPage() {
             Documents
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <FilePreview filePath={documents.gstCertificate} label="GST Certificate" />
-            <FilePreview filePath={documents.panCard} label="PAN Card" />
-            <FilePreview filePath={documents.ngoRegistration} label="NGO Registration" />
-            <FilePreview filePath={documents.letterOfIntent} label="Letter of Intent" />
+            <FilePreview organization={org} documentType="gstCertificate" label="GST Certificate" />
+            <FilePreview organization={org} documentType="panCard" label="PAN Card" />
+            <FilePreview organization={org} documentType="ngoRegistration" label="NGO Registration" />
+            <FilePreview organization={org} documentType="letterOfIntent" label="Letter of Intent" />
           </div>
         </div>
 
@@ -435,9 +438,9 @@ export default function OrganizationPublicPage() {
               <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
                 <CalendarIcon className="w-5 h-5 text-white" />
               </div>
-              Upcoming Events ({upcoming.length})
+              Upcoming Events ({upcoming && Array.isArray(upcoming) ? upcoming.length : 0})
             </h2>
-            {upcoming.length === 0 ? (
+            {!upcoming || !Array.isArray(upcoming) || upcoming.length === 0 ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CalendarIcon className="w-8 h-8 text-slate-400" />
@@ -447,17 +450,17 @@ export default function OrganizationPublicPage() {
             ) : (
                              <div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {upcoming.slice(0, upcomingEventsToShow).map((e) => (
+                   {upcoming && Array.isArray(upcoming) && upcoming.slice(0, upcomingEventsToShow).map((e) => (
                      <EventCard key={e._id} event={e} />
                    ))}
                  </div>
-                 {upcoming.length > upcomingEventsToShow && (
+                 {upcoming && Array.isArray(upcoming) && upcoming.length > upcomingEventsToShow && (
                    <div className="text-center mt-6">
                      <button
                        onClick={() => setUpcomingEventsToShow(upcomingEventsToShow + 2)}
                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                      >
-                       Show More Events ({upcoming.length - upcomingEventsToShow} more)
+                       Show More Events ({upcoming && Array.isArray(upcoming) ? upcoming.length - upcomingEventsToShow : 0} more)
                      </button>
                    </div>
                  )}
@@ -471,9 +474,9 @@ export default function OrganizationPublicPage() {
               <div className="w-8 h-8 bg-gradient-to-r from-slate-500 to-slate-600 rounded-xl flex items-center justify-center">
                 <CalendarIcon className="w-5 h-5 text-white" />
               </div>
-              Past Events ({past.length})
+              Past Events ({past && Array.isArray(past) ? past.length : 0})
             </h2>
-            {past.length === 0 ? (
+            {!past || !Array.isArray(past) || past.length === 0 ? (
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CalendarIcon className="w-8 h-8 text-slate-400" />
@@ -483,17 +486,17 @@ export default function OrganizationPublicPage() {
             ) : (
                              <div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {past.slice(0, pastEventsToShow).map((e) => (
+                   {past && Array.isArray(past) && past.slice(0, pastEventsToShow).map((e) => (
                      <EventCard key={e._id} event={e} />
                    ))}
                  </div>
-                 {past.length > pastEventsToShow && (
+                 {past && Array.isArray(past) && past.length > pastEventsToShow && (
                    <div className="text-center mt-6">
                      <button
                        onClick={() => setPastEventsToShow(pastEventsToShow + 2)}
                        className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                      >
-                       Show More Events ({past.length - pastEventsToShow} more)
+                       Show More Events ({past && Array.isArray(past) ? past.length - pastEventsToShow : 0} more)
                      </button>
                    </div>
                  )}
@@ -521,7 +524,7 @@ export default function OrganizationPublicPage() {
                 </button>
               </div>
               
-              {team.length === 0 && (
+              {team && Array.isArray(team) && team.length === 0 && (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <UserGroupIcon className="w-8 h-8 text-slate-400" />
@@ -530,7 +533,7 @@ export default function OrganizationPublicPage() {
                 </div>
               )}
               
-              {team.filter(member => member.status === 'approved').map((member) => {
+              {team && Array.isArray(team) && team.filter(member => member.status === 'approved').map((member) => {
                 const safeUser = getSafeUserData(member.userId);
                 const canNavigate = canNavigateToUser(member.userId);
                 
@@ -549,8 +552,8 @@ export default function OrganizationPublicPage() {
                         className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md" 
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
-                        {getAvatarInitial(safeUser)}
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-md">
+                        <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(safeUser)}</span>
                       </div>
                     )}
                     <div className="flex-1">

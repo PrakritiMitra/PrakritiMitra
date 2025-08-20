@@ -35,7 +35,9 @@ const messageSchema = new mongoose.Schema({
     maxlength: 500
   },
   fileUrl: {
-    type: String,
+    url: { type: String }, // Cloudinary URL
+    publicId: { type: String }, // Cloudinary public ID for deletion
+    filename: { type: String } // Original filename for reference
   },
   fileType: {
     type: String, // e.g., 'image/jpeg', 'application/pdf'
@@ -132,24 +134,56 @@ messageSchema.pre('save', async function(next) {
 
 // Static method to handle user deletion
 messageSchema.statics.handleUserDeletion = async function(userId) {
-  // Update all messages from this user
-  await this.updateMany(
-    { 'userInfo.userId': userId },
-    { 
-      $set: { isUserDeleted: true },
-      $unset: { userId: 1 }
+  try {
+    // Find all messages from this user that have files
+    const messagesWithFiles = await this.find({ 
+      'userInfo.userId': userId, 
+      fileUrl: { $exists: true, $ne: null } 
+    });
+    
+    // Delete files from Cloudinary
+    if (messagesWithFiles.length > 0) {
+      const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
+      
+      for (const msg of messagesWithFiles) {
+        if (msg.fileUrl && msg.fileUrl.publicId) {
+          try {
+            await deleteFromCloudinary(msg.fileUrl.publicId);
+            console.log(`🗑️ Deleted chat file from Cloudinary for deleted user: ${msg.fileUrl.publicId}`);
+          } catch (deleteError) {
+            console.error('Failed to delete chat file from Cloudinary for deleted user:', deleteError);
+            // Continue with other deletions
+          }
+        }
+      }
+      
+      console.log(`🗑️ Cleaned up ${messagesWithFiles.length} chat files for deleted user ${userId}`);
     }
-  );
-  
-  // Update reactions from this user
-  await this.updateMany(
-    { 'reactions.userInfo.userId': userId },
-    { 
-      $pull: { 
-        reactions: { 'userInfo.userId': userId } 
-      } 
-    }
-  );
+    
+    // Update all messages from this user
+    await this.updateMany(
+      { 'userInfo.userId': userId },
+      { 
+        $set: { isUserDeleted: true },
+        $unset: { userId: 1 }
+      }
+    );
+    
+    // Update reactions from this user
+    await this.updateMany(
+      { 'reactions.userInfo.userId': userId },
+      { 
+        $pull: { 
+          reactions: { 'userInfo.userId': userId } 
+        } 
+      }
+    );
+    
+    console.log(`✅ Successfully anonymized messages for deleted user ${userId}`);
+  } catch (error) {
+    console.error(`❌ Error anonymizing messages for deleted user ${userId}:`, error);
+    throw error;
+  }
 };
 
 module.exports = mongoose.model('Message', messageSchema);

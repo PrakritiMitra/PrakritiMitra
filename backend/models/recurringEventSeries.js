@@ -83,8 +83,19 @@ const recurringEventSeriesSchema = new mongoose.Schema({
   instructions: String,
   groupRegistration: Boolean,
   equipmentNeeded: [String],
-  eventImages: [String],
-  govtApprovalLetter: String,
+  eventImages: [
+    {
+      url: { type: String, required: true }, // Cloudinary URL
+      publicId: { type: String, required: true }, // Cloudinary public ID for deletion
+      filename: { type: String }, // Original filename for reference
+    },
+  ],
+
+  govtApprovalLetter: {
+    url: { type: String }, // Cloudinary URL
+    publicId: { type: String }, // Cloudinary public ID for deletion
+    filename: { type: String }, // Original filename for reference
+  },
   waterProvided: Boolean,
   medicalSupport: Boolean,
   ageGroup: String,

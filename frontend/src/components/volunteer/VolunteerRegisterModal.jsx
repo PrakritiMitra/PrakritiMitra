@@ -1,8 +1,27 @@
 // src/components/volunteer/VolunteerRegisterModal.jsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
+import { getSafeUserData, getSafeUserName } from "../../utils/safeUserUtils";
+import { showAlert, showConfirm } from "../../utils/notifications";
+import {
+  XMarkIcon,
+  UserIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  DocumentTextIcon,
+  LinkIcon
+} from "@heroicons/react/24/outline";
 import TimeSlotSelector from './TimeSlotSelector';
-import { showAlert } from '../../utils/notifications';
 
 const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) => {
   const [step, setStep] = useState(1);
@@ -64,13 +83,13 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) =
             <div className="flex items-center gap-4 mb-4">
               {volunteer.profileImage ? (
                 <img
-                  src={`http://localhost:5000/uploads/Profiles/${volunteer.profileImage}`}
+                  src={getProfileImageUrl(volunteer)}
                   alt={volunteer.name}
                   className="w-12 h-12 rounded-full object-cover bg-gray-200"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-xl font-bold text-gray-700">
-                  {volunteer.name[0]}
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-sm">
+                  <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(volunteer?.name)}</span>
                 </div>
               )}
               <div>

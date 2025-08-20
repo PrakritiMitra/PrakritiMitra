@@ -397,10 +397,10 @@ export default function VolunteerPublicPage() {
                         />
                       ) : null}
                       <div 
-                        className={`w-32 h-32 rounded-full flex items-center justify-center border-4 border-white shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl ${getRoleColors('volunteer')}`}
+                        className="w-32 h-32 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center border-4 border-white shadow-xl transition-all duration-500 hover:scale-105 hover:shadow-2xl"
                         style={{ display: getProfileImageUrl(volunteer) ? 'none' : 'flex' }}
                       >
-                        <span className="text-4xl font-bold text-white">{getAvatarInitial(volunteer)}</span>
+                        <span className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(volunteer)}</span>
                       </div>
                       <div className="absolute -bottom-2 -right-2 bg-emerald-500 rounded-full p-2 shadow-lg">
                         <SparklesIcon className="w-5 h-5 text-white" />

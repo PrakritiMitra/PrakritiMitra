@@ -55,8 +55,8 @@ const CommentAvatarAndName = ({ comment }) => {
           className="w-10 h-10 rounded-full object-cover border-2 border-green-400" 
         />
       ) : (
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-green-400 ${getRoleColors(safeVolunteer.role)}`}>
-          <span className="text-sm font-bold">{getAvatarInitial(safeVolunteer)}</span>
+        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center border-2 border-green-200 shadow-sm">
+          <span className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(safeVolunteer)}</span>
         </div>
       )}
       <span className={`font-medium ${safeVolunteer.isDeleted ? 'text-gray-600' : 'text-green-800'}`}>
@@ -99,7 +99,6 @@ export default function EventDetailsPage() {
   const [calendarStatus, setCalendarStatus] = useState({
     isRegistered: false, isInCalendar: false, canAddToCalendar: false, canRemoveFromCalendar: false
   });
-  const imageBaseUrl = "http://localhost:5000/uploads/Events/";
   const currentUser = JSON.parse(localStorage.getItem("user"));
   
   // Volunteer management states
@@ -528,15 +527,14 @@ export default function EventDetailsPage() {
   );
   
   // Check if user is eligible to generate certificate (for organizers and creators)
-  const canGenerateCertificate = isPast && 
+  const canGenerateCertificate = isPast &&
     (isTeamMember || isCreator) && // Both team members and creators can generate certificates
-    myQuestionnaireCompleted && 
-    myCertificateAssignment && 
+    myCertificateAssignment &&
     (myCertificateAssignment.role === 'organizer' || myCertificateAssignment.role === 'creator') &&
-    !myCertificateAssignment.filePath; // No filePath means certificate not generated yet
-  
+    !myCertificateAssignment.filePath?.url; // No filePath means certificate not generated yet
+
   // Check if certificate is already generated
-  const certificateGenerated = myCertificateAssignment && myCertificateAssignment.filePath;
+  const certificateGenerated = myCertificateAssignment && myCertificateAssignment.filePath?.url;
   
   // Certificate generation handler
   const handleGenerateCertificate = async () => {
@@ -895,6 +893,8 @@ export default function EventDetailsPage() {
     );
   }
 
+
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12 relative">
       <Navbar />
@@ -1036,8 +1036,8 @@ export default function EventDetailsPage() {
                             className="w-12 h-12 lg:w-14 lg:h-14 rounded-full object-cover border-2 border-blue-400 mr-3 lg:mr-4 shadow-sm"
                           />
                         ) : (
-                          <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center border-2 border-blue-400 mr-3 lg:mr-4 shadow-sm ${getRoleColors(safeUser.role)}`}>
-                            <span className="text-base lg:text-lg font-bold">{getAvatarInitial(safeUser)}</span>
+                          <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 mr-3 lg:mr-4 shadow-sm">
+                            <span className="text-base lg:text-lg font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(safeUser)}</span>
                           </div>
                         )}
                         <div className="flex flex-col flex-1 min-w-0">
@@ -1141,8 +1141,8 @@ export default function EventDetailsPage() {
                                   className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
                                 />
                               ) : (
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-red-400 mr-4 ${getRoleColors(safeOrg.role)}`}>
-                                  <span className="text-lg font-bold">{getAvatarInitial(safeOrg)}</span>
+                                <div className="w-14 h-14 rounded-full bg-gradient-to-r from-red-100 to-pink-100 flex items-center justify-center border-2 border-red-200 mr-4 shadow-sm">
+                                  <span className="text-lg font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">{getAvatarInitial(safeOrg)}</span>
                                 </div>
                               )}
                               <div className="flex flex-col">
@@ -1226,8 +1226,8 @@ export default function EventDetailsPage() {
                               className="w-14 h-14 rounded-full object-cover border-2 border-green-400 mr-4"
                             />
                           ) : (
-                            <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-green-400 mr-4 ${getRoleColors(safeVol.role)}`}>
-                              <span className="text-sm font-bold">{getAvatarInitial(safeVol)}</span>
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-r from-green-100 to-emerald-100 flex items-center justify-center border-2 border-green-200 mr-4 shadow-sm">
+                              <span className="text-sm font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(safeVol)}</span>
                             </div>
                           )}
                           <div className="flex flex-col">
@@ -1333,8 +1333,8 @@ export default function EventDetailsPage() {
                                 className="w-14 h-14 rounded-full object-cover border-2 border-red-400 mr-4"
                               />
                             ) : (
-                              <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 border-red-400 mr-4 ${getRoleColors(safeVol.role)}`}>
-                                <span className="text-sm font-bold">{getAvatarInitial(safeVol)}</span>
+                              <div className="w-14 h-14 rounded-full bg-gradient-to-r from-red-100 to-pink-100 flex items-center justify-center border-2 border-red-200 mr-4 shadow-sm">
+                                <span className="text-sm font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">{getAvatarInitial(safeVol)}</span>
                               </div>
                             )}
                             <div className="flex flex-col">
@@ -1540,17 +1540,15 @@ export default function EventDetailsPage() {
                       </p>
                     </div>
                   ) : certificateGenerated ? (
-                    <div className="space-y-3">
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <p className="text-sm text-green-800">
-                          🎉 <strong>Certificate ready!</strong> You can now download your certificate.
-                        </p>
+                    <div className="text-center">
+                      <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm mb-3">
+                        🎉 <strong>Certificate ready!</strong> You can now download your certificate.
                       </div>
                       <a
-                        href={`http://localhost:5000${myCertificateAssignment.filePath.replace(/\\/g, '/')}`}
+                        href={myCertificateAssignment.filePath.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm text-center block"
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
                       >
                         📄 Download Certificate
                       </a>
@@ -1971,17 +1969,17 @@ export default function EventDetailsPage() {
 
                   {/* View Govt Approval Letter - For all organizers if available */}
                   {event.govtApprovalLetter && (canEdit || isTeamMember) && (
-                    <a
-                      href={`${imageBaseUrl}${event.govtApprovalLetter}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3 rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
-                      </svg>
-                      View Approval Letter
-                    </a>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span>📄 Government Approval Letter:</span>
+                      <a
+                        href={event.govtApprovalLetter.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        {event.govtApprovalLetter.filename}
+                      </a>
+                    </div>
                   )}
                 </div>
           </div>
@@ -2017,8 +2015,8 @@ export default function EventDetailsPage() {
                               className="w-8 h-8 rounded-full object-cover border" 
                       />
                     ) : (
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${getRoleColors(safeUser.role)}`}>
-                              <span className="text-xs font-bold">{getAvatarInitial(safeUser)}</span>
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border border-blue-200 shadow-sm">
+                              <span className="text-xs font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(safeUser)}</span>
                       </div>
                     )}
                     <span
@@ -2773,9 +2771,8 @@ export default function EventDetailsPage() {
                   Event Images
                 </h3>
                 
-                <ImageCarousel 
+                <ImageCarousel
                   images={event.eventImages}
-                  imageBaseUrl={imageBaseUrl}
                   autoPlay={true}
                   interval={5000}
                 />
