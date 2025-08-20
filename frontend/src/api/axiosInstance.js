@@ -1,5 +1,6 @@
 // src/api/axiosInstance.js
 import axios from "axios";
+import { showAlert } from '../utils/notifications';
 
 // Flag to prevent multiple 401 handling
 let isHandling401 = false;
@@ -40,7 +41,7 @@ instance.interceptors.response.use(
       sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
       
       // Show alert to user
-      alert('Your session has expired. Please log in again.');
+      showAlert.warning('Your session has expired. Please log in again.');
       
       // Redirect to login page
       window.location.href = '/login';

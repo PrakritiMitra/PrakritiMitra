@@ -44,7 +44,7 @@ const resourceSchema = new mongoose.Schema({
   },
 
   url: {
-    type: String // Link to PDF, YouTube embed, Cloudinary image, external site, etc.
+    type: String // Link to PDF, YouTube embed, external site, etc.
   },
 
   thumbnail: {

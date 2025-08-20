@@ -298,7 +298,6 @@ We welcome contributions from the community! Here's how you can help:
 - **Backend**: Heroku, Railway, or DigitalOcean
 - **Frontend**: Vercel, Netlify, or GitHub Pages
 - **Database**: MongoDB Atlas
-- **File Storage**: AWS S3 or Cloudinary
 
 ### Environment Setup
 - Configure production environment variables

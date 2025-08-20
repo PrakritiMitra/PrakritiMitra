@@ -28,6 +28,7 @@ import {
   getAttendanceAvatarInitial
 } from "../utils/safeUserUtils";
 import { UsersIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { showAlert } from '../utils/notifications';
 
 export default function EventAttendancePage() {
   const { eventId } = useParams();
@@ -80,7 +81,7 @@ export default function EventAttendancePage() {
         return updated;
       });
     } catch (err) {
-      alert("Failed to update organizer attendance");
+      showAlert.error("Failed to update organizer attendance");
     }
   };
 
@@ -93,7 +94,7 @@ export default function EventAttendancePage() {
         )
       );
     } catch (err) {
-      alert("Failed to update volunteer attendance");
+      showAlert.error("Failed to update volunteer attendance");
     }
   };
 
@@ -106,7 +107,7 @@ export default function EventAttendancePage() {
         const registrationId = data.registrationId;
         if (!registrationId) throw new Error("Invalid QR code");
         const response = await axiosInstance.patch(`/api/registrations/${registrationId}/attendance`, { hasAttended: true });
-        alert("Attendance marked!");
+        showAlert.success("Attendance marked!");
         // Update inTime from response
         const updated = response.data.registration;
         setVolunteers((prev) => prev.map((v) => v.registrationId === registrationId ? { ...v, hasAttended: true, inTime: updated.inTime } : v));
@@ -115,7 +116,7 @@ export default function EventAttendancePage() {
         const exitQrToken = data.exitQrToken;
         if (!exitQrToken) throw new Error("Invalid QR code");
         const response = await axiosInstance.post(`/api/registrations/exit/${exitQrToken}`);
-        alert("Exit marked!");
+        showAlert.success("Exit marked!");
         // Update outTime from response
         const { outTime } = response.data;
         setVolunteers((prev) => prev.map((v) => {
@@ -133,7 +134,7 @@ export default function EventAttendancePage() {
         throw new Error("Invalid QR code");
       }
     } catch (err) {
-      alert("Invalid QR code or failed to mark attendance.");
+      showAlert.error("Invalid QR code or failed to mark attendance.");
     }
     setShowScanner(false);
   };
@@ -189,10 +190,10 @@ export default function EventAttendancePage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      alert(`Attendance report downloaded successfully as ${format.toUpperCase()}!`);
+      showAlert.success(`Attendance report downloaded successfully as ${format.toUpperCase()}!`);
     } catch (error) {
       console.error('Error downloading report:', error);
-      alert('Failed to download attendance report');
+      showAlert.error('Failed to download attendance report');
     } finally {
       setDownloadingReport(false);
     }

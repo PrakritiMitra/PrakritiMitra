@@ -33,6 +33,7 @@ import {
   getSafeUserRole,
   canNavigateToUser 
 } from "../utils/safeUserUtils";
+import { showAlert, showConfirm } from "../utils/notifications";
 
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
@@ -363,27 +364,38 @@ export default function VolunteerEventDetailsPage() {
         setIsRegistered(true);
         setRegistrationDetails(regDetailsRes.data.registration);
       }
-      alert("Registered successfully!");
+      showAlert.success("Registered successfully!");
     } catch (err) {
       console.error("Registration failed:", err);
       const errorMessage = err.response?.data?.message || "Failed to register. Please try again.";
-      alert(errorMessage);
+      showAlert.error(errorMessage);
     }
   };
 
   const handleWithdrawRegistration = async () => {
     if (!event?._id) return;
-    if (!window.confirm('Are you sure you want to withdraw your registration for this event?')) return;
-    
-    try {
-      // Use event ID for withdrawal as per backend route
-      await axiosInstance.delete(`/api/registrations/${event._id}`);
-      setIsRegistered(false);
-      setRegistrationDetails(null);
-      alert('Registration withdrawn successfully.');
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to withdraw registration.');
-    }
+    // Use showConfirm for better UX
+    showConfirm.action(
+      'Are you sure you want to withdraw your registration for this event?',
+      async () => {
+        try {
+          // Use event ID for withdrawal as per backend route
+          await axiosInstance.delete(`/api/registrations/${event._id}`);
+          setIsRegistered(false);
+          setRegistrationDetails(null);
+          showAlert.success('Registration withdrawn successfully.');
+        } catch (err) {
+          showAlert.error(err.response?.data?.message || 'Failed to withdraw registration.');
+        }
+      },
+      {
+        title: 'Withdraw Registration',
+        confirmText: 'Yes, Withdraw',
+        cancelText: 'Cancel',
+        type: 'warning'
+      }
+    );
+    return;
   };
 
   const handleGenerateExitQr = async () => {
@@ -393,7 +405,7 @@ export default function VolunteerEventDetailsPage() {
       setExitQrPath(res.data.exitQrPath);
       setShowExitQr(true);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to generate exit QR.');
+      showAlert.error(err.response?.data?.message || 'Failed to generate exit QR.');
     }
   };
 
@@ -418,7 +430,7 @@ export default function VolunteerEventDetailsPage() {
   
   const handleQuestionnaireSubmit = async (answers) => {
     if (questionnaireCompleted) {
-      alert('You have already submitted your questionnaire.');
+      showAlert.warning('You have already submitted your questionnaire.');
       return;
     }
     
@@ -433,11 +445,11 @@ export default function VolunteerEventDetailsPage() {
         setRegistrationDetails(prev => ({ ...prev, questionnaireCompleted: true }));
       }
       
-      alert('Questionnaire submitted successfully! Thank you for your feedback.');
+      showAlert.success('Questionnaire submitted successfully! Thank you for your feedback.');
     } catch (err) {
       console.error('Questionnaire submission error:', err);
       const errorMessage = err.response?.data?.message || 'Failed to submit questionnaire. Please try again.';
-      alert(errorMessage);
+      showAlert.error(errorMessage);
       
       if (err.response?.status === 400 && err.response?.data?.message?.includes('already submitted')) {
         setQuestionnaireCompleted(true);
@@ -450,7 +462,7 @@ export default function VolunteerEventDetailsPage() {
 
   const handleGenerateCertificate = async () => {
     if (!isRegistered || !questionnaireCompleted || !event?._id) {
-      alert('You are not eligible to generate a certificate at this time.');
+      showAlert.warning('You are not eligible to generate a certificate at this time.');
       return;
     }
     
@@ -459,10 +471,10 @@ export default function VolunteerEventDetailsPage() {
       await axiosInstance.post(`/api/events/${event._id}/generate-certificate`);
       await new Promise(resolve => setTimeout(resolve, 2000)); // Allow backend time to process
       setForceRefresh(prev => prev + 1); // Trigger re-fetch of event data
-      alert('Certificate generated successfully! You can now download it.');
+      showAlert.success('Certificate generated successfully! You can now download it.');
     } catch (err) {
       console.error('Certificate generation error:', err);
-      alert(err.response?.data?.message || 'Failed to generate certificate. Please try again.');
+      showAlert.error(err.response?.data?.message || 'Failed to generate certificate. Please try again.');
     } finally {
       setIsGeneratingCertificate(false);
     }

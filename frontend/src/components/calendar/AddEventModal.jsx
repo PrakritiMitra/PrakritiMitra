@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
+import { showAlert } from '../../utils/notifications';
 
 const AddEventModal = ({ onClose, onEventAdded }) => {
   const navigate = useNavigate();
@@ -15,12 +16,16 @@ const AddEventModal = ({ onClose, onEventAdded }) => {
       try {
         setLoadingOrgs(true);
         const response = await axiosInstance.get('/api/organizations/approved');
-        setOrganizations(response.data);
-        if (response.data.length > 0) {
-          setSelectedOrg(response.data[0]._id); // Select first organization by default
+        // Handle new API response format
+        const orgs = response.data.data || response.data;
+        setOrganizations(orgs);
+        if (orgs.length > 0) {
+          setSelectedOrg(orgs[0]._id); // Select first organization by default
         }
       } catch (error) {
         console.error('Error fetching organizations:', error);
+        // Handle 404 or other errors gracefully
+        setOrganizations([]);
       } finally {
         setLoadingOrgs(false);
       }
@@ -31,7 +36,7 @@ const AddEventModal = ({ onClose, onEventAdded }) => {
 
   const handleCreateEvent = () => {
     if (!selectedOrg) {
-      alert('Please select an organization first');
+      showAlert.warning('Please select an organization first');
       return;
     }
     

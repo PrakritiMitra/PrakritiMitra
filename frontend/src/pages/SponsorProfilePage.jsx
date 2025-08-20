@@ -26,6 +26,7 @@ import {
   ExclamationTriangleIcon,
   XCircleIcon
 } from "@heroicons/react/24/outline";
+import { showAlert } from "../utils/notifications";
 
 export default function SponsorProfilePage() {
   const [user, setUser] = useState(null);
@@ -98,7 +99,7 @@ export default function SponsorProfilePage() {
     // Refresh sponsor profile
     await fetchSponsorProfile();
     
-    alert('Sponsor profile created successfully!');
+    showAlert.success('Sponsor profile created successfully!');
   };
 
   const handleSponsorCancel = () => {
@@ -110,28 +111,38 @@ export default function SponsorProfilePage() {
   };
 
   const handleDeleteSponsor = async () => {
-    if (window.confirm('Are you sure you want to delete your sponsor profile? This action cannot be undone.')) {
-      try {
-        await sponsorAPI.deleteSponsorProfile();
-        
-        // Update user data in localStorage
-        const userData = JSON.parse(localStorage.getItem("user"));
-        userData.sponsor = { isSponsor: false };
-        localStorage.setItem("user", JSON.stringify(userData));
-        setUser(userData);
-        
-        // Dispatch custom event to notify other components about user data update
-        window.dispatchEvent(new CustomEvent('userDataUpdated', {
-          detail: { user: userData }
-        }));
-        
-        setSponsorProfile(null);
-        alert('Sponsor profile deleted successfully!');
-      } catch (error) {
-        console.error('Error deleting sponsor profile:', error);
-        alert('Failed to delete sponsor profile. Please try again.');
+    // Use showConfirm for better UX
+    showConfirm.action(
+      'Are you sure you want to delete your sponsor profile? This action cannot be undone.',
+      async () => {
+        try {
+          await sponsorAPI.deleteSponsorProfile();
+          
+          // Update user data in localStorage
+          const userData = JSON.parse(localStorage.getItem("user"));
+          userData.sponsor = { isSponsor: false };
+          localStorage.setItem("user", JSON.stringify(userData));
+          setUser(userData);
+          
+          // Dispatch custom event to notify other components about user data update
+          window.dispatchEvent(new CustomEvent('userDataUpdated', {
+            detail: { user: userData }
+          }));
+          
+          setSponsorProfile(null);
+          showAlert.success('Sponsor profile deleted successfully!');
+        } catch (error) {
+          console.error('Error deleting sponsor profile:', error);
+          showAlert.error('Failed to delete sponsor profile. Please try again.');
+        }
+      },
+      {
+        title: 'Delete Sponsor Profile',
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        type: 'danger'
       }
-    }
+    );
   };
 
   if (loading) {

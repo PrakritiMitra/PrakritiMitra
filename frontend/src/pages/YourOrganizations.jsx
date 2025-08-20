@@ -28,9 +28,13 @@ export default function YourOrganizations() {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
-        setOrgs(res.data);
+        // Handle new API response format
+        const orgs = res.data.data || res.data;
+        setOrgs(orgs);
       } catch (err) {
         console.error("Failed to fetch your organizations:", err);
+        // Handle 404 or other errors gracefully
+        setOrgs([]);
       } finally {
         setLoading(false);
         // Trigger animations

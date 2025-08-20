@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sponsorAPI } from '../../api';
+import { showAlert } from '../../utils/notifications';
 
 const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => {
   const [formData, setFormData] = useState({
@@ -241,7 +242,7 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
       onSuccess();
     } catch (error) {
       console.error('Error saving sponsor profile:', error);
-      alert(error.message || 'Failed to save sponsor profile');
+      showAlert.error(error.message || 'Failed to save sponsor profile');
     } finally {
       setLoading(false);
     }
