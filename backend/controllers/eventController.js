@@ -160,6 +160,7 @@ exports.createEvent = async (req, res) => {
       }
     }
 
+
     // Build the event object
     const eventData = {
       title,
@@ -418,6 +419,7 @@ exports.updateEvent = async (req, res) => {
           console.error('Failed to upload event image:', uploadResult.error);
         }
       }
+
     }
 
     // ✅ Add new approval letter (if uploaded)
@@ -433,6 +435,7 @@ exports.updateEvent = async (req, res) => {
       } else {
         console.error('Failed to upload approval letter:', uploadResult.error);
       }
+
     }
 
     // Form fields
