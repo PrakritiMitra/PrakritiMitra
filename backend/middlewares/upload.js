@@ -4,37 +4,41 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Organization storage - store in ./uploads/OrganizationDetails
-const organizationStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/OrganizationDetails';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+// Organization storage - using Cloudinary (memory storage for Cloudinary upload)
+const organizationStorage = multer.memoryStorage();
+
+const organizationUpload = multer({ 
+  storage: organizationStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs for all organization documents
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed for organization documents.'), false);
     }
-    cb(null, dir);
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for organization documents
   }
 });
 
-// Event storage - store in ./uploads/Events
-const eventStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/Events';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+// Event storage - using Cloudinary (memory storage for Cloudinary upload)
+const eventStorage = multer.memoryStorage();
+
+const eventUpload = multer({ 
+  storage: eventStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs for event files
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed for event files.'), false);
     }
-    cb(null, dir);
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for event files
   }
 });
-
-// Create separate upload instances
-const organizationUpload = multer({ storage: organizationStorage });
-const eventUpload = multer({ storage: eventStorage });
 
 // For organization registration: support multiple files
 const multiUpload = organizationUpload.fields([
@@ -45,30 +49,79 @@ const multiUpload = organizationUpload.fields([
   { name: 'letterOfIntent', maxCount: 1 },
 ]);
 
-// Profile storage - store in ./uploads/Profiles
-const profileStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/Profiles';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+// Sponsor storage - using Cloudinary (memory storage for Cloudinary upload)
+const sponsorStorage = multer.memoryStorage();
+
+const sponsorUpload = multer({ 
+  storage: sponsorStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs for sponsor documents
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed for sponsor documents.'), false);
     }
-    cb(null, dir);
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for sponsor documents
   }
 });
 
-const profileUpload = multer({ storage: profileStorage });
+// For sponsor uploads: support logo and business documents
+const sponsorMultiUpload = sponsorUpload.fields([
+  { name: 'logo', maxCount: 1 },
+  { name: 'gstCertificate', maxCount: 1 },
+  { name: 'panCard', maxCount: 1 },
+  { name: 'companyRegistration', maxCount: 1 },
+]);
+
+// Profile image storage - using Cloudinary (memory storage for Cloudinary upload)
+// Only for profile images - images only
+const profileImageStorage = multer.memoryStorage();
+
+const profileImageUpload = multer({ 
+  storage: profileImageStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow only image files for profile pictures
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for profile pictures.'), false);
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit for profile images
+  }
+});
+
+// Government ID proof storage - using Cloudinary (memory storage for Cloudinary upload)
+// For government ID proofs - images + PDFs
+const govtIdStorage = multer.memoryStorage();
+
+const govtIdUpload = multer({ 
+  storage: govtIdStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs for government ID proofs
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed for government ID proofs.'), false);
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit for government ID proofs
+  }
+});
 
 // For profile uploads: support profile image and government ID proof
-const profileMultiUpload = profileUpload.fields([
+// Use separate upload middlewares for each file type
+const profileMultiUpload = multer().fields([
   { name: 'profileImage', maxCount: 1 },
   { name: 'govtIdProof', maxCount: 1 },
 ]);
 
 // For single profile image upload (for volunteer signup)
-const profileSingleUpload = profileUpload.single('profileImage');
+const profileSingleUpload = profileImageUpload.single('profileImage');
 
 // For event uploads: support event images and government approval letter
 const eventMultiUpload = eventUpload.fields([
@@ -76,44 +129,59 @@ const eventMultiUpload = eventUpload.fields([
   { name: 'govtApprovalLetter', maxCount: 1 },
 ]);
 
-// Chat storage - store in ./uploads/Chat
-const chatStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/Chat';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
-const chatUpload = multer({ storage: chatStorage });
+// Chat storage - using Cloudinary (memory storage for Cloudinary upload)
+const chatStorage = multer.memoryStorage();
 
-// Completed Event storage - store in ./uploads/Events/Completed
-const completedEventStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = 'uploads/Events/Completed';
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+const chatUpload = multer({ 
+  storage: chatStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images, PDFs, and common document types for chat files
+    if (file.mimetype.startsWith('image/') || 
+        file.mimetype === 'application/pdf' ||
+        file.mimetype === 'application/msword' ||
+        file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        file.mimetype === 'application/vnd.ms-excel' ||
+        file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        file.mimetype === 'text/plain') {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed for chat. Only images, PDFs, and common document types are allowed.'), false);
     }
-    cb(null, dir);
   },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for chat files
   }
 });
-const completedEventUpload = multer({ storage: completedEventStorage });
+
+// Completed Event storage - using Cloudinary (memory storage for Cloudinary upload)
+const completedEventStorage = multer.memoryStorage();
+
+const completedEventUpload = multer({ 
+  storage: completedEventStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs for completed event media
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed for completed event media.'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for completed event media
+  }
+});
 
 module.exports = {
   organizationUpload,
   eventUpload,
-  profileUpload,
+  profileImageUpload,
+  govtIdUpload,
   multiUpload,
   eventMultiUpload,
   profileMultiUpload,
   profileSingleUpload,
-  chatUpload, // <-- Export chat upload
-  completedEventUpload, // <-- Export completed event upload
+  chatUpload,
+  completedEventUpload,
+  sponsorUpload,
+  sponsorMultiUpload,
 };

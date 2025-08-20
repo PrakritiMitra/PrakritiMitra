@@ -71,6 +71,9 @@ export default function LoginForm() {
         detail: { user: res.data.user }
       }));
 
+      // Small delay to ensure event is processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Redirect after showing success message
       setTimeout(() => {
         if (res.data.user.role === 'organizer') {

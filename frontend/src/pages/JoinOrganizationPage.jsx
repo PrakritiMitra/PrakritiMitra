@@ -238,7 +238,7 @@ export default function JoinOrganizationPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-600">Available Organizations</p>
-                <p className="text-2xl font-bold text-slate-900">{organizations.length}</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.length : 0}</p>
               </div>
             </div>
           </div>
@@ -250,7 +250,7 @@ export default function JoinOrganizationPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-600">Pending Requests</p>
-                <p className="text-2xl font-bold text-slate-900">{organizations.filter(org => org.status === 'pending').length}</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.status === 'pending').length : 0}</p>
               </div>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function JoinOrganizationPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-600">Verified Orgs</p>
-                <p className="text-2xl font-bold text-slate-900">{organizations.filter(org => org.verifiedStatus === 'verified').length}</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.verifiedStatus === 'verified').length : 0}</p>
               </div>
             </div>
           </div>
@@ -270,7 +270,7 @@ export default function JoinOrganizationPage() {
 
         {/* Content Section */}
         <div className={`transition-all duration-1000 delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {organizations.length === 0 ? (
+          {!organizations || !Array.isArray(organizations) || organizations.length === 0 ? (
             <div className="text-center py-16">
               <div className="max-w-md mx-auto">
                 <div className="p-4 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full w-16 h-16 mx-auto mb-6 flex items-center justify-center">
@@ -356,7 +356,7 @@ export default function JoinOrganizationPage() {
               </div>
               
               {/* Show More Button */}
-              {organizations.length > organizationsToShow && (
+              {organizations && Array.isArray(organizations) && organizations.length > organizationsToShow && (
                 <div className="text-center mt-8">
                   <button
                     onClick={() => setOrganizationsToShow(organizationsToShow + 6)}

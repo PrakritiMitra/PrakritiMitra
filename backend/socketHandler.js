@@ -244,6 +244,19 @@ const initializeSocket = (io) => {
           socket.emit('unsendMessageError', { message: 'You can only unsend your own messages.' });
           return;
         }
+        
+        // Delete associated file from Cloudinary if it exists
+        if (message.fileUrl && message.fileUrl.publicId) {
+          try {
+            const { deleteFromCloudinary } = require('./utils/cloudinaryUtils');
+            await deleteFromCloudinary(message.fileUrl.publicId);
+            console.log(`🗑️ Deleted file from Cloudinary: ${message.fileUrl.publicId}`);
+          } catch (deleteError) {
+            console.error('Failed to delete file from Cloudinary:', deleteError);
+            // Continue with message deletion even if file deletion fails
+          }
+        }
+        
         await Message.deleteOne({ _id: messageId });
         io.to(`event:${eventId}`).emit('messageUnsent', { messageId });
       } catch (err) {

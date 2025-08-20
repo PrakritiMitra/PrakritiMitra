@@ -25,6 +25,7 @@ import {
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import { showAlert } from "../utils/notifications";
+import { getProfileImageUrl } from "../utils/avatarUtils";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -55,19 +56,32 @@ export default function OrganizationPage() {
         setLoading(true);
         setOrganizersError("");
 
+        console.log('🔍 Fetching organization data for ID:', id);
+        
         const [orgRes, eventRes] = await Promise.all([
           axiosInstance.get(`/api/organizations/${id}`),
           axiosInstance.get(`/api/events/organization/${id}`),
         ]);
 
+        console.log('✅ Organization data received:', orgRes.data);
+        console.log('✅ Events data received:', eventRes.data);
+
         setOrganization(orgRes.data);
-        setEvents(eventRes.data);
+        
+        // Ensure events is always an array
+        const safeEvents = Array.isArray(eventRes.data) ? eventRes.data : [];
+        setEvents(safeEvents);
 
         if (user?.role === "organizer") {
+          console.log('🔍 Fetching team data for organizer...');
           const teamRes = await axiosInstance.get(`/api/organizations/${id}/team`);
           const team = teamRes.data;
+          console.log('✅ Team data received:', team);
 
-          const memberEntry = team.find(
+          // Ensure team is always an array
+          const safeTeam = Array.isArray(team) ? team : [];
+          
+          const memberEntry = safeTeam.find(
             (member) => member.userId._id === user._id
           );
 
@@ -90,25 +104,46 @@ export default function OrganizationPage() {
             setIsAdmin(false);
           }
 
-          const pending = team.filter((member) => member.status === "pending");
+          const pending = safeTeam.filter((member) => member.status === "pending");
           setPendingRequests(pending);
         }
         // Fetch organizers for this org (all roles) only if token exists
         const token = localStorage.getItem("token");
         if (token) {
           try {
-            const orgOrganizers = await getOrganizationOrganizers(id);
-            setOrganizers(orgOrganizers);
-          } catch (err) {
-            setOrganizersError("You must be logged in to see organizers.");
-            setOrganizers([]);
+            const organizersRes = await getOrganizationOrganizers(id);
+            console.log('🔍 Organizers response:', organizersRes);
+            
+            // Ensure organizers is always an array
+            if (organizersRes && organizersRes.data) {
+              const organizersData = Array.isArray(organizersRes.data) ? organizersRes.data : [];
+              console.log('✅ Processed organizers data:', organizersData);
+              setOrganizers(organizersData);
+            } else {
+              console.log('⚠️ No organizers data or invalid format, setting empty array');
+              setOrganizers([]);
+            }
+          } catch (error) {
+            console.error("❌ Error fetching organizers:", error);
+            setOrganizersError("Failed to load organizers");
+            setOrganizers([]); // Ensure it's always an array
           }
         } else {
-          setOrganizersError("You must be logged in to see organizers.");
-          setOrganizers([]);
+          setOrganizers([]); // Ensure it's always an array when no token
         }
-      } catch (err) {
-        console.error("Error loading organization:", err);
+      } catch (error) {
+        console.error("❌ Error fetching organization data:", error);
+        console.error("❌ Error details:", {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        
+        if (error.response?.status === 500) {
+          console.error("❌ Server error - check backend logs");
+        }
+        
+        setOrganizersError("Failed to load organization data");
       } finally {
         setLoading(false);
         // Trigger animations
@@ -208,15 +243,15 @@ export default function OrganizationPage() {
   };
 
   const now = new Date();
-  const upcoming = events.filter((e) => new Date(e.startDateTime) >= now);
-  const past = events.filter((e) => new Date(e.startDateTime) < now);
+  const upcoming = events && Array.isArray(events) ? events.filter((e) => new Date(e.startDateTime) >= now) : [];
+  const past = events && Array.isArray(events) ? events.filter((e) => new Date(e.startDateTime) < now) : [];
 
   // Set optimal initial display when events or grid columns change
   useEffect(() => {
-    if (upcoming.length > 0) {
+    if (upcoming && Array.isArray(upcoming) && upcoming.length > 0) {
       setUpcomingVisible(calculateOptimalDisplay(upcoming.length, gridColumns));
     }
-    if (past.length > 0) {
+    if (past && Array.isArray(past) && past.length > 0) {
       setPastVisible(calculateOptimalDisplay(past.length, gridColumns));
     }
   }, [upcoming.length, past.length, gridColumns]);
@@ -237,7 +272,7 @@ export default function OrganizationPage() {
       <Navbar />
       
       {/* Show Organizers Button - fixed top right */}
-      {organizers.length > 0 && !organizersError && (
+      {organizers && Array.isArray(organizers) && organizers.length > 0 && !organizersError && (
         <button
           className={`fixed z-50 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white px-5 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200
             top-[calc(2cm+1.5rem)]
@@ -254,7 +289,7 @@ export default function OrganizationPage() {
       )}
       
       {/* Organizers Drawer */}
-      {organizers.length > 0 && !organizersError && (
+      {organizers && Array.isArray(organizers) && organizers.length > 0 && !organizersError && (
         <div
           className={`fixed top-0 right-0 h-full w-80 bg-white/90 backdrop-blur-sm shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${showOrganizers ? 'translate-x-0' : 'translate-x-full'}`}
         >
@@ -405,7 +440,7 @@ export default function OrganizationPage() {
             </div>
 
             {/* Pending Requests */}
-            {isAdmin && pendingRequests.length > 0 && (
+            {isAdmin && pendingRequests && Array.isArray(pendingRequests) && pendingRequests.length > 0 && (
               <div className={`mb-8 transition-all duration-1000 delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
                   <h3 className="text-xl font-semibold text-slate-900 mb-4">Pending Join Requests</h3>
@@ -419,13 +454,13 @@ export default function OrganizationPage() {
                         <div className="flex items-center gap-4">
                           {req.userId.profileImage ? (
                             <img
-                              src={`http://localhost:5000/uploads/Profiles/${req.userId.profileImage}`}
-                              alt={req.userId.name}
-                              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
+                              src={getProfileImageUrl(req.userId)}
+                              alt="Profile"
+                              className="w-20 h-20 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 flex items-center justify-center text-lg font-bold text-white shadow-md">
-                              {req.userId.name?.[0]}
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-sm">
+                              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{req.userId.name?.[0]}</span>
                             </div>
                           )}
                           <div>
@@ -463,9 +498,9 @@ export default function OrganizationPage() {
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-6 flex items-center gap-3">
                   <CalendarIcon className="w-6 h-6" />
-                  Upcoming Events ({upcoming.length})
+                  Upcoming Events ({upcoming && Array.isArray(upcoming) ? upcoming.length : 0})
                 </h2>
-                {upcoming.length === 0 ? (
+                {!upcoming || !Array.isArray(upcoming) || upcoming.length === 0 ? (
                   <p className="text-slate-600 text-center py-8">No upcoming events.</p>
                 ) : (
                   <>
@@ -536,10 +571,10 @@ export default function OrganizationPage() {
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 bg-clip-text text-transparent mb-6 flex items-center gap-3">
                   <ClockIcon className="w-6 h-6" />
-                  Past Events ({past.length})
+                  Past Events ({past && Array.isArray(past) ? past.length : 0})
                 </h2>
-                {past.length === 0 ? (
-                  <p className="text-slate-600 text-center py-8">No past events.</p>
+                {!past || !Array.isArray(past) || past.length === 0 ? (
+                  <p className="text-slate-600 text-center py-8">No past events found.</p>
                 ) : (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

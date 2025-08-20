@@ -103,8 +103,8 @@ export default function UserProfilePage() {
                     className="w-24 h-24 rounded-full object-cover border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105"
                   />
                 ) : (
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105 ${getRoleColors('organizer')}`}>
-                    <span className="text-3xl font-bold">{getAvatarInitial(user)}</span>
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-4 border-blue-300 shadow mb-2 transition-transform duration-500 hover:scale-105">
+                    <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>
                   </div>
                 )}
                 <h1 className="text-3xl font-bold text-blue-800 mb-1 animate-fade-in-slow">{getSafeUserName(user)}</h1>

@@ -534,25 +534,31 @@ export default function EventStepOne({
               Existing Images:
             </Typography>
             <Box display="flex" flexWrap="wrap" gap={2}>
-              {existingImages.map((img, index) => (
-                <Box key={index} display="flex" flexDirection="column" alignItems="center" gap={1}>
-                  <img 
-                    src={`http://localhost:5000/uploads/Events/${img}`} 
-                    alt="Preview" 
-                    width="100" 
-                    height="100"
-                    style={{ borderRadius: 8, objectFit: 'cover', border: '2px solid #e0e0e0' }} 
-                  />
-                  <Button 
-                    size="small" 
-                    color="error" 
-                    variant="outlined"
-                    onClick={() => onRemoveExistingImage(img)}
-                  >
-                    Remove
-                  </Button>
-                </Box>
-              ))}
+              {existingImages.map((img, index) => {
+                // Handle Cloudinary structure
+                if (typeof img === 'object' && img.url) {
+                  return (
+                    <Box key={index} display="flex" flexDirection="column" alignItems="center" gap={1}>
+                      <img 
+                        src={img.url} 
+                        alt={img.filename || `Event Image ${index + 1}`} 
+                        width="100" 
+                        height="100"
+                        style={{ borderRadius: 8, objectFit: 'cover', border: '2px solid #e0e0e0' }} 
+                      />
+                      <Button 
+                        size="small" 
+                        color="error" 
+                        variant="outlined"
+                        onClick={() => onRemoveExistingImage(img)}
+                      >
+                        Remove
+                      </Button>
+                    </Box>
+                  );
+                }
+                return null;
+              })}
             </Box>
           </Box>
         )}

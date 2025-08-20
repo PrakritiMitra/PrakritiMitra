@@ -1,4 +1,5 @@
 const Message = require('../models/Message');
+const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
 
 // GET /api/events/:eventId/messages - Fetch chat history for an event
 exports.getMessages = async (req, res) => {
@@ -73,14 +74,40 @@ exports.getMessages = async (req, res) => {
 
 // POST /api/chatbox/upload - Upload a file for chat
 exports.uploadFile = async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded.' });
-  }
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded.' });
+    }
 
-  res.json({
-    fileUrl: `/uploads/Chat/${req.file.filename}`,
-    fileType: req.file.mimetype
-  });
+    // Upload file to Cloudinary
+    console.log(`📤 Uploading file to Cloudinary: ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)`);
+    const uploadResult = await uploadToCloudinary(req.file, 'chat');
+
+    if (!uploadResult.success) {
+      console.error('❌ Cloudinary upload failed:', uploadResult.error);
+      return res.status(500).json({
+        message: 'Failed to upload file to Cloudinary',
+        error: uploadResult.error
+      });
+    }
+    
+    console.log(`✅ File uploaded successfully to Cloudinary: ${uploadResult.publicId}`);
+
+    res.json({
+      fileUrl: {
+        url: uploadResult.url,
+        publicId: uploadResult.publicId,
+        filename: uploadResult.filename
+      },
+      fileType: req.file.mimetype
+    });
+  } catch (error) {
+    console.error('File upload error:', error);
+    res.status(500).json({
+      message: 'Server error uploading file',
+      error: error.message
+    });
+  }
 };
 
 // PATCH /api/chatbox/messages/:messageId/pin - Pin or unpin a message

@@ -108,7 +108,7 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
       </div>
 
       {/* Sponsorship Stats - Only show if there are sponsors */}
-      {!loading && (sponsorships.length > 0 || stats.totalSponsors > 0) && (
+      {!loading && (sponsorships && Array.isArray(sponsorships) && sponsorships.length > 0 || stats.totalSponsors > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-blue-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">{stats.totalSponsors}</div>
@@ -131,24 +131,24 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600 mt-2">Loading sponsors...</p>
         </div>
-      ) : (sponsorships.length > 0 || stats.totalSponsors > 0) ? (
+      ) : (sponsorships && Array.isArray(sponsorships) && sponsorships.length > 0 || stats.totalSponsors > 0) ? (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Sponsors</h3>
-          {sponsorships.length > 0 ? (
+          {sponsorships && Array.isArray(sponsorships) && sponsorships.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sponsorships.slice(0, 6).map((sponsorship) => (
                 <div key={sponsorship._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <div className="flex items-center mb-3">
                     <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                      {sponsorship.sponsor?.business?.logo ? (
+                      {sponsorship.sponsor?.business?.logo?.url ? (
                         <img
-                          src={`http://localhost:5000/uploads/sponsors/${sponsorship.sponsor.business.logo}`}
+                          src={sponsorship.sponsor.business.logo.url}
                           alt={sponsorship.sponsor.business.name}
                           className="w-12 h-12 rounded-full object-cover"
                         />
                       ) : (
                         <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                         </svg>
                       )}
                     </div>
@@ -185,7 +185,7 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
             </div>
           )}
           
-          {sponsorships.length > 6 && (
+          {sponsorships && Array.isArray(sponsorships) && sponsorships.length > 6 && (
             <div className="text-center mt-4">
               <button
                 onClick={() => navigate(`/organization/${organizationId}/sponsors`)}
@@ -265,7 +265,7 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
       )}
 
              {/* Contact Information - Only show if there are sponsors */}
-       {!loading && (sponsorships.length > 0 || stats.totalSponsors > 0) && organization.sponsorship.contactEmail && isSponsorshipEnabled && (
+       {!loading && (sponsorships && Array.isArray(sponsorships) && sponsorships.length > 0 || stats.totalSponsors > 0) && organization.sponsorship.contactEmail && isSponsorshipEnabled && (
          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
            <h3 className="text-sm font-medium text-gray-900 mb-2">Interested in Sponsoring?</h3>
            <p className="text-sm text-gray-600 mb-2">

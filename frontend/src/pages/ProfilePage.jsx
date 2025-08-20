@@ -33,6 +33,7 @@ import {
   KeyIcon
 } from "@heroicons/react/24/outline";
 import { showAlert, showConfirm } from "../utils/notifications";
+import { getProfileImageUrl, getGovtIdProofUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -152,7 +153,8 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (file) {
       setFormData(prev => ({ ...prev, profileImage: file }));
-      setProfileImagePreview(URL.createObjectURL(file));
+      // Store the file object with type information for proper preview
+      setProfileImagePreview(file);
       setRemoveProfileImage(false); // Reset remove flag when new file is selected
     }
   };
@@ -161,7 +163,8 @@ export default function ProfilePage() {
     const file = e.target.files[0];
     if (file) {
       setFormData(prev => ({ ...prev, govtIdProof: file }));
-      setGovtIdPreview(URL.createObjectURL(file));
+      // Store the file object with type information for proper preview
+      setGovtIdPreview(file);
       setRemoveGovtIdProof(false); // Reset remove flag when new file is selected
     }
   };
@@ -362,7 +365,7 @@ export default function ProfilePage() {
                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center overflow-hidden border-4 border-blue-200 shadow-lg">
                   {safeUser.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${safeUser.profileImage}?k=${refreshKey}`}
+                      src={getProfileImageUrl(safeUser) ? `${getProfileImageUrl(safeUser)}?k=${refreshKey}` : ''}
                       alt="Profile"
                       className="w-20 h-20 rounded-full object-cover"
                     />
@@ -376,13 +379,13 @@ export default function ProfilePage() {
                 {safeUser.govtIdProofUrl ? (
                   safeUser.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}?k=${refreshKey}`}
+                      src={getGovtIdProofUrl(safeUser) ? `${getGovtIdProofUrl(safeUser)}?k=${refreshKey}` : ''}
                       alt="Govt ID"
                       className="w-20 h-14 object-contain border rounded shadow-md mt-2"
                     />
                   ) : (
                     <a
-                      href={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}?k=${refreshKey}`}
+                      href={getGovtIdProofUrl(safeUser) ? `${getGovtIdProofUrl(safeUser)}?k=${refreshKey}` : '#'}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline text-xs mt-2"
@@ -443,13 +446,13 @@ export default function ProfilePage() {
                 <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border-4 border-blue-200 shadow-lg transition-transform duration-500 hover:scale-110">
                   {profileImagePreview ? (
                     <img
-                      src={profileImagePreview}
+                      src={URL.createObjectURL(profileImagePreview)}
                       alt="Profile Preview"
                       className="w-24 h-24 rounded-full object-cover animate-fade-in"
                     />
                   ) : safeUser.profileImage ? (
                     <img
-                      src={`http://localhost:5000/uploads/Profiles/${safeUser.profileImage}`}
+                      src={getProfileImageUrl(safeUser) || ''}
                       alt="Profile"
                       className="w-24 h-24 rounded-full object-cover"
                     />
@@ -457,6 +460,9 @@ export default function ProfilePage() {
                     <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
                       {getSafeUserName(safeUser).charAt(0).toUpperCase()}
                     </div>
+                  )}
+                  {profileImagePreview && (
+                    <span className="block text-xs text-gray-500 mt-1 text-center">{profileImagePreview.name}</span>
                   )}
                 </div>
                 <div className="flex-1">
@@ -493,30 +499,49 @@ export default function ProfilePage() {
                   {govtIdPreview ? (
                     <div>
                       <span className="block text-xs text-gray-500 mb-1">Preview:</span>
-                      <img
-                        src={govtIdPreview}
-                        alt="Govt ID Preview"
-                        className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
-                      />
+                      {govtIdPreview.type && govtIdPreview.type.startsWith('image/') ? (
+                        <img
+                          src={URL.createObjectURL(govtIdPreview)}
+                          alt="Govt ID Preview"
+                          className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
+                        />
+                      ) : (
+                        <div className="w-32 h-20 border rounded shadow-md flex flex-col items-center justify-center bg-gray-50 animate-fade-in">
+                          <svg className="w-8 h-8 text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-xs text-gray-600 text-center">PDF Document</span>
+                          <span className="text-xs text-gray-500 text-center mt-1">{govtIdPreview.name}</span>
+                        </div>
+                      )}
+                      {govtIdPreview && govtIdPreview.type && govtIdPreview.type.startsWith('image/') && (
+                        <span className="block text-xs text-gray-500 mt-1 text-center">{govtIdPreview.name}</span>
+                      )}
                     </div>
                   ) : safeUser.govtIdProofUrl ? (
                     <div>
                       <span className="block text-xs text-slate-500 mb-1">Current:</span>
                       {safeUser.govtIdProofUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                         <img
-                          src={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}`}
+                          src={getGovtIdProofUrl(safeUser) || ''}
                           alt="Govt ID"
                           className="w-32 h-20 object-contain border rounded shadow-md animate-fade-in"
                         />
                       ) : (
-                        <a
-                          href={`http://localhost:5000/uploads/Profiles/${safeUser.govtIdProofUrl}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline text-sm animate-fade-in"
-                        >
-                          View Govt ID
-                        </a>
+                        <div className="w-32 h-20 border rounded shadow-md flex flex-col items-center justify-center bg-gray-50 animate-fade-in">
+                          <svg className="w-8 h-8 text-red-500 mb-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-xs text-gray-600 text-center">PDF Document</span>
+                          <a
+                            href={getGovtIdProofUrl(safeUser) || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline text-xs mt-1 hover:text-blue-800"
+                          >
+                            View PDF
+                          </a>
+                        </div>
                       )}
                     </div>
                   ) : (

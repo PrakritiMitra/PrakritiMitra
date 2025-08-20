@@ -267,7 +267,11 @@ const userSchema = new mongoose.Schema({
       event: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' },
       award: { type: String },
       certId: { type: String },
-      filePath: { type: String },
+      filePath: {
+        url: { type: String }, // Cloudinary URL
+        publicId: { type: String }, // Cloudinary public ID for deletion
+        filename: { type: String } // Original filename for reference
+      },
       issuedAt: { type: Date },
       verificationUrl: { type: String },
       eventName: { type: String },

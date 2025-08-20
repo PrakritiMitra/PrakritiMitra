@@ -38,7 +38,7 @@ export default function EventAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const currentUser = JSON.parse(localStorage.getItem("user"));
-  const imageBaseUrl = "http://localhost:5000/uploads/Profiles/";
+  // Legacy support for old image URLs - will be removed after Cloudinary migration
   const [showScanner, setShowScanner] = useState(false);
   const [volunteerEdit, setVolunteerEdit] = useState({}); // { [registrationId]: { type: 'in'|'out', value: '' } }
   const [downloadingReport, setDownloadingReport] = useState(false);
@@ -363,8 +363,8 @@ export default function EventAttendancePage() {
                                 className="w-8 h-8 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-emerald-200"
                               />
                             ) : (
-                              <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 border-emerald-200 ${getRoleColors(attendanceVolunteer.role)}`}>
-                                <span className="text-xs sm:text-sm font-bold">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
+                              <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 shadow-sm ${getRoleColors(attendanceVolunteer.role)}`}>
+                                <span className="text-xs sm:text-sm font-bold bg-clip-text text-transparent">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
                               </div>
                             )}
                           </td>
@@ -544,8 +544,8 @@ export default function EventAttendancePage() {
                                           className="w-8 h-8 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-blue-200"
                                         />
                                       ) : (
-                                        <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 border-blue-200 ${getRoleColors(attendanceUser.role)}`}>
-                                          <span className="text-xs sm:text-sm font-bold">{getAttendanceAvatarInitial(attendanceUser)}</span>
+                                        <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 shadow-sm ${getRoleColors(attendanceUser.role)}`}>
+                                          <span className="text-xs sm:text-sm font-bold bg-clip-text text-transparent">{getAttendanceAvatarInitial(attendanceUser)}</span>
                                         </div>
                                       )}
                                     </td>

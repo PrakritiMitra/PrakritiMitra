@@ -24,24 +24,24 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
   );
 
   // Helper for letter preview
-  const renderLetter = () => {
+  const renderGovtApprovalLetter = () => {
     if (formData.govtApprovalLetter) {
-      // New upload
+      // New file being uploaded
       return formData.govtApprovalLetter.name;
     } else if (existingLetter) {
-      // Existing file
-      if (existingLetter.match(/\.(jpg|jpeg|png|gif)$/i)) {
+      // Existing Cloudinary file
+      if (existingLetter.url && existingLetter.url.match(/\.(jpg|jpeg|png|gif)$/i)) {
         return (
           <img
-            src={`http://localhost:5000/uploads/Events/${existingLetter}`}
+            src={existingLetter.url}
             alt="Govt Approval Letter"
             style={{ width: 120, borderRadius: 6, marginTop: 4 }}
           />
         );
-      } else if (existingLetter.match(/\.pdf$/i)) {
+      } else if (existingLetter.url && existingLetter.url.match(/\.pdf$/i)) {
         return (
           <a
-            href={`http://localhost:5000/uploads/Events/${existingLetter}`}
+            href={existingLetter.url}
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: '#1976d2', textDecoration: 'underline' }}
@@ -50,7 +50,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
           </a>
         );
       } else {
-        return existingLetter;
+        return existingLetter.filename || 'Document';
       }
     } else {
       return "Not uploaded";
@@ -158,17 +158,21 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
                     />
                   ) : null
                 )}
-                {/* Show existing images (filenames as string) */}
-                {formData.existingImages?.map((img, idx) =>
-                  typeof img === 'string' ? (
-                    <img
-                      key={`existing-${idx}`}
-                      src={`http://localhost:5000/uploads/Events/${img}`}
-                      alt={`Event Image ${idx + 1}`}
-                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }}
-                    />
-                  ) : null
-                )}
+                {/* Show existing images (Cloudinary structure only) */}
+                {formData.existingImages?.map((img, idx) => {
+                  // Handle Cloudinary structure
+                  if (typeof img === 'object' && img.url) {
+                    return (
+                      <img
+                        key={`existing-${idx}`}
+                        src={img.url}
+                        alt={img.filename || `Event Image ${idx + 1}`}
+                        style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }}
+                      />
+                    );
+                  }
+                  return null;
+                })}
                 {/* Fallback if no images */}
                 {(!formData.eventImages || formData.eventImages.length === 0) && (!formData.existingImages || formData.existingImages.length === 0) && (
                   <span style={{ color: '#888' }}>None</span>
@@ -182,7 +186,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
         <ListItem>
           <ListItemText
             primary="Govt Approval Letter"
-            secondary={renderLetter()}
+            secondary={renderGovtApprovalLetter()}
             primaryTypographyProps={{ fontWeight: "bold" }}
           />
         </ListItem>

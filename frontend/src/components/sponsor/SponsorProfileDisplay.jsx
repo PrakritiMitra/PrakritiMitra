@@ -338,40 +338,61 @@ const SponsorProfileDisplay = ({ sponsor, onEdit, onDelete, onRefresh }) => {
             Business Documents
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {sponsor.logo && (
+            {sponsor.business?.logo?.url && (
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-2 bg-white rounded-lg border flex items-center justify-center">
-                  <img src={`http://localhost:5000/uploads/sponsors/${sponsor.logo}`} alt="Logo" className="w-12 h-12 object-contain" />
+                  <img src={sponsor.business.logo.url} alt="Logo" className="w-12 h-12 object-contain" />
                 </div>
                 <p className="text-sm text-gray-600">Company Logo</p>
               </div>
             )}
-            {sponsor.documents?.gstCertificate && (
+            {sponsor.business?.documents?.gstCertificate?.url && (
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-2 bg-white rounded-lg border flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <a 
+                    href={sponsor.business.documents.gstCertificate.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:bg-gray-50 transition-colors rounded-lg p-2"
+                  >
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </a>
                 </div>
                 <p className="text-sm text-gray-600">GST Certificate</p>
               </div>
             )}
-            {sponsor.documents?.panCard && (
+            {sponsor.business?.documents?.panCard?.url && (
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-2 bg-white rounded-lg border flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <a 
+                    href={sponsor.business.documents.panCard.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:bg-gray-50 transition-colors rounded-lg p-2"
+                  >
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </a>
                 </div>
                 <p className="text-sm text-gray-600">PAN Card</p>
               </div>
             )}
-            {sponsor.documents?.companyRegistration && (
+            {sponsor.business?.documents?.companyRegistration?.url && (
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-2 bg-white rounded-lg border flex items-center justify-center">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <a 
+                    href={sponsor.business.documents.companyRegistration.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:bg-gray-50 transition-colors rounded-lg p-2"
+                  >
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </a>
                 </div>
                 <p className="text-sm text-gray-600">Company Registration</p>
               </div>

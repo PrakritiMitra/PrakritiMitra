@@ -27,10 +27,11 @@ const Avatar = ({
   const profileImageUrl = getProfileImageUrl(safeUser);
   const firstLetter = getAvatarInitial(safeUser);
   const sizeClass = sizeClasses[size] || sizeClasses.md;
-  const roleColor = getRoleColors(role);
-  const borderClass = showBorder ? 'border-2' : '';
+  const borderClass = showBorder ? 'border-2 border-blue-200' : '';
+  const bgClass = 'bg-gradient-to-r from-blue-100 to-emerald-100';
+  const textClass = 'bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent';
 
-  const baseClasses = `rounded-full flex items-center justify-center overflow-hidden ${sizeClass} ${roleColor} ${borderClass} ${className}`;
+  const baseClasses = `rounded-full flex items-center justify-center overflow-hidden ${sizeClass} ${bgClass} ${borderClass} shadow-sm ${className}`;
 
   if (onClick) {
     return (
@@ -46,7 +47,7 @@ const Avatar = ({
 
           />
         ) : null}
-        <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+        <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full ${textClass}`}>
           {firstLetter}
         </span>
       </div>
@@ -63,7 +64,7 @@ const Avatar = ({
 
         />
       ) : null}
-      <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+      <span className={`font-bold ${profileImageUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full ${textClass}`}>
         {firstLetter}
       </span>
     </div>

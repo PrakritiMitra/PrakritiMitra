@@ -89,10 +89,9 @@ export default function VolunteerEventDetailsPage() {
   
   // UI Interaction state
   const [showExitQr, setShowExitQr] = useState(false);
-  const [exitQrPath, setExitQrPath] = useState(null);
+  const [exitQrPath, setExitQrPath] = useState({});
   const userData = JSON.parse(localStorage.getItem("user"));
   const user = getSafeUserData(userData); // Get safe user data
-  const imageBaseUrl = "http://localhost:5000/uploads/Events/";
 
 
 
@@ -411,19 +410,13 @@ export default function VolunteerEventDetailsPage() {
 
   // Clear QR code state when event completes
   const clearQrCodeState = () => {
-    if (!isPastEvent) return;
-    
     // Clear exit QR code state
-    if (exitQrPath) {
-      setExitQrPath(null);
-      setShowExitQr(false);
-    }
-    
+    setExitQrPath({});
     // Clear entry QR code reference from registration details
     if (registrationDetails?.qrCodePath) {
       setRegistrationDetails(prev => ({
         ...prev,
-        qrCodePath: null
+        qrCodePath: {}
       }));
     }
   };
@@ -582,8 +575,8 @@ export default function VolunteerEventDetailsPage() {
     cert => (getSafeUserId(cert.user) || cert.user) === getSafeUserId(user)
   ) || [];
   
-  const canGenerateCertificate = isPastEvent && isRegistered && questionnaireCompleted && userCertificates.length > 0 && userCertificates[0].role === 'volunteer' && !userCertificates[0].filePath;
-  const certificateGenerated = userCertificates.length > 0 && userCertificates[0].filePath;
+  const canGenerateCertificate = isPastEvent && isRegistered && questionnaireCompleted && userCertificates.length > 0 && userCertificates[0].role === 'volunteer' && !userCertificates[0].filePath?.url;
+  const certificateGenerated = userCertificates.length > 0 && userCertificates[0].filePath?.url;
 
   const eventImage = defaultImages[event.eventType?.toLowerCase()] || defaultImages["default"];
 
@@ -868,21 +861,20 @@ export default function VolunteerEventDetailsPage() {
             {userCertificates.length > 0 ? (
                    <div className="space-y-3">
                 {certificateGenerated ? (
-                       <div className="space-y-3">
-                         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                           <p className="text-sm text-green-800">
-                             🎉 <strong>Certificate ready!</strong> You can now download your certificate.
-                           </p>
-                         </div>
-                         <a 
-                           href={`http://localhost:5000${userCertificates[0].filePath.replace(/\\/g, '/')}`} 
-                           className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm text-center block"
-                           download
-                         >
-                    📄 Download Certificate
-                  </a>
-                       </div>
-                     ) : (
+                    <div className="text-center">
+                      <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm mb-3">
+                        🎉 <strong>Certificate ready!</strong> You can now download your certificate.
+                      </div>
+                      <a
+                        href={userCertificates[0].filePath.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        📄 Download Certificate
+                      </a>
+                    </div>
+                  ) : (
                        <div className="space-y-3">
                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                            <p className="text-sm text-green-800">
@@ -1166,10 +1158,10 @@ export default function VolunteerEventDetailsPage() {
                  )}
 
                                    {/* Entry QR Code - Only for live/upcoming events (automatically cleared when event completes) */}
-                  {!isPastEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath && (
+                  {!isPastEvent && !registrationDetails?.inTime && registrationDetails?.qrCodePath?.url && (
                     <div className="text-center">
                       <h4 className="text-md font-semibold mb-2 text-blue-800">Your Entry QR Code</h4>
-                      <img src={`http://localhost:5000${registrationDetails.qrCodePath}`} alt="Entry QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
+                      <img src={registrationDetails.qrCodePath.url} alt="Entry QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
                       <p className="mt-3 text-blue-800 text-sm">Show this to the organizer at the event entrance.</p>
                     </div>
                   )}
@@ -1180,10 +1172,10 @@ export default function VolunteerEventDetailsPage() {
                       <button onClick={handleGenerateExitQr} className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm">
                         Generate Exit QR
                       </button>
-                    ) : exitQrPath && (
+                    ) : exitQrPath?.url && (
                       <div className="text-center">
                         <h4 className="text-md font-semibold mb-2 text-green-800">Your Exit QR Code</h4>
-                        <img src={`http://localhost:5000${exitQrPath}`} alt="Exit QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
+                        <img src={exitQrPath.url} alt="Exit QR Code" className="border border-gray-300 p-2 w-48 h-48 mx-auto" />
                         <p className="mt-3 text-green-800 text-sm">Show this to the organizer at the exit to mark your out-time.</p>
                       </div>
                     )
@@ -1681,7 +1673,6 @@ export default function VolunteerEventDetailsPage() {
                      
                      <ImageCarousel 
                        images={event.eventImages}
-                       imageBaseUrl={imageBaseUrl}
                        autoPlay={true}
                        interval={5000}
                      />

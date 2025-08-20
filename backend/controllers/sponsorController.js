@@ -1,7 +1,6 @@
 const Sponsor = require('../models/sponsor');
 const User = require('../models/user');
-const fs = require('fs');
-const path = require('path');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 const { updateSponsorStats } = require('../utils/sponsorUtils');
 
 // Create a new sponsor profile
@@ -28,12 +27,85 @@ exports.createSponsor = async (req, res) => {
       });
     }
 
-    // Handle file uploads
+    // Handle file uploads to Cloudinary
     const files = req.files || {};
-    const logo = files.logo ? files.logo[0].filename : undefined;
-    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].filename : undefined;
-    const panCard = files.panCard ? files.panCard[0].filename : undefined;
-    const companyRegistration = files.companyRegistration ? files.companyRegistration[0].filename : undefined;
+    let logoData, gstCertificateData, panCardData, companyRegistrationData;
+    
+    // Upload logo if provided
+    if (files.logo && files.logo[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.logo[0], 'sponsors/logos');
+        if (uploadResult.success) {
+          logoData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ Logo uploaded successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ Logo upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading logo:', error);
+      }
+    }
+    
+    // Upload GST Certificate if provided
+    if (files.gstCertificate && files.gstCertificate[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.gstCertificate[0], 'sponsors/documents');
+        if (uploadResult.success) {
+          gstCertificateData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ GST Certificate uploaded successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ GST Certificate upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading GST Certificate:', error);
+      }
+    }
+    
+    // Upload PAN Card if provided
+    if (files.panCard && files.panCard[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.panCard[0], 'sponsors/documents');
+        if (uploadResult.success) {
+          panCardData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ PAN Card uploaded successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ PAN Card upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading PAN Card:', error);
+      }
+    }
+    
+    // Upload Company Registration if provided
+    if (files.companyRegistration && files.companyRegistration[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.companyRegistration[0], 'sponsors/documents');
+        if (uploadResult.success) {
+          companyRegistrationData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ Company Registration uploaded successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ Company Registration upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading Company Registration:', error);
+      }
+    }
 
     // Create sponsor profile
     const sponsorData = {
@@ -51,11 +123,11 @@ exports.createSponsor = async (req, res) => {
     if (sponsorType === 'business') {
       sponsorData.business = {
         ...business,
-        logo,
+        logo: logoData || null,
         documents: {
-          gstCertificate,
-          panCard,
-          companyRegistration
+          gstCertificate: gstCertificateData || null,
+          panCard: panCardData || null,
+          companyRegistration: companyRegistrationData || null
         }
       };
     } else if (sponsorType === 'individual') {
@@ -150,12 +222,109 @@ exports.updateSponsor = async (req, res) => {
       });
     }
 
-    // Handle file uploads
+    // Handle file uploads to Cloudinary
     const files = req.files || {};
-    const logo = files.logo ? files.logo[0].filename : undefined;
-    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].filename : undefined;
-    const panCard = files.panCard ? files.panCard[0].filename : undefined;
-    const companyRegistration = files.companyRegistration ? files.companyRegistration[0].filename : undefined;
+    let logoData, gstCertificateData, panCardData, companyRegistrationData;
+    
+    // Upload logo if provided
+    if (files.logo && files.logo[0]) {
+      try {
+        // Delete old logo from Cloudinary if it exists
+        if (sponsor.business?.logo?.publicId) {
+          await deleteFromCloudinary(sponsor.business.logo.publicId);
+          console.log(`🗑️ Deleted old logo from Cloudinary: ${sponsor.business.logo.publicId}`);
+        }
+        
+        const uploadResult = await uploadToCloudinary(files.logo[0], 'sponsors/logos');
+        if (uploadResult.success) {
+          logoData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ Logo updated successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ Logo upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading logo:', error);
+      }
+    }
+    
+    // Upload GST Certificate if provided
+    if (files.gstCertificate && files.gstCertificate[0]) {
+      try {
+        // Delete old document from Cloudinary if it exists
+        if (sponsor.business?.documents?.gstCertificate?.publicId) {
+          await deleteFromCloudinary(sponsor.business.documents.gstCertificate.publicId);
+          console.log(`🗑️ Deleted old GST Certificate from Cloudinary: ${sponsor.business.documents.gstCertificate.publicId}`);
+        }
+        
+        const uploadResult = await uploadToCloudinary(files.gstCertificate[0], 'sponsors/documents');
+        if (uploadResult.success) {
+          gstCertificateData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ GST Certificate updated successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ GST Certificate upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading GST Certificate:', error);
+      }
+    }
+    
+    // Upload PAN Card if provided
+    if (files.panCard && files.panCard[0]) {
+      try {
+        // Delete old document from Cloudinary if it exists
+        if (sponsor.business?.documents?.panCard?.publicId) {
+          await deleteFromCloudinary(sponsor.business.documents.panCard.publicId);
+          console.log(`🗑️ Deleted old PAN Card from Cloudinary: ${sponsor.business.documents.panCard.publicId}`);
+        }
+        
+        const uploadResult = await uploadToCloudinary(files.panCard[0], 'sponsors/documents');
+        if (uploadResult.success) {
+          panCardData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ PAN Card updated successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ PAN Card upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading PAN Card:', error);
+      }
+    }
+    
+    // Upload Company Registration if provided
+    if (files.companyRegistration && files.companyRegistration[0]) {
+      try {
+        // Delete old document from Cloudinary if it exists
+        if (sponsor.business?.documents?.companyRegistration?.publicId) {
+          await deleteFromCloudinary(sponsor.business.documents.companyRegistration.publicId);
+          console.log(`🗑️ Deleted old Company Registration from Cloudinary: ${sponsor.business.documents.companyRegistration.publicId}`);
+        }
+        
+        const uploadResult = await uploadToCloudinary(files.companyRegistration[0], 'sponsors/documents');
+        if (uploadResult.success) {
+          companyRegistrationData = {
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: uploadResult.filename
+          };
+          console.log(`✅ Company Registration updated successfully: ${uploadResult.publicId}`);
+        } else {
+          console.error('❌ Company Registration upload failed:', uploadResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error uploading Company Registration:', error);
+      }
+    }
 
     // Update sponsor data
     const updateData = {
@@ -171,12 +340,12 @@ exports.updateSponsor = async (req, res) => {
     if (sponsor.sponsorType === 'business') {
       updateData.business = {
         ...business,
-        ...(logo && { logo }),
+        ...(logoData && { logo: logoData }),
         documents: {
           ...sponsor.business?.documents,
-          ...(gstCertificate && { gstCertificate }),
-          ...(panCard && { panCard }),
-          ...(companyRegistration && { companyRegistration })
+          ...(gstCertificateData && { gstCertificate: gstCertificateData }),
+          ...(panCardData && { panCard: panCardData }),
+          ...(companyRegistrationData && { companyRegistration: companyRegistrationData })
         }
       };
     } else if (sponsor.sponsorType === 'individual') {
@@ -224,24 +393,27 @@ exports.deleteSponsor = async (req, res) => {
       });
     }
 
-    // Delete associated files
-    if (sponsor.business?.logo) {
-      const logoPath = path.join(__dirname, '..', 'uploads', 'sponsors', sponsor.business.logo);
-      if (fs.existsSync(logoPath)) {
-        fs.unlinkSync(logoPath);
+    // Delete associated files from Cloudinary
+    try {
+      // Delete logo if it exists
+      if (sponsor.business?.logo?.publicId) {
+        await deleteFromCloudinary(sponsor.business.logo.publicId);
+        console.log(`🗑️ Deleted logo from Cloudinary: ${sponsor.business.logo.publicId}`);
       }
-    }
 
-    if (sponsor.business?.documents) {
-      const documents = sponsor.business.documents;
-      Object.values(documents).forEach(filename => {
-        if (filename) {
-          const docPath = path.join(__dirname, '..', 'uploads', 'sponsors', filename);
-          if (fs.existsSync(docPath)) {
-            fs.unlinkSync(docPath);
+      // Delete business documents if they exist
+      if (sponsor.business?.documents) {
+        const documents = sponsor.business.documents;
+        for (const [docType, docData] of Object.entries(documents)) {
+          if (docData && docData.publicId) {
+            await deleteFromCloudinary(docData.publicId);
+            console.log(`🗑️ Deleted ${docType} from Cloudinary: ${docData.publicId}`);
           }
         }
-      });
+      }
+    } catch (fileError) {
+      console.error('⚠️ Error deleting files from Cloudinary:', fileError);
+      // Continue with sponsor deletion even if file deletion fails
     }
 
     // Delete sponsor profile

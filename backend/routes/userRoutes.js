@@ -3,9 +3,39 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/authMiddleware');
 const User = require('../models/user');
-const { profileMultiUpload } = require('../middlewares/upload');
+const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+
+// Custom middleware for profile updates that handles both profile images and government ID proofs
+const profileUpdateUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'profileImage') {
+      // Profile images: only images allowed
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed for profile pictures.'), false);
+      }
+    } else if (file.fieldname === 'govtIdProof') {
+      // Government ID proofs: images and PDFs allowed
+      if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files and PDFs are allowed for government ID proofs.'), false);
+      }
+    } else {
+      cb(new Error('Unexpected field name'), false);
+    }
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit for all files
+  }
+}).fields([
+  { name: 'profileImage', maxCount: 1 },
+  { name: 'govtIdProof', maxCount: 1 },
+]);
 
 // Helper function to safely delete files
 const deleteFile = (filePath, fileName) => {
@@ -131,7 +161,7 @@ router.get('/organizers', protect, async (req, res) => {
   }
 });
 
-router.put('/profile', protect, profileMultiUpload, async (req, res) => {
+router.put('/profile', protect, profileUpdateUpload, async (req, res) => {
   try {
     const userId = req.user._id;
     
@@ -195,33 +225,69 @@ router.put('/profile', protect, profileMultiUpload, async (req, res) => {
 
     // Handle profile image upload
     if (req.files?.profileImage?.[0]) {
-      // Delete old profile image if it exists
-      if (currentUser.profileImage) {
-        const oldProfileImagePath = path.join(__dirname, '../uploads/Profiles', currentUser.profileImage);
-        deleteFile(oldProfileImagePath, currentUser.profileImage);
+      // Delete old profile image from Cloudinary if it exists
+      if (currentUser.profileImage && currentUser.profileImage.startsWith('http')) {
+        const { deleteFromCloudinary, getFileInfoFromUrl } = require('../utils/cloudinaryUtils');
+        const fileInfo = getFileInfoFromUrl(currentUser.profileImage);
+        if (fileInfo && fileInfo.publicId) {
+          await deleteFromCloudinary(fileInfo.publicId);
+        }
       }
-      updateData.profileImage = req.files.profileImage[0].filename;
+      
+      // Upload new profile image to Cloudinary
+      const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+      const uploadResult = await uploadToCloudinary(req.files.profileImage[0], 'profiles');
+      
+      if (uploadResult.success) {
+        updateData.profileImage = uploadResult.url;
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload profile image'
+        });
+      }
     } else if (req.body.removeProfileImage === 'true') {
-      // Handle profile image removal
-      if (currentUser.profileImage) {
-        const oldProfileImagePath = path.join(__dirname, '../uploads/Profiles', currentUser.profileImage);
-        deleteFile(oldProfileImagePath, currentUser.profileImage);
+      // Handle profile image removal from Cloudinary
+      if (currentUser.profileImage && currentUser.profileImage.startsWith('http')) {
+        const { deleteFromCloudinary, getFileInfoFromUrl } = require('../utils/cloudinaryUtils');
+        const fileInfo = getFileInfoFromUrl(currentUser.profileImage);
+        if (fileInfo && fileInfo.publicId) {
+          await deleteFromCloudinary(fileInfo.publicId);
+        }
       }
       updateData.profileImage = null;
     }
     
     if (req.files?.govtIdProof?.[0]) {
-      // Delete old government ID proof if it exists
-      if (currentUser.govtIdProofUrl) {
-        const oldGovtIdPath = path.join(__dirname, '../uploads/Profiles', currentUser.govtIdProofUrl);
-        deleteFile(oldGovtIdPath, currentUser.govtIdProofUrl);
+      // Delete old government ID proof from Cloudinary if it exists
+      if (currentUser.govtIdProofUrl && currentUser.govtIdProofUrl.startsWith('http')) {
+        const { deleteFromCloudinary, getFileInfoFromUrl } = require('../utils/cloudinaryUtils');
+        const fileInfo = getFileInfoFromUrl(currentUser.govtIdProofUrl);
+        if (fileInfo && fileInfo.publicId) {
+          await deleteFromCloudinary(fileInfo.publicId);
+        }
       }
-      updateData.govtIdProofUrl = req.files.govtIdProof[0].filename;
+      
+      // Upload new government ID proof to Cloudinary
+      const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+      const uploadResult = await uploadToCloudinary(req.files.govtIdProof[0], 'documents');
+      
+      if (uploadResult.success) {
+        updateData.govtIdProofUrl = uploadResult.url;
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload government ID proof'
+        });
+      }
     } else if (req.body.removeGovtIdProof === 'true') {
-      // Handle government ID proof removal
-      if (currentUser.govtIdProofUrl) {
-        const oldGovtIdPath = path.join(__dirname, '../uploads/Profiles', currentUser.govtIdProofUrl);
-        deleteFile(oldGovtIdPath, currentUser.govtIdProofUrl);
+      // Handle government ID proof removal from Cloudinary
+      if (currentUser.govtIdProofUrl && currentUser.govtIdProofUrl.startsWith('http')) {
+        const { deleteFromCloudinary, getFileInfoFromUrl } = require('../utils/cloudinaryUtils');
+        const fileInfo = getFileInfoFromUrl(currentUser.govtIdProofUrl);
+        if (fileInfo && fileInfo.publicId) {
+          await deleteFromCloudinary(fileInfo.publicId);
+        }
       }
       updateData.govtIdProofUrl = null;
     }

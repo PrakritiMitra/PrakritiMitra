@@ -3,12 +3,11 @@
 const Event = require('../models/event');
 const RecurringEventSeries = require('../models/recurringEventSeries');
 const mongoose = require('mongoose');
-const fs = require("fs");
 const path = require("path");
 const Organization = require("../models/organization");
 const axios = require('axios');
 const User = require('../models/user');
-const { generateCertificate } = require('../utils/certificateGenerator');
+const { generateCertificate } = require('../utils/certificateUtils');
 const { 
   calculateNextRecurringDate, 
   createRecurringEventInstance,
@@ -20,6 +19,7 @@ const {
   validateTimeSlots, 
   prepareTimeSlotsForSave 
 } = require('../utils/timeSlotUtils');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 
 // Create new event
 exports.createEvent = async (req, res) => {
@@ -125,9 +125,40 @@ exports.createEvent = async (req, res) => {
       return { address: '', lat: null, lng: null };
     })();
 
-    // File handling
-    const images = req.files?.eventImages?.map((f) => f.filename) || [];
-    const approvalLetter = req.files?.govtApprovalLetter?.[0]?.filename || null;
+    // File handling - Upload to Cloudinary
+    let images = [];
+    let approvalLetter = null;
+
+    // Upload event images to Cloudinary
+    if (req.files?.eventImages) {
+      for (const file of req.files.eventImages) {
+        const uploadResult = await uploadToCloudinary(file, 'events/images');
+        if (uploadResult.success) {
+          images.push({
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: file.originalname
+          });
+        } else {
+          console.error('Failed to upload event image:', uploadResult.error);
+        }
+      }
+    }
+
+    // Upload government approval letter to Cloudinary
+    if (req.files?.govtApprovalLetter?.[0]) {
+      const file = req.files.govtApprovalLetter[0];
+      const uploadResult = await uploadToCloudinary(file, 'events/documents');
+      if (uploadResult.success) {
+        approvalLetter = {
+          url: uploadResult.url,
+          publicId: uploadResult.publicId,
+          filename: file.originalname
+        };
+      } else {
+        console.error('Failed to upload approval letter:', uploadResult.error);
+      }
+    }
 
     // Build the event object
     const eventData = {
@@ -351,9 +382,11 @@ exports.updateEvent = async (req, res) => {
     if (removedImages) {
       const toRemove = Array.isArray(removedImages) ? removedImages : [removedImages];
       event.eventImages = event.eventImages.filter((img) => {
-        if (toRemove.includes(img)) {
-          const imgPath = path.join(__dirname, "../uploads/Events", img);
-          if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+        if (toRemove.includes(img.publicId)) {
+          // Delete from Cloudinary
+          deleteFromCloudinary(img.publicId).catch(err => 
+            console.error('Failed to delete image from Cloudinary:', err)
+          );
           return false;
         }
         return true;
@@ -362,20 +395,44 @@ exports.updateEvent = async (req, res) => {
 
     // ✅ Remove letter file if requested
     if (req.body.removedLetter === "true" && event.govtApprovalLetter) {
-      const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
-      if (fs.existsSync(letterPath)) fs.unlinkSync(letterPath);
+      // Delete from Cloudinary
+      if (event.govtApprovalLetter.publicId) {
+        deleteFromCloudinary(event.govtApprovalLetter.publicId).catch(err => 
+          console.error('Failed to delete approval letter from Cloudinary:', err)
+        );
+      }
       event.govtApprovalLetter = null;
     }
 
     // ✅ Add new uploaded images (if any)
     if (req.files?.eventImages) {
-      const newImages = req.files.eventImages.map((f) => f.filename);
-      event.eventImages = [...event.eventImages, ...newImages];
+      for (const file of req.files.eventImages) {
+        const uploadResult = await uploadToCloudinary(file, 'events/images');
+        if (uploadResult.success) {
+          event.eventImages.push({
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: file.originalname
+          });
+        } else {
+          console.error('Failed to upload event image:', uploadResult.error);
+        }
+      }
     }
 
     // ✅ Add new approval letter (if uploaded)
     if (req.files?.govtApprovalLetter?.length) {
-      event.govtApprovalLetter = req.files.govtApprovalLetter[0].filename;
+      const file = req.files.govtApprovalLetter[0];
+      const uploadResult = await uploadToCloudinary(file, 'events/documents');
+      if (uploadResult.success) {
+        event.govtApprovalLetter = {
+          url: uploadResult.url,
+          publicId: uploadResult.publicId,
+          filename: file.originalname
+        };
+      } else {
+        console.error('Failed to upload approval letter:', uploadResult.error);
+      }
     }
 
     // Form fields
@@ -550,25 +607,42 @@ exports.deleteEvent = async (req, res) => {
 
     // ✅ Delete associated files before deleting the event
     try {
-      // Delete event images
+      // Delete event images from Cloudinary
       if (event.eventImages && event.eventImages.length > 0) {
-        event.eventImages.forEach(img => {
-          const imgPath = path.join(__dirname, "../uploads/Events", img);
-          if (fs.existsSync(imgPath)) {
-            fs.unlinkSync(imgPath);
+        for (const img of event.eventImages) {
+          if (img.publicId) {
+            await deleteFromCloudinary(img.publicId);
           }
-        });
-      }
-
-      // Delete government approval letter
-      if (event.govtApprovalLetter) {
-        const letterPath = path.join(__dirname, "../uploads/Events", event.govtApprovalLetter);
-        if (fs.existsSync(letterPath)) {
-          fs.unlinkSync(letterPath);
         }
       }
+
+      // Delete government approval letter from Cloudinary
+      if (event.govtApprovalLetter && event.govtApprovalLetter.publicId) {
+        await deleteFromCloudinary(event.govtApprovalLetter.publicId);
+      }
+      
+      // Delete chat files from Cloudinary
+      const Message = require('../models/Message');
+      const chatMessages = await Message.find({ eventId: event._id, fileUrl: { $exists: true, $ne: null } });
+      
+      for (const msg of chatMessages) {
+        if (msg.fileUrl && msg.fileUrl.publicId) {
+          try {
+            await deleteFromCloudinary(msg.fileUrl.publicId);
+            console.log(`🗑️ Deleted chat file from Cloudinary: ${msg.fileUrl.publicId}`);
+          } catch (deleteError) {
+            console.error('Failed to delete chat file from Cloudinary:', deleteError);
+            // Continue with other deletions
+          }
+        }
+      }
+      
+      // Delete all chat messages for this event
+      await Message.deleteMany({ eventId: event._id });
+      console.log(`🗑️ Deleted ${chatMessages.length} chat messages for event`);
+      
     } catch (fileError) {
-      console.error('⚠️ Error deleting files:', fileError);
+      console.error('⚠️ Error deleting files from Cloudinary:', fileError);
       // Continue with event deletion even if file deletion fails
     }
 
@@ -927,7 +1001,19 @@ exports.completeQuestionnaire = async (req, res) => {
     // Handle media files (optional, only for creator)
     let media = [];
     if (req.files && req.files.length > 0) {
-      media = req.files.map(f => f.filename);
+      // Upload media files to Cloudinary
+      for (const file of req.files) {
+        const uploadResult = await uploadToCloudinary(file, 'events/questionnaire-media');
+        if (uploadResult.success) {
+          media.push({
+            url: uploadResult.url,
+            publicId: uploadResult.publicId,
+            filename: file.originalname
+          });
+        } else {
+          console.error('Failed to upload questionnaire media:', uploadResult.error);
+        }
+      }
     }
 
     // Determine if this user is the creator (first in organizerTeam)
@@ -1100,7 +1186,7 @@ exports.generateCertificate = async (req, res) => {
     }
     
     // Check if certificate is already generated
-    if (certificateAssignment.filePath) {
+    if (certificateAssignment.filePath && certificateAssignment.filePath.url) {
       return res.status(400).json({ message: 'Certificate already generated' });
     }
     
@@ -1162,13 +1248,11 @@ exports.generateCertificate = async (req, res) => {
       eventName: event.title,
       eventDate: event.startDateTime ? event.startDateTime.toLocaleDateString('en-GB') : '',
       eventLocation: event.mapLocation?.address || event.location || '',
-
       awardTitle: award,
       templateName,
-      organizationLogo: '/public/images/default-logo.png', // Update as needed
-      signatureImage: '/public/images/default-signature.png', // Update as needed
+      // organizationLogo and signatureImage are optional - will use defaults if not provided
       issueDate: new Date().toLocaleDateString('en-GB'),
-      verificationUrl: 'https://yourdomain.com/verify-certificate/'
+      // verificationUrl is optional - will use certificate ID if not provided
     });
     
     // Small delay to ensure file is fully written

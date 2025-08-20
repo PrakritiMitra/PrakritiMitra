@@ -64,11 +64,11 @@ export default function OrganizationSettingsPage() {
       
       // Check if user is the creator or an admin team member
       const isCreator = orgData.createdBy === userData._id;
-      const isAdminMember = orgData.team?.some(member => 
+      const isAdminMember = orgData.team && Array.isArray(orgData.team) ? orgData.team.some(member => 
         member.userId === userData._id && 
         member.status === 'approved' && 
         member.isAdmin
-      );
+      ) : false;
       
       if (!isCreator && !isAdminMember) {
         toast.error('You do not have permission to edit this organization.', {

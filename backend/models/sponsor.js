@@ -42,14 +42,30 @@ const sponsorSchema = new mongoose.Schema({
     name: String,
     industry: String,
     website: String,
-    logo: String, // file path
+    logo: {
+      url: { type: String }, // Cloudinary URL
+      publicId: { type: String }, // Cloudinary public ID for deletion
+      filename: { type: String } // Original filename for reference
+    },
     description: String,
     yearEstablished: Number,
     employeeCount: String, // "1-10", "11-50", "51-200", "200+"
     documents: {
-      gstCertificate: String, // file path
-      panCard: String, // file path
-      companyRegistration: String // file path
+      gstCertificate: {
+        url: { type: String }, // Cloudinary URL
+        publicId: { type: String }, // Cloudinary public ID for deletion
+        filename: { type: String } // Original filename for reference
+      },
+      panCard: {
+        url: { type: String }, // Cloudinary URL
+        publicId: { type: String }, // Cloudinary public ID for deletion
+        filename: { type: String } // Original filename for reference
+      },
+      companyRegistration: {
+        url: { type: String }, // Cloudinary URL
+        publicId: { type: String }, // Cloudinary public ID for deletion
+        filename: { type: String } // Original filename for reference
+      }
     }
   },
 

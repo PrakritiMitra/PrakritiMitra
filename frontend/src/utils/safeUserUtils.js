@@ -176,13 +176,23 @@ export const getAttendancePhoneDisplay = (user) => {
   return attendanceUser.phone || 'N/A';
 };
 
-export const getAttendanceProfileImageUrl = (user) => {
-  const attendanceUser = getAttendanceUserData(user);
-  if (attendanceUser.isDeleted) {
-    // For deleted users in attendance, show their actual profile image if available
-    return attendanceUser.profileImage || null;
+// Get attendance profile image URL
+export const getAttendanceProfileImageUrl = (attendanceUser) => {
+  if (!attendanceUser || attendanceUser.isDeleted) {
+    return null;
   }
-  return attendanceUser.profileImage || null;
+  
+  // Handle Cloudinary URLs only
+  if (attendanceUser.profileImage) {
+    // If it's already a URL (Cloudinary or OAuth), return it directly
+    if (attendanceUser.profileImage.startsWith('http')) {
+      return attendanceUser.profileImage;
+    }
+    // No legacy support - only Cloudinary URLs
+    return null;
+  }
+  
+  return null;
 };
 
 export const getAttendanceAvatarInitial = (user) => {

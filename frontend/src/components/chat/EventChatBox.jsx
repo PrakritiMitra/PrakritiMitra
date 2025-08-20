@@ -399,12 +399,29 @@ export default function EventChatbox({ eventId, currentUser }) {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         const { fileUrl, fileType } = res.data;
+        
+        if (!fileUrl || !fileUrl.url) {
+          showAlert.error("Invalid response from server. Please try again.");
+          return;
+        }
+        
         socket.emit('sendMessage', { eventId, fileUrl, fileType, message: fileToSend.name, replyTo: replyToMessage?._id });
         setFileToSend(null); // Clear file after sending
         setReplyToMessage(null);
+        showAlert.success("File uploaded successfully!");
       } catch (err) {
         console.error("File upload failed:", err);
-        showAlert.error("File upload failed. Please try again.");
+        let errorMessage = "File upload failed. Please try again.";
+        
+        if (err.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err.response?.status === 413) {
+          errorMessage = "File too large. Please upload a file smaller than 10MB.";
+        } else if (err.response?.status === 400) {
+          errorMessage = "Invalid file type. Please upload images, PDFs, or common document types.";
+        }
+        
+        showAlert.error(errorMessage);
       }
     } else if (newMessage.trim()) {
       // Handle text message
@@ -443,6 +460,28 @@ export default function EventChatbox({ eventId, currentUser }) {
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        showAlert.error("File size must be less than 10MB");
+        return;
+      }
+      
+      // Validate file type
+      const allowedTypes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        showAlert.error("File type not supported. Please upload images, PDFs, or common document types.");
+        return;
+      }
+      
       setFileToSend(file);
       setNewMessage(''); // Clear text when file is selected
     }
@@ -643,18 +682,24 @@ export default function EventChatbox({ eventId, currentUser }) {
               {pinnedMessage.fileUrl && (
                 pinnedMessage.fileType && pinnedMessage.fileType.startsWith('image/') ? (
                   <img
-                    src={pinnedMessage.fileUrl}
+                    src={pinnedMessage.fileUrl.url || pinnedMessage.fileUrl}
                     alt="Pinned file"
                     className="mt-2 rounded-lg max-w-full h-auto"
                   />
                 ) : (
                   <a
-                    href={pinnedMessage.fileUrl}
+                    href={pinnedMessage.fileUrl.url || pinnedMessage.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 text-blue-600 underline"
+                    className="mt-2 text-blue-600 underline flex items-center gap-2 hover:text-blue-700"
                   >
-                    View File: {pinnedMessage.message}
+                    <span className="text-lg">
+                      {pinnedMessage.fileType === 'application/pdf' ? '📄' : 
+                       pinnedMessage.fileType.startsWith('application/msword') || pinnedMessage.fileType.includes('wordprocessingml') ? '📝' :
+                       pinnedMessage.fileType.startsWith('application/vnd.ms-excel') || pinnedMessage.fileType.includes('spreadsheetml') ? '📊' :
+                       pinnedMessage.fileType === 'text/plain' ? '📄' : '📎'}
+                    </span>
+                    <span>View File: {pinnedMessage.fileUrl.filename || pinnedMessage.message}</span>
                   </a>
                 )
               )}
@@ -720,8 +765,8 @@ export default function EventChatbox({ eventId, currentUser }) {
                         className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getRoleColors(safeUser.role)}`}>
-                        <span className="text-xs font-bold">{getAvatarInitial(safeUser)}</span>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border border-blue-200 shadow-sm">
+                        <span className="text-xs font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(safeUser)}</span>
                       </div>
                     )}
                     <div className={`relative p-3 rounded-lg max-w-[70%] ${bubbleColor} ${isPinned ? 'border-2 border-yellow-400' : ''}`}>
@@ -843,18 +888,24 @@ export default function EventChatbox({ eventId, currentUser }) {
                       {msg.fileUrl && (
                         msg.fileType && msg.fileType.startsWith('image/') ? (
                           <img
-                            src={msg.fileUrl}
+                            src={msg.fileUrl.url || msg.fileUrl}
                             alt="Shared file"
                             className="mt-2 rounded-lg max-w-full h-auto"
                           />
                         ) : (
                           <a
-                            href={msg.fileUrl}
+                            href={msg.fileUrl.url || msg.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-2 text-blue-300 underline"
+                            className="mt-2 text-blue-300 underline flex items-center gap-2 hover:text-blue-400"
                           >
-                            View File: {msg.message}
+                            <span className="text-lg">
+                              {msg.fileType === 'application/pdf' ? '📄' : 
+                               msg.fileType.startsWith('application/msword') || msg.fileType.includes('wordprocessingml') ? '📝' :
+                               msg.fileType.startsWith('application/vnd.ms-excel') || msg.fileType.includes('spreadsheetml') ? '📊' :
+                               msg.fileType === 'text/plain' ? '📄' : '📎'}
+                            </span>
+                            <span>View File: {msg.fileUrl.filename || msg.message}</span>
                           </a>
                         )
                       )}
@@ -933,7 +984,18 @@ export default function EventChatbox({ eventId, currentUser }) {
                     className="max-h-40 rounded-lg mx-auto"
                   />
                 ) : (
-                  <div className="text-sm p-2">{fileToSend.name}</div>
+                  <div className="text-sm p-2 flex items-center gap-2">
+                    <span className="text-lg">
+                      {fileToSend.type === 'application/pdf' ? '📄' : 
+                       fileToSend.type.startsWith('application/msword') || fileToSend.type.includes('wordprocessingml') ? '📝' :
+                       fileToSend.type.startsWith('application/vnd.ms-excel') || fileToSend.type.includes('spreadsheetml') ? '📊' :
+                       fileToSend.type === 'text/plain' ? '📄' : '📎'}
+                    </span>
+                    <span className="font-medium">{fileToSend.name}</span>
+                    <span className="text-xs text-gray-500">
+                      ({(fileToSend.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
                 )}
                 <button
                   type="button"

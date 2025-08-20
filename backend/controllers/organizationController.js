@@ -3,6 +3,7 @@ const Organization = require('../models/organization');
 const User = require('../models/user');
 const fs = require('fs');
 const path = require('path');
+const { uploadToCloudinary, deleteFromCloudinary, getFileInfoFromUrl } = require('../utils/cloudinaryUtils');
 
 // Register new organization
 exports.registerOrganization = async (req, res) => {
@@ -22,13 +23,93 @@ exports.registerOrganization = async (req, res) => {
       focusAreaOther
     } = req.body;
 
-    // Handle file uploads
+    // Handle file uploads to Cloudinary
     const files = req.files || {};
-    const logo = files.logo ? files.logo[0].filename : undefined;
-    const gstCertificate = files.gstCertificate ? files.gstCertificate[0].filename : undefined;
-    const panCard = files.panCard ? files.panCard[0].filename : undefined;
-    const ngoRegistration = files.ngoRegistration ? files.ngoRegistration[0].filename : undefined;
-    const letterOfIntent = files.letterOfIntent ? files.letterOfIntent[0].filename : undefined;
+    let logo = undefined;
+    let gstCertificate = undefined;
+    let panCard = undefined;
+    let ngoRegistration = undefined;
+    let letterOfIntent = undefined;
+
+    // Upload logo to Cloudinary
+    if (files.logo && files.logo[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.logo[0], 'organizations/logos');
+        if (uploadResult.success) {
+          logo = uploadResult.url;
+        } else {
+          console.error('Logo upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload logo' });
+        }
+      } catch (error) {
+        console.error('Logo upload error:', error);
+        return res.status(500).json({ message: 'Failed to upload logo' });
+      }
+    }
+
+    // Upload GST Certificate to Cloudinary
+    if (files.gstCertificate && files.gstCertificate[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.gstCertificate[0], 'organizations/documents');
+        if (uploadResult.success) {
+          gstCertificate = uploadResult.url;
+        } else {
+          console.error('GST Certificate upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload GST Certificate' });
+        }
+      } catch (error) {
+        console.error('GST Certificate upload error:', error);
+        return res.status(500).json({ message: 'Failed to upload GST Certificate' });
+      }
+    }
+
+    // Upload PAN Card to Cloudinary
+    if (files.panCard && files.panCard[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.panCard[0], 'organizations/documents');
+        if (uploadResult.success) {
+          panCard = uploadResult.url;
+        } else {
+          console.error('PAN Card upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload PAN Card' });
+        }
+      } catch (error) {
+        console.error('PAN Card upload error:', error);
+        return res.status(500).json({ message: 'Failed to upload PAN Card' });
+      }
+    }
+
+    // Upload NGO Registration to Cloudinary
+    if (files.ngoRegistration && files.ngoRegistration[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.ngoRegistration[0], 'organizations/documents');
+        if (uploadResult.success) {
+          ngoRegistration = uploadResult.url;
+        } else {
+          console.error('NGO Registration upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload NGO Registration' });
+        }
+      } catch (error) {
+        console.error('NGO Registration upload error:', error);
+        return res.status(500).json({ message: 'Failed to upload NGO Registration' });
+      }
+    }
+
+    // Upload Letter of Intent to Cloudinary
+    if (files.letterOfIntent && files.letterOfIntent[0]) {
+      try {
+        const uploadResult = await uploadToCloudinary(files.letterOfIntent[0], 'organizations/documents');
+        if (uploadResult.success) {
+          letterOfIntent = uploadResult.url;
+        } else {
+          console.error('Letter of Intent upload failed:', uploadResult.error);
+          return res.status(500).json({ message: 'Failed to upload Letter of Intent' });
+        }
+      } catch (error) {
+        console.error('Letter of Intent upload error:', error);
+        return res.status(500).json({ message: 'Failed to upload Letter of Intent' });
+      }
+    }
 
     // Parse socialLinks if sent as JSON string
     let parsedSocialLinks = socialLinks;
@@ -523,7 +604,7 @@ exports.updateOrganization = async (req, res) => {
   try {
     const orgId = req.params.id;
     const updateData = req.body;
-
+    const files = req.files || {};
 
     const org = await Organization.findById(orgId);
     if (!org) {
@@ -537,6 +618,58 @@ exports.updateOrganization = async (req, res) => {
 
     if (!isCreator && !isAdmin) {
       return res.status(403).json({ message: 'You are not authorized to update this organization' });
+    }
+
+    // Handle file uploads if any
+    if (files.logo && files.logo[0]) {
+      try {
+        // Delete old logo from Cloudinary if it exists
+        if (org.logo && org.logo.startsWith('http')) {
+          const fileInfo = getFileInfoFromUrl(org.logo);
+          if (fileInfo.publicId) {
+            await deleteFromCloudinary(fileInfo.publicId);
+          }
+        }
+        
+        // Upload new logo
+        const uploadResult = await uploadToCloudinary(files.logo[0], 'organizations/logos');
+        if (uploadResult.success) {
+          updateData.logo = uploadResult.url;
+        } else {
+          return res.status(500).json({ message: 'Failed to upload logo' });
+        }
+      } catch (error) {
+        console.error('Logo update error:', error);
+        return res.status(500).json({ message: 'Failed to update logo' });
+      }
+    }
+
+    // Handle document updates
+    const documentFields = ['gstCertificate', 'panCard', 'ngoRegistration', 'letterOfIntent'];
+    for (const field of documentFields) {
+      if (files[field] && files[field][0]) {
+        try {
+          // Delete old document from Cloudinary if it exists
+          if (org.documents && org.documents[field] && org.documents[field].startsWith('http')) {
+            const fileInfo = getFileInfoFromUrl(org.documents[field]);
+            if (fileInfo.publicId) {
+              await deleteFromCloudinary(fileInfo.publicId);
+            }
+          }
+          
+          // Upload new document
+          const uploadResult = await uploadToCloudinary(files[field][0], 'organizations/documents');
+          if (uploadResult.success) {
+            if (!updateData.documents) updateData.documents = {};
+            updateData.documents[field] = uploadResult.url;
+          } else {
+            return res.status(500).json({ message: `Failed to upload ${field}` });
+          }
+        } catch (error) {
+          console.error(`${field} update error:`, error);
+          return res.status(500).json({ message: `Failed to update ${field}` });
+        }
+      }
     }
 
     // Update the organization
@@ -557,13 +690,11 @@ exports.updateOrganization = async (req, res) => {
       });
     }
     
-    
     const updatedOrg = await Organization.findByIdAndUpdate(
       orgId,
       updateQuery,
       { new: true, runValidators: true }
     );
-
 
     res.json(updatedOrg);
   } catch (err) {
@@ -591,17 +722,17 @@ exports.deleteOrganization = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to delete this organization' });
     }
 
-    // ✅ Delete associated files before deleting the organization
+    // ✅ Delete associated files from Cloudinary before deleting the organization
     try {
-      // Delete logo
-      if (org.logo) {
-        const logoPath = path.join(__dirname, "../uploads/OrganizationDetails", org.logo);
-        if (fs.existsSync(logoPath)) {
-          fs.unlinkSync(logoPath);
+      // Delete logo from Cloudinary
+      if (org.logo && org.logo.startsWith('http')) {
+        const fileInfo = getFileInfoFromUrl(org.logo);
+        if (fileInfo.publicId) {
+          await deleteFromCloudinary(fileInfo.publicId);
         }
       }
 
-      // Delete documents
+      // Delete documents from Cloudinary
       if (org.documents) {
         const documents = [
           org.documents.gstCertificate,
@@ -610,24 +741,24 @@ exports.deleteOrganization = async (req, res) => {
           org.documents.letterOfIntent
         ];
 
-        documents.forEach(doc => {
-          if (doc) {
-            const docPath = path.join(__dirname, "../uploads/OrganizationDetails", doc);
-            if (fs.existsSync(docPath)) {
-              fs.unlinkSync(docPath);
+        for (const doc of documents) {
+          if (doc && doc.startsWith('http')) {
+            const fileInfo = getFileInfoFromUrl(doc);
+            if (fileInfo.publicId) {
+              await deleteFromCloudinary(fileInfo.publicId);
             }
           }
-        });
+        }
       }
-    } catch (fileError) {
-      console.error('⚠️ Error deleting files:', fileError);
+    } catch (error) {
+      console.error('Error deleting files from Cloudinary:', error);
       // Continue with organization deletion even if file deletion fails
     }
 
-    // ✅ Delete the organization from database
+    // Delete the organization
     await Organization.findByIdAndDelete(orgId);
 
-    return res.status(200).json({ message: 'Organization deleted successfully' });
+    res.json({ message: 'Organization deleted successfully' });
   } catch (err) {
     console.error('❌ Failed to delete organization:', err);
     res.status(500).json({ message: 'Server error while deleting organization' });
