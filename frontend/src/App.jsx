@@ -49,6 +49,7 @@ import FAQSection from "./pages/FAQSection";
 import TeamPage from "./pages/Team.jsx";
 import NotFoundPage from "./pages/NotFoundPage";
 import { ChatProvider, useChatContext } from "./context/ChatContext";
+import ToastContainer from "./components/common/ToastContainer";
 
 const GENERAL_QUESTIONS = [
   "What is your pricing?",
@@ -561,6 +562,7 @@ function AppContent() {
         suggestions={suggestedQuestions}
         onQuickReply={handleQuickReply}
       />
+      <ToastContainer />
     </>
   );
 }

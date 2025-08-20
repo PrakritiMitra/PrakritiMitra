@@ -71,8 +71,12 @@ export default function Navbar() {
       try {
         const res = await getMyOrganization();
 
-        if (res.data && res.data._id) setOrgExists(true);
-        else setOrgExists(false);
+        // Handle new API response format
+        if (res.data && res.data.exists && res.data.data && res.data.data._id) {
+          setOrgExists(true);
+        } else {
+          setOrgExists(false);
+        }
       } catch (err) {
         setOrgExists(false);
       }

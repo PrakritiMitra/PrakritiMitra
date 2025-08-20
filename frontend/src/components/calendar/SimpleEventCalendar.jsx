@@ -3,8 +3,9 @@ import axiosInstance from '../../api/axiosInstance';
 import EventModal from './EventModal';
 import AddEventModal from './AddEventModal';
 import calendarEventEmitter from '../../utils/calendarEventEmitter';
+import { showAlert } from '../../utils/notifications';
 
-const SimpleEventCalendar = ({ role, userId }) => {
+const SimpleEventCalendar = ({ role, userId, organizations = [], onAddEvent, onExpand, isExpanded = false }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -204,6 +205,11 @@ const SimpleEventCalendar = ({ role, userId }) => {
   // Handle date click
   const handleDateClick = (date) => {
     if (role === 'organizer') {
+      if (organizations.length === 0) {
+        // Show message that organization is required
+        showAlert.warning('You need to be a member of an organization to create events. Please join an organization first.');
+        return;
+      }
       setShowAddModal(true);
     }
   };
@@ -223,6 +229,24 @@ const SimpleEventCalendar = ({ role, userId }) => {
     setCurrentMonth(new Date());
   };
 
+  // Handle calendar expansion
+  const handleCalendarExpand = () => {
+    if (onExpand) {
+      onExpand(true);
+    } else {
+      setShowExpandedCalendar(true);
+    }
+  };
+
+  // Handle calendar collapse
+  const handleCalendarCollapse = () => {
+    if (onExpand) {
+      onExpand(false);
+    } else {
+      setShowExpandedCalendar(false);
+    }
+  };
+
   const days = getDaysInMonth(currentMonth);
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -230,7 +254,7 @@ const SimpleEventCalendar = ({ role, userId }) => {
   ];
 
   return (
-    <div className="calendar-container bg-white rounded-lg shadow-md p-2.5 relative z-0">
+    <div className={`calendar-container bg-white rounded-lg shadow-md p-2.5 relative z-0 ${isExpanded ? 'w-full' : ''}`}>
       {/* Calendar Header */}
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
@@ -247,15 +271,45 @@ const SimpleEventCalendar = ({ role, userId }) => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchEvents(true)}
-            className="bg-gray-600 text-white px-2 py-1 rounded-lg hover:bg-gray-700 transition-colors text-xs"
+            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
             title="Refresh Calendar"
           >
-            🔄
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
           </button>
+          {role === 'organizer' && !isExpanded && (
+            <button
+              onClick={handleCalendarExpand}
+              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+              title="Expand Calendar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+          )}
+          {role === 'organizer' && isExpanded && (
+            <button
+              onClick={handleCalendarCollapse}
+              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200"
+              title="Collapse Calendar"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
           {role === 'organizer' && (
             <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              onClick={onAddEvent || (() => setShowAddModal(true))}
+              disabled={organizations.length === 0}
+              className={`px-3 py-2 rounded-lg text-sm transition-all duration-200 font-medium whitespace-nowrap ${
+                organizations.length === 0
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
+              }`}
+              title={organizations.length === 0 ? 'Join an organization first to create events' : 'Add new event'}
             >
               + Add Event
             </button>
@@ -333,13 +387,13 @@ const SimpleEventCalendar = ({ role, userId }) => {
                   </div>
 
                         {/* Calendar Grid */}
-                  <div className="grid grid-cols-7 gap-0.5">
-                    {/* Day Headers */}
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                      <div key={day} className="p-1 text-center font-semibold text-gray-600 text-xs">
-                        {day}
-                      </div>
-                    ))}
+                   <div className={`grid grid-cols-7 gap-0.5 ${isExpanded ? 'gap-1' : ''}`}>
+                     {/* Day Headers */}
+                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                       <div key={day} className={`p-1 text-center font-semibold text-gray-600 text-xs ${isExpanded ? 'p-2 text-sm bg-gray-50 rounded' : ''}`}>
+                         {day}
+                       </div>
+                     ))}
         
         {/* Calendar Days */}
         {days.map((day, index) => {
@@ -347,63 +401,63 @@ const SimpleEventCalendar = ({ role, userId }) => {
           const isToday = day && day.toDateString() === new Date().toDateString();
           
           return (
-                                    <div
-                          key={index}
-                          className={`min-h-[50px] p-1 border border-gray-200 ${
-                            isToday ? 'bg-blue-50' : 'bg-white'
-                          } ${!day ? 'bg-gray-50' : 'hover:bg-gray-50 cursor-pointer'}`}
-                          onClick={() => day && setShowExpandedCalendar(true)}
+            <div
+              key={index}
+              className={`${isExpanded ? 'min-h-[120px] p-2' : role === 'organizer' ? 'min-h-[50px] p-1' : 'min-h-[80px] p-1'} border border-gray-200 ${
+                isToday ? 'bg-blue-50' : 'bg-white'
+              } ${!day ? 'bg-gray-50' : 'hover:bg-gray-50 cursor-pointer'}`}
+              onClick={() => day && handleDateClick(day)}
+            >
+              {day && (
+                <>
+                  <div className={`${isExpanded ? 'text-sm font-medium mb-2' : role === 'organizer' ? 'text-xs font-medium' : 'text-sm font-medium mb-1'} ${
+                    isToday ? 'text-blue-600' : 'text-gray-700'
+                  }`}>
+                    {day.getDate()}
+                  </div>
+                  <div className={`${isExpanded ? 'mt-0 space-y-1' : role === 'organizer' ? 'mt-0.5 space-y-0.5' : 'mt-1 space-y-1'}`}>
+                    {dayEvents.slice(0, isExpanded ? undefined : role === 'organizer' ? 1 : 2).map((event, eventIndex) => {
+                      const displayProps = getEventDisplayProps(event);
+                      return (
+                        <div
+                          key={eventIndex}
+                          className={`${isExpanded ? 'text-xs px-2 py-1.5' : role === 'organizer' ? 'text-[8px] px-1 py-1' : 'text-xs px-1.5 py-1'} rounded-sm cursor-pointer text-white truncate shadow-sm hover:shadow-md transition-all duration-200 ${displayProps.bgColor} ${displayProps.borderColor} relative font-medium`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEventClick(event);
+                          }}
+                          title={`${event.title} - ${displayProps.statusText}${displayProps.isRecurring ? ` (${displayProps.recurringPattern})` : ''}`}
                         >
-                          {day && (
-                            <>
-                              <div className={`text-xs font-medium ${
-                                isToday ? 'text-blue-600' : 'text-gray-700'
-                              }`}>
-                                {day.getDate()}
-                              </div>
-                                                <div className="mt-0.5 space-y-0.5">
-                                {dayEvents.slice(0, 1).map((event, eventIndex) => {
-                                  const displayProps = getEventDisplayProps(event);
-                                  return (
-                                    <div
-                                      key={eventIndex}
-                                      className={`text-[8px] px-1 py-1 rounded-sm cursor-pointer text-white truncate shadow-sm hover:shadow-md transition-all duration-200 ${displayProps.bgColor} ${displayProps.borderColor} relative font-medium`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEventClick(event);
-                                      }}
-                                      title={`${event.title} - ${displayProps.statusText}${displayProps.isRecurring ? ` (${displayProps.recurringPattern})` : ''}`}
-                                    >
-                                      <div className="flex items-center gap-1">
-                                        {/* Recurring indicator */}
-                                        {displayProps.recurringIndicator && (
-                                          <span className="text-[6px] flex-shrink-0">{displayProps.recurringIndicator}</span>
-                                        )}
-                                        <span className="flex-1 truncate leading-tight">{event.title}</span>
-                                      </div>
-                                      
-                                      {/* Secondary indicator for creator events */}
-                                      {displayProps.secondaryIcon && (
-                                        <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${displayProps.secondaryColor} flex items-center justify-center shadow-sm`}>
-                                          <span className="text-[6px] font-bold">👑</span>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Recurring instance indicator */}
-                                      {event.isRecurringInstance && (
-                                        <div className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-purple-400 flex items-center justify-center shadow-sm">
-                                          <span className="text-[6px] font-bold text-white">R</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                                {dayEvents.length > 1 && (
-                                  <div className="text-[8px] text-gray-600 font-semibold bg-gray-100 px-1 py-0.5 rounded-sm mt-0.5">
-                                    +{dayEvents.length - 1} more
-                                  </div>
-                                )}
-                              </div>
+                          <div className="flex items-center gap-1">
+                            {/* Recurring indicator */}
+                            {displayProps.recurringIndicator && (
+                              <span className={`${isExpanded ? 'text-xs' : role === 'organizer' ? 'text-[6px]' : 'text-xs'} flex-shrink-0`}>{displayProps.recurringIndicator}</span>
+                            )}
+                            <span className="flex-1 truncate leading-tight">{event.title}</span>
+                          </div>
+                          
+                          {/* Secondary indicator for creator events */}
+                          {displayProps.secondaryIcon && (
+                            <div className={`absolute ${isExpanded ? '-top-1 -right-1 w-3 h-3' : role === 'organizer' ? '-top-0.5 -right-0.5 w-2.5 h-2.5' : '-top-1 -right-1 w-3 h-3'} rounded-full ${displayProps.secondaryColor} flex items-center justify-center shadow-sm`}>
+                              <span className={`${isExpanded ? 'text-xs' : role === 'organizer' ? 'text-[6px]' : 'text-xs'} font-bold`}>👑</span>
+                            </div>
+                          )}
+                          
+                          {/* Recurring instance indicator */}
+                          {event.isRecurringInstance && (
+                            <div className={`absolute ${isExpanded ? '-top-1 -left-1 w-3 h-3' : role === 'organizer' ? '-top-0.5 -left-0.5 w-2.5 h-2.5' : '-top-1 -left-1 w-3 h-3'} rounded-full bg-purple-400 flex items-center justify-center shadow-sm`}>
+                              <span className={`${isExpanded ? 'text-xs' : role === 'organizer' ? 'text-[6px]' : 'text-xs'} font-bold text-white`}>R</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {!isExpanded && dayEvents.length > (role === 'organizer' ? 1 : 2) && (
+                      <div className={`${role === 'organizer' ? 'text-[8px]' : 'text-xs'} text-gray-600 font-semibold bg-gray-100 px-1 py-0.5 rounded-sm mt-0.5`}>
+                        +{dayEvents.length - (role === 'organizer' ? 1 : 2)} more
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
@@ -462,14 +516,14 @@ const SimpleEventCalendar = ({ role, userId }) => {
         />
       )}
 
-      {/* Expanded Calendar Modal */}
-      {showExpandedCalendar && (
+      {/* Expanded Calendar Modal (fallback for when not using dashboard expansion) */}
+      {showExpandedCalendar && !isExpanded && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-2"
           onClick={() => setShowExpandedCalendar(false)}
         >
           <div 
-            className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden"
+            className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[95vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -486,9 +540,9 @@ const SimpleEventCalendar = ({ role, userId }) => {
             </div>
 
             {/* Calendar Content */}
-            <div className="p-2 overflow-auto max-h-[calc(90vh-60px)]">
+            <div className="p-4 overflow-auto max-h-[calc(95vh-80px)]">
               {/* Navigation */}
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center mb-4">
                 <button
                   onClick={goToPreviousMonth}
                   className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 hover:text-gray-800"
@@ -515,7 +569,7 @@ const SimpleEventCalendar = ({ role, userId }) => {
               </div>
 
               {/* Color Legend */}
-              <div className="flex flex-wrap gap-2 mb-2 text-xs">
+              <div className="flex flex-wrap gap-2 mb-4 text-xs">
                 <div className="flex items-center gap-1.5">
                   <div className="w-4 h-4 rounded bg-gradient-to-r from-blue-500 to-blue-600 border-l-4 border-l-blue-400"></div>
                   <span className="text-gray-700">Upcoming</span>
@@ -557,10 +611,10 @@ const SimpleEventCalendar = ({ role, userId }) => {
               </div>
 
               {/* Expanded Calendar Grid */}
-              <div className="grid grid-cols-7 gap-0.5">
+              <div className="grid grid-cols-7 gap-1">
                 {/* Day Headers */}
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="p-1.5 text-center font-semibold text-gray-600 text-xs bg-gray-50 rounded">
+                  <div key={day} className="p-2 text-center font-semibold text-gray-600 text-sm bg-gray-50 rounded">
                     {day}
                   </div>
                 ))}
@@ -573,25 +627,25 @@ const SimpleEventCalendar = ({ role, userId }) => {
                   return (
                     <div
                       key={index}
-                      className={`min-h-[80px] p-1 border border-gray-200 ${
+                      className={`min-h-[120px] p-2 border border-gray-200 ${
                         isToday ? 'bg-blue-50' : 'bg-white'
                       } ${!day ? 'bg-gray-50' : 'hover:bg-gray-50 cursor-pointer'}`}
                       onClick={() => day && handleDateClick(day)}
                     >
                       {day && (
                         <>
-                          <div className={`text-xs font-medium mb-1 ${
+                          <div className={`text-sm font-medium mb-2 ${
                             isToday ? 'text-blue-600' : 'text-gray-700'
                           }`}>
                             {day.getDate()}
                           </div>
-                          <div className="space-y-0.5">
+                          <div className="space-y-1">
                             {dayEvents.map((event, eventIndex) => {
                               const displayProps = getEventDisplayProps(event);
                               return (
                                 <div
                                   key={eventIndex}
-                                  className={`text-[10px] px-1.5 py-1 rounded cursor-pointer text-white truncate shadow-sm hover:shadow-md transition-all duration-200 ${displayProps.bgColor} ${displayProps.borderColor} relative font-medium`}
+                                  className={`text-xs px-2 py-1.5 rounded cursor-pointer text-white truncate shadow-sm hover:shadow-md transition-all duration-200 ${displayProps.bgColor} ${displayProps.borderColor} relative font-medium`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleEventClick(event);
@@ -601,22 +655,22 @@ const SimpleEventCalendar = ({ role, userId }) => {
                                   <div className="flex items-center gap-1">
                                     {/* Recurring indicator */}
                                     {displayProps.recurringIndicator && (
-                                      <span className="text-[8px] flex-shrink-0">{displayProps.recurringIndicator}</span>
+                                      <span className="text-xs flex-shrink-0">{displayProps.recurringIndicator}</span>
                                     )}
                                     <span className="flex-1 truncate leading-tight">{event.title}</span>
                                   </div>
                                   
                                   {/* Secondary indicator for creator events */}
                                   {displayProps.secondaryIcon && (
-                                    <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${displayProps.secondaryColor} flex items-center justify-center shadow-sm`}>
-                                      <span className="text-[7px] font-bold">👑</span>
+                                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${displayProps.secondaryColor} flex items-center justify-center shadow-sm`}>
+                                      <span className="text-xs font-bold">👑</span>
                                     </div>
                                   )}
                                   
                                   {/* Recurring instance indicator */}
                                   {event.isRecurringInstance && (
-                                    <div className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-purple-400 flex items-center justify-center shadow-sm">
-                                      <span className="text-[7px] font-bold text-white">R</span>
+                                    <div className="absolute -top-1 -left-1 w-3 h-3 rounded-full bg-purple-400 flex items-center justify-center shadow-sm">
+                                      <span className="text-xs font-bold text-white">R</span>
                                     </div>
                                   )}
                                 </div>

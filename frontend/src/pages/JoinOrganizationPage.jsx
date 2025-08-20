@@ -33,7 +33,8 @@ export default function JoinOrganizationPage() {
       const allOrgsRes = await axios.get("/api/organizations", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const allOrgs = allOrgsRes.data;
+      // Handle new API response format
+      const allOrgs = allOrgsRes.data.data || allOrgsRes.data;
       const teamStatuses = {};
       const pending = new Set();
       const approved = new Set();
@@ -81,6 +82,8 @@ export default function JoinOrganizationPage() {
       setOrganizations(filtered);
     } catch (err) {
       console.error("❌ Failed to load organizations:", err);
+      // Handle 404 or other errors gracefully
+      setOrganizations([]);
     } finally {
       setLoading(false);
       // Trigger animations

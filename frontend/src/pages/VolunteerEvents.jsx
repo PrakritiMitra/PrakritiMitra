@@ -5,6 +5,7 @@ import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import { formatDateTime } from "../utils/dateUtils";
 import { CalendarIcon, MapPinIcon, BuildingOfficeIcon, UserGroupIcon } from "@heroicons/react/24/outline";
+import { showAlert } from "../utils/notifications";
 
 export default function VolunteerEvents() {
   const [events, setEvents] = useState([]);
@@ -220,10 +221,10 @@ export default function VolunteerEvents() {
                             withCredentials: true,
                           }
                         );
-                        alert("🎉 Registered successfully! You'll receive updates about this event.");
+                        showAlert.success("🎉 Registered successfully! You'll receive updates about this event.");
                         setSelectedEvent(null);
                       } catch (err) {
-                        alert(err.response?.data?.message || "❌ Registration failed. Please try again.");
+                        showAlert.error(err.response?.data?.message || "❌ Registration failed. Please try again.");
                       }
                     }}
                   >

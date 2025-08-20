@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { FaMapMarkerAlt, FaClock, FaUsers, FaCalendar, FaRedo } from 'react-icons/fa';
 import axiosInstance from '../../api/axiosInstance';
 import calendarEventEmitter from '../../utils/calendarEventEmitter';
+import { showAlert } from '../../utils/notifications';
 
 const EventModal = ({ event, onClose, role, onEventUpdated }) => {
   const navigate = useNavigate();
@@ -102,10 +103,10 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
         onEventUpdated();
       }
       
-      alert("Registered successfully!");
+      showAlert.success("Registered successfully!");
     } catch (error) {
       console.error('Registration failed:', error);
-      alert(error.response?.data?.message || 'Failed to register for event');
+      showAlert.error(error.response?.data?.message || 'Failed to register for event');
     } finally {
       setLoading(false);
     }
@@ -131,13 +132,13 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
         onEventUpdated();
       }
       
-      alert('Registration withdrawn successfully.');
+      showAlert.success('Registration withdrawn successfully.');
       
       // Close modal after successful withdrawal
       onClose();
     } catch (error) {
       console.error('Withdrawal failed:', error);
-      alert(error.response?.data?.message || 'Failed to withdraw from event');
+      showAlert.error(error.response?.data?.message || 'Failed to withdraw from event');
     } finally {
       setLoading(false);
     }
@@ -225,12 +226,12 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
       // Validate group members if group registration
       if (isGroup) {
         if (!groupMembers.length) {
-          alert("Please add at least one group member.");
+          showAlert.warning("Please add at least one group member.");
           return;
         }
         for (const member of groupMembers) {
           if (!member.name || !member.phone || !member.email) {
-            alert("All group members must have name, phone, and email.");
+            showAlert.warning("All group members must have name, phone, and email.");
             return;
           }
         }

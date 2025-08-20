@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import TimeSlotSelector from './TimeSlotSelector';
+import { showAlert } from '../../utils/notifications';
 
 const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) => {
   const [step, setStep] = useState(1);
@@ -21,7 +22,7 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) =
     // Validate time slot selection if event has time slots
     if (event?.timeSlotsEnabled && event?.timeSlots?.length > 0) {
       if (!selectedTimeSlot) {
-        alert("Please select a time slot and category.");
+        showAlert.warning("Please select a time slot and category.");
         return;
       }
     }
@@ -29,12 +30,12 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) =
     // Validate group members if group registration
     if (isGroup) {
       if (!groupMembers.length) {
-        alert("Please add at least one group member.");
+        showAlert.warning("Please add at least one group member.");
         return;
       }
       for (const member of groupMembers) {
         if (!member.name || !member.phone || !member.email) {
-          alert("All group members must have name, phone, and email.");
+          showAlert.warning("All group members must have name, phone, and email.");
           return;
         }
       }

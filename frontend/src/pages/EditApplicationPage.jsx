@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI } from '../api';
 import Navbar from '../components/layout/Navbar';
+import { showAlert } from '../utils/notifications';
 
 export default function EditApplicationPage() {
   const { applicationId } = useParams();
@@ -145,7 +146,7 @@ export default function EditApplicationPage() {
       }
     } catch (error) {
       console.error('Error fetching application:', error);
-      alert('Failed to load application. Please try again.');
+      showAlert.error('Failed to load application. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -257,7 +258,7 @@ export default function EditApplicationPage() {
 
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) {
-      alert('Please fill in all required fields.');
+      showAlert.warning('Please fill in all required fields.');
       return;
     }
 
@@ -275,11 +276,11 @@ export default function EditApplicationPage() {
       
       await sponsorshipIntentAPI.updateIntent(applicationId, formattedData);
       
-      alert('Application updated successfully!');
+      showAlert.success('Application updated successfully!');
       navigate('/my-applications');
     } catch (error) {
       console.error('Error updating application:', error);
-      alert('Failed to update application. Please try again.');
+      showAlert.error('Failed to update application. Please try again.');
     } finally {
       setSaving(false);
     }

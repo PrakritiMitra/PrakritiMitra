@@ -19,6 +19,7 @@ import {
   ArrowPathIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
+import { showAlert } from '../utils/notifications';
 
 export default function MyApplicationsPage() {
   const [applications, setApplications] = useState([]);
@@ -94,7 +95,7 @@ export default function MyApplicationsPage() {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent
       });
-      alert('Failed to load your applications. Please try again.');
+      showAlert.error('Failed to load your applications. Please try again.');
       setApplications([]);
     } finally {
       setLoading(false);
@@ -191,14 +192,14 @@ export default function MyApplicationsPage() {
           // Navigate to the first receipt's details page
           navigate(`/receipt/${response.receipts[0]._id}`);
         } else {
-          alert('No receipt found for this sponsorship. Please check back later.');
+          showAlert.warning('No receipt found for this sponsorship. Please check back later.');
         }
       } else {
-        alert('Receipt not available yet. Please wait for the sponsorship to be created.');
+        showAlert.info('Receipt not available yet. Please wait for the sponsorship to be created.');
       }
     } catch (error) {
       console.error('Error viewing receipt:', error);
-      alert('Failed to load receipt. Please try again.');
+      showAlert.error('Failed to load receipt. Please try again.');
     }
   };
 
@@ -595,11 +596,11 @@ export default function MyApplicationsPage() {
                             navigate(`/receipt/${response.receipts[0]._id}`);
                             handleCloseModal();
                           } else {
-                            alert('No receipt found for this sponsorship. Please check back later.');
+                            showAlert.warning('No receipt found for this sponsorship. Please check back later.');
                           }
                         } catch (error) {
                           console.error('Error viewing receipt:', error);
-                          alert('Failed to load receipt. Please try again.');
+                          showAlert.error('Failed to load receipt. Please try again.');
                         }
                       }}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"

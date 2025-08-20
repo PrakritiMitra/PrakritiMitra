@@ -24,6 +24,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
+import { showAlert } from "../utils/notifications";
 
 export default function OrganizationPage() {
   const { id } = useParams();
@@ -173,9 +174,9 @@ export default function OrganizationPage() {
       setJoining(true);
       await axiosInstance.post(`/api/organizations/${id}/join`);
       setHasRequested(true);
-      alert("Join request sent.");
+      showAlert.success("Join request sent.");
     } catch (err) {
-      alert(err.response?.data?.message || "Request failed.");
+      showAlert.error(err.response?.data?.message || "Request failed.");
     } finally {
       setJoining(false);
     }
@@ -184,20 +185,20 @@ export default function OrganizationPage() {
   const handleApprove = async (userId) => {
     try {
       await approveTeamMember(id, userId);
-      alert("User approved successfully");
+      showAlert.success("User approved successfully");
       setPendingRequests((prev) => prev.filter((m) => m.userId._id !== userId));
     } catch (err) {
-      alert(err.response?.data?.message || "Approval failed");
+      showAlert.error(err.response?.data?.message || "Approval failed");
     }
   };
 
   const handleReject = async (userId) => {
     try {
       await rejectTeamMember(id, userId);
-      alert("User rejected successfully");
+      showAlert.success("User rejected successfully");
       setPendingRequests((prev) => prev.filter((m) => m.userId._id !== userId));
     } catch (err) {
-      alert(err.response?.data?.message || "Rejection failed");
+      showAlert.error(err.response?.data?.message || "Rejection failed");
     }
   };
 

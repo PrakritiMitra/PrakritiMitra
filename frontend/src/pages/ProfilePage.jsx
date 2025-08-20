@@ -32,6 +32,7 @@ import {
   LockClosedIcon,
   KeyIcon
 } from "@heroicons/react/24/outline";
+import { showAlert, showConfirm } from "../utils/notifications";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -77,8 +78,9 @@ export default function ProfilePage() {
         if (safeUserData.role === "organizer") {
           try {
             const orgResponse = await getMyOrganization();
-            if (orgResponse.data && orgResponse.data._id) {
-              setOrganization(orgResponse.data);
+            // Handle new API response format
+            if (orgResponse.data && orgResponse.data.exists && orgResponse.data.data && orgResponse.data.data._id) {
+              setOrganization(orgResponse.data.data);
             }
           } catch (error) {
             console.error("No organization found or error fetching organization");
@@ -178,61 +180,70 @@ export default function ProfilePage() {
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmation.toLowerCase() !== 'delete my account') {
-      alert('Please type "delete my account" exactly as shown to confirm deletion.');
+      showAlert.warning('Please type "delete my account" exactly as shown to confirm deletion.');
       return;
     }
 
-    if (!window.confirm('⚠️ WARNING: This will permanently delete your account and all associated data. This action cannot be undone. Are you absolutely sure?')) {
-      return;
-    }
-
-    try {
-      setIsDeleting(true);
-      await deleteAccount();
-      
-      // Clear all local storage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Redirect to home with a success message in the state
-      navigate('/', { 
-        state: { 
-          message: 'Your account has been successfully deleted. We\'re sorry to see you go!',
-          messageType: 'success'
-        },
-        replace: true // Replace the current entry in the history stack
-      });
-      
-      // Force a full page reload to ensure all state is cleared
-      window.location.href = '/';
-      
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      const errorMessage = error.response?.data?.message || 
-                         error.message || 
-                         'Failed to delete account. Please try again later.';
-      
-      alert(`Error: ${errorMessage}`);
-      
-      // If it's an authentication error, log the user out
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login', { replace: true });
+    // Use showConfirm for better UX
+    showConfirm.action(
+      '⚠️ WARNING: This will permanently delete your account and all associated data. This action cannot be undone. Are you absolutely sure?',
+      async () => {
+        try {
+          setIsDeleting(true);
+          await deleteAccount();
+          
+          // Clear all local storage
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          // Redirect to home with a success message in the state
+          navigate('/', { 
+            state: { 
+              message: 'Your account has been successfully deleted. We\'re sorry to see you go!',
+              messageType: 'success'
+            },
+            replace: true // Replace the current entry in the history stack
+          });
+          
+          // Force a full page reload to ensure all state is cleared
+          window.location.href = '/';
+          
+        } catch (error) {
+          console.error('Error deleting account:', error);
+          const errorMessage = error.response?.data?.message || 
+                             error.message || 
+                             'Failed to delete account. Please try again later.';
+          
+          showAlert.error(`Error: ${errorMessage}`);
+          
+          // If it's an authentication error, log the user out
+          if (error.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            navigate('/login', { replace: true });
+          }
+          
+          // Close the dialog on error
+          setShowDeleteDialog(false);
+          setDeleteConfirmation('');
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+      {
+        title: 'Delete Account Confirmation',
+        confirmText: 'Yes, Delete My Account',
+        cancelText: 'Cancel',
+        type: 'danger'
       }
-      
-      // Close the dialog on error
-      setShowDeleteDialog(false);
-      setDeleteConfirmation('');
-    } finally {
-      setIsDeleting(false);
-    }
+    );
+    return;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.username && formData.username.length < 3) {
-      alert("Username must be at least 3 characters long.");
+      showAlert.warning("Username must be at least 3 characters long.");
       return;
     }
     
@@ -294,11 +305,11 @@ export default function ProfilePage() {
           detail: { user: response.data.user }
         }));
         
-        alert('Profile updated successfully!');
+        showAlert.success('Profile updated successfully!');
       }
     } catch (error) {
       console.error('Profile update error:', error);
-      alert('Failed to update profile. Please try again.');
+      showAlert.error('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
     }
