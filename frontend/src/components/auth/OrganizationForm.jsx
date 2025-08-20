@@ -219,18 +219,18 @@ export default function OrganizationForm() {
   return (
           <div className="space-y-6">
             {/* Basic Information Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2 sm:mr-3">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
                 Basic Information
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {/* First row: Organization Name and Year of Establishment */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Organization Name *</label>
       <TextField
@@ -267,7 +267,7 @@ export default function OrganizationForm() {
                 </div>
                 
                 {/* Second row: Website URL and Focus Area */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Website URL (optional)</label>
       <TextField
@@ -323,10 +323,10 @@ export default function OrganizationForm() {
             </div>
             
             {/* Description Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-100 rounded-lg flex items-center justify-center mr-2 sm:mr-3">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
@@ -817,58 +817,130 @@ export default function OrganizationForm() {
       onSubmit={handleSubmit}
       sx={{
         width: '100%',
-        maxWidth: '1000px', // Adjusted for card-based layout
+        maxWidth: { xs: '100%', sm: '600px', md: '800px', lg: '1000px' },
         mx: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: 3,
-        pb: 6, // Add bottom padding
-        mb: 4  // Add bottom margin
+        gap: { xs: 2, sm: 3 },
+        pb: { xs: 4, sm: 6 },
+        mb: { xs: 2, sm: 4 },
+        px: { xs: 2, sm: 3 }
       }}
       encType="multipart/form-data"
     >
-      {/* Progress Stepper */}
-      <Paper elevation={0} sx={{ p: 3, backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)' }}>
-        <Stepper activeStep={activeStep} orientation="horizontal">
-          {steps.map((step, index) => (
-            <Step key={step.label}>
-              <StepLabel>
-                <Typography variant="body2" fontWeight={activeStep === index ? 600 : 400}>
-                  {step.label}
-                </Typography>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+            {/* Progress Stepper */}
+      <Paper elevation={0} sx={{ 
+        p: { xs: 2, sm: 3 }, 
+        backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+        backdropFilter: 'blur(10px)',
+        overflow: 'hidden'
+      }}>
+        {/* Mobile Stepper - Show current step and progress */}
+        <Box sx={{ display: { xs: 'block', sm: 'none' }, mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" align="center" gutterBottom>
+            Step {activeStep + 1} of {steps.length}
+          </Typography>
+          <Box sx={{ 
+            width: '100%', 
+            height: 4, 
+            bgcolor: 'grey.200', 
+            borderRadius: 2,
+            overflow: 'hidden'
+          }}>
+            <Box sx={{ 
+              width: `${((activeStep + 1) / steps.length) * 100}%`, 
+              height: '100%', 
+              bgcolor: 'primary.main',
+              transition: 'width 0.3s ease'
+            }} />
+          </Box>
+          <Typography variant="caption" color="primary" align="center" sx={{ mt: 1, display: 'block' }}>
+            {steps[activeStep].label}
+          </Typography>
+        </Box>
+
+        {/* Desktop Stepper */}
+        <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+          <Stepper 
+            activeStep={activeStep} 
+            orientation="horizontal"
+            sx={{
+              '& .MuiStepLabel-root': {
+                minWidth: '120px'
+              }
+            }}
+          >
+            {steps.map((step, index) => (
+              <Step key={step.label}>
+                <StepLabel>
+                  <Typography 
+                    variant="body2"
+                    fontWeight={activeStep === index ? 600 : 400}
+                    sx={{ 
+                      fontSize: '0.875rem',
+                      wordBreak: 'break-word'
+                    }}
+                  >
+                    {step.label}
+                  </Typography>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </Box>
       </Paper>
 
       {/* Step Content */}
-      <Paper elevation={0} sx={{ p: 3, backgroundColor: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)' }}>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+      <Paper elevation={0} sx={{ 
+        p: { xs: 2, sm: 3 }, 
+        backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+        backdropFilter: 'blur(10px)' 
+      }}>
+        <Box sx={{ mb: { xs: 1, sm: 2 } }}>
+          <Typography 
+            variant={{ xs: 'h6', sm: 'h5' }} 
+            fontWeight="bold" 
+            color="primary" 
+            gutterBottom
+          >
             {steps[activeStep].label}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography 
+            variant={{ xs: 'caption', sm: 'body2' }} 
+            color="text.secondary"
+            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+          >
             {steps[activeStep].description}
           </Typography>
-      </Box>
+        </Box>
 
         {renderStepContent(activeStep)}
       </Paper>
 
       {/* Navigation Buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        gap: { xs: 2, sm: 0 },
+        alignItems: { xs: 'stretch', sm: 'center' }
+      }}>
         <Button
           disabled={activeStep === 0}
           onClick={handleBack}
           variant="outlined"
           startIcon={<ChevronLeftIcon className="w-4 h-4" />}
-          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+          sx={{ 
+            borderRadius: 2, 
+            textTransform: 'none', 
+            fontWeight: 600,
+            order: { xs: 2, sm: 1 }
+          }}
         >
           Back
         </Button>
         
-        <Box>
+        <Box sx={{ order: { xs: 1, sm: 2 } }}>
           {activeStep === steps.length - 1 ? (
             <Button
               variant="contained"
@@ -880,8 +952,9 @@ export default function OrganizationForm() {
                 borderRadius: 2, 
                 textTransform: 'none', 
                 fontWeight: 600,
-                px: 4,
-                py: 1.5
+                px: { xs: 3, sm: 4 },
+                py: { xs: 1, sm: 1.5 },
+                width: { xs: '100%', sm: 'auto' }
               }}
             >
               {isSubmitting ? 'Creating Organization...' : 'Create Organization'}
@@ -892,16 +965,26 @@ export default function OrganizationForm() {
               color="primary"
               onClick={handleNext}
               endIcon={<ChevronRightIcon className="w-4 h-4" />}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+              sx={{ 
+                borderRadius: 2, 
+                textTransform: 'none', 
+                fontWeight: 600,
+                width: { xs: '100%', sm: 'auto' }
+              }}
             >
               Next
-      </Button>
+            </Button>
           )}
           {activeStep === steps.length - 1 && !isFormValid() && (
             <Typography 
               variant="caption" 
               color="error" 
-              sx={{ mt: 1, display: 'block', textAlign: 'center' }}
+              sx={{ 
+                mt: 1, 
+                display: 'block', 
+                textAlign: 'center',
+                fontSize: { xs: '0.7rem', sm: '0.75rem' }
+              }}
             >
               Please fill all required fields to submit
             </Typography>

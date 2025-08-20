@@ -89,9 +89,19 @@ exports.getMyOrganization = async (req, res) => {
         { "team.userId": req.user._id }
       ]
     });
-    if (!org) return res.status(404).json({ message: 'Organization not found' });
+    
+    if (!org) {
+      return res.json({
+        exists: false,
+        message: 'No organization found for this user',
+        data: null
+      });
+    }
 
-    res.json(org);
+    res.json({
+      exists: true,
+      data: org
+    });
   } catch (err) {
     console.error("❌ Server error in getMyOrganization:", err);
     res.status(500).json({ message: 'Server error', error: err });
@@ -225,7 +235,18 @@ exports.getAllOrganizations = async (req, res) => {
       }
     ]);
 
-    res.json(orgs);
+    if (!orgs || orgs.length === 0) {
+      return res.json({
+        exists: false,
+        message: 'No organizations found',
+        data: []
+      });
+    }
+
+    res.json({
+      exists: true,
+      data: orgs
+    });
   } catch (err) {
     console.error("❌ Failed to fetch organizations:", err);
     res.status(500).json({
@@ -346,7 +367,18 @@ exports.getApprovedOrganizations = async (req, res) => {
       }
     ]);
 
-    res.json(orgs);
+    if (!orgs || orgs.length === 0) {
+      return res.json({
+        exists: false,
+        message: 'No approved organizations found',
+        data: []
+      });
+    }
+
+    res.json({
+      exists: true,
+      data: orgs
+    });
   } catch (err) {
     console.error("❌ Failed to fetch approved orgs:", err);
     res.status(500).json({ message: 'Failed to fetch organizations', error: err });
@@ -370,7 +402,18 @@ exports.getMyRequests = async (req, res) => {
       else if (member?.status === 'pending') pending.push(org);
     });
 
-    res.json({ approved, pending });
+    if ((!approved || approved.length === 0) && (!pending || pending.length === 0)) {
+      return res.json({
+        exists: false,
+        message: 'No organization requests found',
+        data: { approved: [], pending: [] }
+      });
+    }
+
+    res.json({
+      exists: true,
+      data: { approved, pending }
+    });
   } catch (err) {
     console.error("❌ Failed to fetch my requests:", err);
     res.status(500).json({ message: 'Failed to fetch requests', error: err });
@@ -457,7 +500,19 @@ exports.getOrganizationsByUserId = async (req, res) => {
     const orgs = await Organization.find({
       'team.userId': userId
     }).select('name _id description');
-    res.json(orgs);
+    
+    if (!orgs || orgs.length === 0) {
+      return res.json({
+        exists: false,
+        message: 'No organizations found for this user',
+        data: []
+      });
+    }
+
+    res.json({
+      exists: true,
+      data: orgs
+    });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch organizations', error: err });
   }

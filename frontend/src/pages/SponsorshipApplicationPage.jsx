@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI, getOrganizationById, sponsorAPI } from '../api';
 import Navbar from '../components/layout/Navbar';
+import { showAlert } from '../utils/notifications';
 
 export default function SponsorshipApplicationPage() {
   const { organizationId, eventId } = useParams();
@@ -310,7 +311,7 @@ export default function SponsorshipApplicationPage() {
       // Get current user data
       const currentUser = JSON.parse(localStorage.getItem("user"));
       if (!currentUser || !currentUser._id) {
-        alert('Please log in to submit a sponsorship application.');
+        showAlert.warning('Please log in to submit a sponsorship application.');
         return;
       }
       
@@ -329,16 +330,16 @@ export default function SponsorshipApplicationPage() {
       
       await sponsorshipIntentAPI.submitIntent(formattedData);
       
-      alert('Sponsorship application submitted successfully!');
+      showAlert.success('Sponsorship application submitted successfully!');
       navigate(`/organizations/${organizationId}`);
     } catch (error) {
       console.error('Error submitting application:', error);
       
       // Show specific error message for minimum contribution
       if (error.response?.data?.message && error.response.data.message.includes('Minimum contribution required')) {
-        alert(`Submission failed: ${error.response.data.message}. Please increase your estimated value and try again.`);
+        showAlert.error(`Submission failed: ${error.response.data.message}. Please increase your estimated value and try again.`);
       } else {
-        alert('Failed to submit application. Please try again.');
+        showAlert.error('Failed to submit application. Please try again.');
       }
     } finally {
       setSubmitting(false);

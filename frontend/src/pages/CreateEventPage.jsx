@@ -28,18 +28,23 @@ export default function CreateEventPage() {
       try {
         setLoading(true);
         const response = await axiosInstance.get('/api/organizations/approved');
-        setOrganizations(response.data);
+        
+        // Handle new API response format
+        const orgs = response.data.data || response.data;
+        setOrganizations(orgs);
         
         // If org is specified in URL and exists in user's organizations, use it
-        if (orgFromUrl && response.data.find(org => org._id === orgFromUrl)) {
+        if (orgFromUrl && orgs.find(org => org._id === orgFromUrl)) {
           setSelectedOrgId(orgFromUrl);
           setShowEventForm(true);
-        } else if (response.data.length > 0) {
+        } else if (orgs.length > 0) {
           // Otherwise, select the first organization
-          setSelectedOrgId(response.data[0]._id);
+          setSelectedOrgId(orgs[0]._id);
         }
       } catch (error) {
         console.error('Error fetching organizations:', error);
+        // Handle 404 or other errors gracefully
+        setOrganizations([]);
       } finally {
         setLoading(false);
       }

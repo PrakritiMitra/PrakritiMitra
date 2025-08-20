@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import ReceiptDisplay from '../components/receipt/ReceiptDisplay';
 import { getReceiptById } from '../api/receipt';
+import { showAlert } from '../utils/notifications';
 
 const ReceiptPage = () => {
   const { receiptId } = useParams();
@@ -45,10 +46,10 @@ const ReceiptPage = () => {
   const handleDownload = async (receiptId) => {
     try {
       // TODO: Implement PDF download
-      alert('PDF download feature coming soon!');
+      showAlert.info('PDF download feature coming soon!');
     } catch (error) {
       console.error('Error downloading receipt:', error);
-      alert('Failed to download receipt');
+      showAlert.error('Failed to download receipt');
     }
   };
 
@@ -68,7 +69,7 @@ const ReceiptPage = () => {
     } else {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(shareUrl);
-      alert('Receipt link copied to clipboard!');
+      showAlert.success('Receipt link copied to clipboard!');
     }
   };
 

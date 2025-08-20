@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
@@ -11,6 +11,8 @@ import EmojiPicker from 'emoji-picker-react';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
 import { getSafeUserData, getDisplayName } from '../../utils/safeUserUtils';
 import { useChatContext } from '../../context/ChatContext';
+
+import { showAlert } from '../../utils/notifications';
 
 // Remove the local utility functions since we're now importing them
 // const getSafeUserData = (user) => { ... }
@@ -402,7 +404,7 @@ export default function EventChatbox({ eventId, currentUser }) {
         setReplyToMessage(null);
       } catch (err) {
         console.error("File upload failed:", err);
-        alert("File upload failed. Please try again.");
+        showAlert.error("File upload failed. Please try again.");
       }
     } else if (newMessage.trim()) {
       // Handle text message
@@ -424,7 +426,7 @@ export default function EventChatbox({ eventId, currentUser }) {
       socket.emit('pinMessage', { eventId, message: res.data });
     } catch (err) {
       console.error("Failed to pin message:", err);
-      alert("Only organizers can pin messages.");
+      showAlert.warning("Only organizers can pin messages.");
     }
   };
 
@@ -497,7 +499,7 @@ export default function EventChatbox({ eventId, currentUser }) {
   const handleUsernameClick = (user) => {
     if (!user || user.isDeleted || !user._id) {
       // Show a toast or alert for deleted users instead of navigation
-      alert('This user account has been deleted');
+      showAlert.warning('This user account has been deleted');
       return;
     }
     
@@ -641,13 +643,13 @@ export default function EventChatbox({ eventId, currentUser }) {
               {pinnedMessage.fileUrl && (
                 pinnedMessage.fileType && pinnedMessage.fileType.startsWith('image/') ? (
                   <img
-                    src={`http://localhost:5000${pinnedMessage.fileUrl}`}
+                    src={pinnedMessage.fileUrl}
                     alt="Pinned file"
                     className="mt-2 rounded-lg max-w-full h-auto"
                   />
                 ) : (
                   <a
-                    href={`http://localhost:5000${pinnedMessage.fileUrl}`}
+                    href={pinnedMessage.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-2 text-blue-600 underline"
@@ -841,13 +843,13 @@ export default function EventChatbox({ eventId, currentUser }) {
                       {msg.fileUrl && (
                         msg.fileType && msg.fileType.startsWith('image/') ? (
                           <img
-                            src={`http://localhost:5000${msg.fileUrl}`}
+                            src={msg.fileUrl}
                             alt="Shared file"
                             className="mt-2 rounded-lg max-w-full h-auto"
                           />
                         ) : (
                           <a
-                            href={`http://localhost:5000${msg.fileUrl}`}
+                            href={msg.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-2 text-blue-300 underline"

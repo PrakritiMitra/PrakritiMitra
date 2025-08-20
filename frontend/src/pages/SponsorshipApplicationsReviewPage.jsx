@@ -6,6 +6,7 @@ import Navbar from '../components/layout/Navbar';
 import FailedVerificationsManager from '../components/payment/FailedVerificationsManager';
 import ManualVerificationForm from '../components/payment/ManualVerificationForm';
 import { formatDate, formatDateTime } from '../utils/dateUtils';
+import { showAlert } from '../utils/notifications';
 
 export default function SponsorshipApplicationsReviewPage() {
   const { organizationId } = useParams();
@@ -55,11 +56,11 @@ export default function SponsorshipApplicationsReviewPage() {
       
       // If it's a 403 error, show a specific message
       if (error.response?.status === 403) {
-        alert('Access denied: You need admin privileges to view sponsorship applications.');
+        showAlert.error('Access denied: You need admin privileges to view sponsorship applications.');
       } else if (error.response?.status === 401) {
-        alert('Please log in to view sponsorship applications.');
+        showAlert.warning('Please log in to view sponsorship applications.');
       } else {
-        alert('Failed to load sponsorship applications. Please try again.');
+        showAlert.error('Failed to load sponsorship applications. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -68,7 +69,7 @@ export default function SponsorshipApplicationsReviewPage() {
 
   const handleReview = async () => {
     if (!reviewData.decision) {
-      alert('Please select a decision');
+      showAlert.warning('Please select a decision');
       return;
     }
 
@@ -105,26 +106,26 @@ export default function SponsorshipApplicationsReviewPage() {
         // Show appropriate success message based on decision
         if (reviewData.decision === 'convert_to_sponsorship') {
           if (selectedApplication.status === 'converted') {
-            alert('Sponsorship updated successfully! The existing sponsorship has been updated with the new details.');
+            showAlert.success('Sponsorship updated successfully! The existing sponsorship has been updated with the new details.');
           } else if (reviewData.manualConversion) {
-            alert('Application converted to sponsorship successfully! Payment has been marked as completed (manual conversion).');
+            showAlert.success('Application converted to sponsorship successfully! Payment has been marked as completed (manual conversion).');
           } else {
-            alert('Application converted to sponsorship successfully! A new active sponsorship has been created.');
+            showAlert.success('Application converted to sponsorship successfully! A new active sponsorship has been created.');
           }
         } else if (reviewData.decision === 'delete_sponsorship') {
-          alert('Sponsorship deleted successfully! The sponsorship has been removed from the system.');
+          showAlert.success('Sponsorship deleted successfully! The sponsorship has been removed from the system.');
         } else if (reviewData.decision === 'suspend_sponsorship') {
-          alert('Sponsorship suspended successfully! The sponsorship has been temporarily disabled.');
+          showAlert.success('Sponsorship suspended successfully! The sponsorship has been temporarily disabled.');
         } else if (reviewData.decision === 'reactivate_sponsorship') {
-          alert('Sponsorship reactivated successfully! The sponsorship has been re-enabled.');
+          showAlert.success('Sponsorship reactivated successfully! The sponsorship has been re-enabled.');
         } else if (reviewData.decision === 'approve') {
-          alert(`Application approved successfully! Status changed from "${selectedApplication.status}" to "approved".`);
+          showAlert.success(`Application approved successfully! Status changed from "${selectedApplication.status}" to "approved".`);
         } else if (reviewData.decision === 'reject') {
-          alert(`Application rejected successfully! Status changed from "${selectedApplication.status}" to "rejected".`);
+          showAlert.success(`Application rejected successfully! Status changed from "${selectedApplication.status}" to "rejected".`);
         } else if (reviewData.decision === 'request_changes') {
-          alert(`Changes requested successfully! Status changed from "${selectedApplication.status}" to "changes_requested".`);
+          showAlert.success(`Changes requested successfully! Status changed from "${selectedApplication.status}" to "changes_requested".`);
         } else {
-          alert(`Application reviewed successfully! Status: ${response.intent.status}`);
+          showAlert.success(`Application reviewed successfully! Status: ${response.intent.status}`);
         }
 
         // Reset form and close modal first
@@ -144,9 +145,9 @@ export default function SponsorshipApplicationsReviewPage() {
       // Handle specific error for monetary conversion without payment
       if (error.response?.data?.message === 'Cannot convert monetary sponsorship intent without payment') {
         const details = error.response.data.details;
-        alert(`⚠️ ${details.warning}\n\n${details.instructions}`);
+        showAlert.warning(`${details.warning}\n\n${details.instructions}`);
       } else {
-        alert('Error reviewing application: ' + (error.response?.data?.message || error.message));
+        showAlert.error('Error reviewing application: ' + (error.response?.data?.message || error.message));
       }
     } finally {
       setIsSubmitting(false);
@@ -176,11 +177,11 @@ export default function SponsorshipApplicationsReviewPage() {
   const handleCleanupOrphaned = async () => {
     try {
       const response = await sponsorshipIntentAPI.cleanupOrphanedIntents();
-      alert(`Cleanup completed! ${response.cleanedCount} orphaned intents were cleaned up.`);
+      showAlert.success(`Cleanup completed! ${response.cleanedCount} orphaned intents were cleaned up.`);
       fetchData(); // Refresh the list
     } catch (error) {
       console.error('Error cleaning up orphaned intents:', error);
-      alert('Failed to cleanup orphaned intents. Please try again.');
+      showAlert.error('Failed to cleanup orphaned intents. Please try again.');
     }
   };
 
@@ -188,13 +189,13 @@ export default function SponsorshipApplicationsReviewPage() {
     try {
       const result = await sponsorAPI.checkDuplicateSponsors();
       if (result.duplicates.length === 0) {
-        alert('No duplicate sponsor profiles found!');
+        showAlert.info('No duplicate sponsor profiles found!');
       } else {
-        alert(`Found and cleaned ${result.duplicates.length} duplicate sponsor profiles. Check console for details.`);
+        showAlert.success(`Found and cleaned ${result.duplicates.length} duplicate sponsor profiles. Check console for details.`);
       }
     } catch (error) {
       console.error('Error checking duplicate sponsors:', error);
-      alert('Failed to check duplicate sponsors');
+      showAlert.error('Failed to check duplicate sponsors');
     }
   };
 
@@ -496,11 +497,11 @@ export default function SponsorshipApplicationsReviewPage() {
                                   if (response.success && response.receipts && response.receipts.length > 0) {
                                     window.open(`/receipt/${response.receipts[0]._id}`, '_blank');
                                   } else {
-                                    alert('No receipt found for this sponsorship.');
+                                    showAlert.warning('No receipt found for this sponsorship.');
                                   }
                                 } catch (error) {
                                   console.error('Error fetching receipt:', error);
-                                  alert('Failed to load receipt.');
+                                  showAlert.error('Failed to load receipt.');
                                 }
                               }}
                               className="text-purple-600 hover:text-purple-900"
@@ -1137,12 +1138,12 @@ export default function SponsorshipApplicationsReviewPage() {
                         if (response.success && response.receipts && response.receipts.length > 0) {
                           window.open(`/receipt/${response.receipts[0]._id}`, '_blank');
                         } else {
-                          alert('No receipt found for this sponsorship.');
+                          showAlert.warning('No receipt found for this sponsorship.');
                         }
                       } catch (error) {
                         console.error('Error fetching receipt:', error);
-                        alert('Failed to load receipt.');
-                      }
+                        showAlert.error('Failed to load receipt.');
+                        }
                     }}
                     className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                   >

@@ -66,9 +66,13 @@ const VolunteerOrganizationsTab = ({ searchTerm = "" }) => {
     const fetchOrganizations = async () => {
       try {
         const { data } = await axiosInstance.get("/api/organizations");
-        setOrganizations(data);
+        // Handle new API response format
+        const orgs = data.data || data;
+        setOrganizations(orgs);
       } catch (error) {
         console.error("Error fetching organizations:", error);
+        // Handle 404 or other errors gracefully
+        setOrganizations([]);
       } finally {
         setLoading(false);
       }
