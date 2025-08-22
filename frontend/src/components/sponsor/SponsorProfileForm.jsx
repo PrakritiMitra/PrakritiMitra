@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { sponsorAPI } from '../../api';
 import { showAlert } from '../../utils/notifications';
+import sponsorAPI from '../../api/sponsor';
+import { SubmitButton, FullScreenLoader, UploadProgress } from '../common/LoaderComponents';
 
-const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => {
+const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
     sponsorType: 'business',
     contactPerson: '',
@@ -48,7 +49,24 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
     companyRegistration: null
   });
 
+  const [existingFiles, setExistingFiles] = useState({
+    logo: null,
+    gstCertificate: null,
+    panCard: null,
+    companyRegistration: null
+  });
+
+  const [removedFiles, setRemovedFiles] = useState({
+    logo: false,
+    gstCertificate: false,
+    panCard: false,
+    companyRegistration: false
+  });
+
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState({});
   const [errors, setErrors] = useState({});
 
   const focusAreaOptions = [
@@ -78,32 +96,120 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
     'media'
   ];
 
+  // Initialize form data when existingSponsor changes
   useEffect(() => {
     if (existingSponsor) {
+      // Set form data
       setFormData({
         sponsorType: existingSponsor.sponsorType || 'business',
         contactPerson: existingSponsor.contactPerson || '',
         email: existingSponsor.email || '',
         phone: existingSponsor.phone || '',
-        location: existingSponsor.location || { city: '', state: '', country: 'India' },
-        socialLinks: existingSponsor.socialLinks || {
-          website: '', linkedin: '', twitter: '', facebook: '', instagram: ''
+        location: {
+          city: existingSponsor.location?.city || '',
+          state: existingSponsor.location?.state || '',
+          country: existingSponsor.location?.country || 'India'
         },
-        preferences: existingSponsor.preferences || {
-          focusAreas: [], 
-          preferredContributionType: [], 
-          notes: ''
+        socialLinks: {
+          website: existingSponsor.socialLinks?.website || '',
+          linkedin: existingSponsor.socialLinks?.linkedin || '',
+          twitter: existingSponsor.socialLinks?.twitter || '',
+          facebook: existingSponsor.socialLinks?.facebook || '',
+          instagram: existingSponsor.socialLinks?.instagram || ''
         },
-        business: existingSponsor.business || {
-          name: '', industry: '', website: '', description: '', 
-          yearEstablished: '', employeeCount: ''
+        preferences: {
+          focusAreas: existingSponsor.preferences?.focusAreas || [], 
+          preferredContributionType: existingSponsor.preferences?.preferredContributionType || [], 
+          notes: existingSponsor.preferences?.notes || ''
         },
-        individual: existingSponsor.individual || {
-          profession: '', organization: '', designation: '', description: ''
+        business: {
+          name: existingSponsor.business?.name || '',
+          industry: existingSponsor.business?.industry || '',
+          website: existingSponsor.business?.website || '',
+          description: existingSponsor.business?.description || '', 
+          yearEstablished: existingSponsor.business?.yearEstablished || '',
+          employeeCount: existingSponsor.business?.employeeCount || ''
+        },
+        individual: {
+          profession: existingSponsor.individual?.profession || '',
+          organization: existingSponsor.individual?.organization || '',
+          designation: existingSponsor.individual?.designation || '',
+          description: existingSponsor.individual?.description || ''
         }
       });
+
+      // Set existing files for editing
+      if (existingSponsor.business) {
+        const existingFilesData = {
+          logo: existingSponsor.business.logo || null,
+          gstCertificate: existingSponsor.business.documents?.gstCertificate || null,
+          panCard: existingSponsor.business.documents?.panCard || null,
+          companyRegistration: existingSponsor.business.documents?.companyRegistration || null
+        };
+        
+        setExistingFiles(existingFilesData);
+      } else {
+        setExistingFiles({
+          logo: null,
+          gstCertificate: null,
+          panCard: null,
+          companyRegistration: null
+        });
+      }
+
+      // Reset temporary states when editing
+      setFiles({});
+      setRemovedFiles({});
+      setUploadProgress({});
+      setUploadStatus({});
     }
   }, [existingSponsor]);
+
+  // Reset only temporary file states (preserves existingFiles for prefilling)
+  const resetTemporaryFileStates = () => {
+    setFiles({});
+    setRemovedFiles({});
+    setUploadProgress({});
+    setUploadStatus({});
+  };
+
+  // Reset file states when form is cancelled
+  const resetFileStates = () => {
+    setFiles({});
+    setRemovedFiles({});
+    setUploadProgress({});
+    setUploadStatus({});
+  };
+
+  // Retry failed upload
+  const retryUpload = (fileType) => {
+    const currentFile = files[fileType];
+    if (currentFile) {
+      // Remove the failed upload and start fresh
+      setUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[currentFile.name];
+        return newProgress;
+      });
+      
+      setUploadStatus(prev => {
+        const newStatus = { ...prev };
+        delete newStatus[currentFile.name];
+        return newStatus;
+      });
+      
+      // Retry the upload
+      handleFileSelect(fileType, currentFile);
+    }
+  };
+
+  // Reset file input values to ensure they can be reused
+  const resetFileInput = (fileType) => {
+    const fileInput = document.querySelector(`input[type="file"][key*="${fileType}"]`);
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -148,11 +254,146 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
     }
   };
 
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    if (files[0]) {
-      setFiles(prev => ({ ...prev, [name]: files[0] }));
+  // Handle file selection and start upload
+  const handleFileSelect = async (fileType, file) => {
+    if (!file) return;
+
+    // Validate file
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      showAlert(`File ${file.name} is too large. Maximum size is 10MB.`);
+      return;
     }
+
+    // Validate file type
+    const allowedTypes = {
+      logo: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'],
+      gstCertificate: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
+      panCard: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
+      companyRegistration: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    };
+
+    if (allowedTypes[fileType] && !allowedTypes[fileType].includes(file.type)) {
+      showAlert(`File ${file.name} is not a supported format for ${fileType}. Please use PDF or image files.`);
+      return;
+    }
+
+    const fileName = file.name;
+    
+    // Reset removedFiles state for this file type when adding a new file
+    setRemovedFiles(prev => ({ ...prev, [fileType]: false }));
+    
+    // Initialize upload progress for this file
+    setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
+    setUploadStatus(prev => ({ ...prev, [fileName]: 'uploading' }));
+    setIsUploading(true);
+
+    try {
+      // Simulate upload progress (in real implementation, this would come from Cloudinary)
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const current = prev[fileName] || 0;
+          if (current >= 90) {
+            clearInterval(progressInterval);
+            return { ...prev, [fileName]: 90 };
+          }
+          return { ...prev, [fileName]: current + 10 };
+        });
+      }, 100);
+
+      // Simulate file upload delay
+      setTimeout(() => {
+        try {
+          // Clear the progress interval if it's still running
+          clearInterval(progressInterval);
+          
+          // Mark upload as successful
+          setUploadProgress(prev => ({ ...prev, [fileName]: 100 }));
+          setUploadStatus(prev => ({ ...prev, [fileName]: 'completed' }));
+          
+          // Store the file
+          setFiles(prev => ({ ...prev, [fileType]: file }));
+          
+          // Check if all uploads are complete
+          setTimeout(() => {
+            const allComplete = Object.values(uploadStatus).every(status => 
+              status === 'completed' || status === 'error'
+            );
+            if (allComplete) {
+              setIsUploading(false);
+            }
+          }, 500);
+          
+        } catch (error) {
+          console.error(`❌ Error in upload completion for ${fileName}:`, error);
+          setUploadStatus(prev => ({ ...prev, [fileName]: 'error' }));
+          showAlert(`Failed to complete upload for ${fileName}. Please try again.`);
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error(`❌ Error uploading file ${fileName}:`, error);
+      setUploadStatus(prev => ({ ...prev, [fileName]: 'error' }));
+      setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
+      showAlert(`Failed to start upload for ${fileName}. Please check your file and try again.`);
+      
+      // Check if all uploads are complete
+      setTimeout(() => {
+        const allComplete = Object.values(uploadStatus).every(status => 
+          status === 'completed' || status === 'error'
+        );
+        if (allComplete) {
+          setIsUploading(false);
+        }
+      }, 500);
+    }
+  };
+
+  // Handle file removal
+  const handleFileRemove = (fileType) => {
+    const currentFile = files[fileType];
+    if (currentFile) {
+      const fileName = currentFile.name;
+      
+      // Remove from upload progress and status
+      setUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[fileName];
+        return newProgress;
+      });
+      
+      setUploadStatus(prev => {
+        const newStatus = { ...prev };
+        delete newStatus[fileName];
+        return newStatus;
+      });
+    }
+    
+    // Clear the new file
+    setFiles(prev => ({ ...prev, [fileType]: null }));
+    
+    // Mark this file as removed (for backend processing)
+    setRemovedFiles(prev => ({ ...prev, [fileType]: true }));
+    
+    // Also clear any existing file to ensure preview is updated
+    setExistingFiles(prev => ({ ...prev, [fileType]: null }));
+    
+    // Reset the file input to ensure it can be reused
+    resetFileInput(fileType);
+  };
+
+  // Handle existing file removal
+  const handleExistingFileRemove = (fileType) => {
+    // Mark this file as removed (for backend processing)
+    setRemovedFiles(prev => ({ ...prev, [fileType]: true }));
+    
+    // Don't clear existingFiles immediately - backend needs this info for deletion
+    // setExistingFiles(prev => ({ ...prev, [fileType]: null }));
+  };
+
+  // Handle undoing file removal
+  const handleUndoFileRemoval = (fileType) => {
+    setRemovedFiles(prev => ({ ...prev, [fileType]: false }));
   };
 
   const handleCheckboxChange = (e) => {
@@ -226,11 +467,19 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
       return;
     }
 
+    // Check if any files are currently uploading
+    if (isUploading) {
+      showAlert.error('Please wait for all files to finish uploading before submitting');
+      return;
+    }
+
     setLoading(true);
     try {
       const submitData = {
         ...formData,
-        files
+        files,
+        removedFiles, // Send information about which files were removed
+        existingFiles // Send existing file info for reference
       };
 
       if (existingSponsor) {
@@ -239,6 +488,8 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
         await sponsorAPI.createSponsor(submitData);
       }
 
+      // Reset only temporary file states, keep existingFiles for profile data
+      resetTemporaryFileStates();
       onSuccess();
     } catch (error) {
       console.error('Error saving sponsor profile:', error);
@@ -249,7 +500,23 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 max-w-4xl mx-auto">
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 max-w-4xl mx-auto relative">
+      {/* Close Button */}
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={loading || isUploading}
+        className={`absolute top-4 right-4 w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center transition-all duration-200 hover:scale-105 ${
+          loading || isUploading ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''
+        }`}
+        aria-label="Close form"
+        title="Close form"
+      >
+        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           {existingSponsor ? 'Update Sponsor Profile' : 'Become a Sponsor'}
@@ -520,65 +787,516 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
               </div>
             </div>
 
-            {/* Business Documents */}
+            {/* File Upload Section */}
             <div className="mt-6">
               <h4 className="text-md font-semibold text-gray-900 mb-3">Business Documents</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+              
+              {/* Logo Upload */}
+              <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company Logo
+                  Business Logo
                   </label>
+                
+                {/* Show existing logo if available and not marked for removal */}
+                {existingFiles.logo && !removedFiles.logo && (
+                  <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <img 
+                          src={existingFiles.logo.url} 
+                          alt="Current Logo" 
+                          className="w-12 h-12 object-cover rounded-lg"
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Current Logo</p>
+                          <p className="text-xs text-gray-600">{existingFiles.logo.filename}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleExistingFileRemove('logo')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show message when logo is marked for removal */}
+                {existingFiles.logo && removedFiles.logo && (
+                  <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-red-900">Logo Marked for Removal</p>
+                          <p className="text-xs text-red-600">Logo will be deleted when you save changes</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUndoFileRemoval('logo')}
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50"
+                      >
+                        Undo
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show new file being uploaded */}
+                {files.logo && (
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">New Logo Selected</p>
+                          <p className="text-xs text-blue-600">{files.logo.name}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFileRemove('logo')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message when no logo is uploaded */}
+                {!existingFiles.logo && !removedFiles.logo && !files.logo && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg border flex items-center justify-center">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">No Business Logo Uploaded</p>
+                        <p className="text-xs text-gray-600">Upload a business logo to enhance your profile</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* File input for new logo */}
+                <div className="flex items-center space-x-4">
                   <input
+                    key={`logo-${files.logo?.name || 'empty'}`}
                     type="file"
-                    name="logo"
-                    onChange={handleFileChange}
                     accept="image/*"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(e) => handleFileSelect('logo', e.target.files[0])}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, SVG (max 5MB)</p>
+                  {files.logo && (
+                    <button
+                      type="button"
+                      onClick={() => handleFileRemove('logo')}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {files.logo && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    New file: {files.logo.name}
+                  </p>
+                )}
                 </div>
 
-                <div>
+              {/* GST Certificate Upload */}
+              <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     GST Certificate
                   </label>
+                
+                {/* Show existing GST certificate if available */}
+                {existingFiles.gstCertificate && !removedFiles.gstCertificate && (
+                  <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Current GST Certificate</p>
+                          <p className="text-xs text-gray-600">{existingFiles.gstCertificate.filename}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleExistingFileRemove('gstCertificate')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show message when GST certificate is marked for removal */}
+                {existingFiles.gstCertificate && removedFiles.gstCertificate && (
+                  <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-red-900">GST Certificate Marked for Removal</p>
+                          <p className="text-xs text-red-600">GST Certificate will be deleted when you save changes</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUndoFileRemoval('gstCertificate')}
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50"
+                      >
+                        Undo
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show new file being uploaded */}
+                {files.gstCertificate && (
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">New GST Certificate Selected</p>
+                          <p className="text-xs text-blue-600">{files.gstCertificate.name}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFileRemove('gstCertificate')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message when no GST certificate is uploaded */}
+                {!existingFiles.gstCertificate && !removedFiles.gstCertificate && !files.gstCertificate && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg border flex items-center justify-center">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">No GST Certificate Uploaded</p>
+                        <p className="text-xs text-gray-600">Upload your GST certificate for verification</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* File input for new GST certificate */}
+                <div className="flex items-center space-x-4">
                   <input
+                    key={`gstCertificate-${files.gstCertificate?.name || 'empty'}`}
                     type="file"
-                    name="gstCertificate"
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    accept=".pdf,image/*"
+                    onChange={(e) => handleFileSelect('gstCertificate', e.target.files[0])}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (max 5MB)</p>
+                  {files.gstCertificate && (
+                    <button
+                      type="button"
+                      onClick={() => handleFileRemove('gstCertificate')}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {files.gstCertificate && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    New file: {files.gstCertificate.name}
+                  </p>
+                )}
                 </div>
 
-                <div>
+              {/* PAN Card Upload */}
+              <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     PAN Card
                   </label>
+                
+                {/* Show existing PAN card if available */}
+                {existingFiles.panCard && !removedFiles.panCard && (
+                  <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Current PAN Card</p>
+                          <p className="text-xs text-gray-600">{existingFiles.panCard.filename}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleExistingFileRemove('panCard')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show message when PAN card is marked for removal */}
+                {existingFiles.panCard && removedFiles.panCard && (
+                  <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-red-900">PAN Card Marked for Removal</p>
+                          <p className="text-xs text-red-600">PAN Card will be deleted when you save changes</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUndoFileRemoval('panCard')}
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50"
+                      >
+                        Undo
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show new file being uploaded */}
+                {files.panCard && (
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">New PAN Card Selected</p>
+                          <p className="text-xs text-blue-600">{files.panCard.name}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFileRemove('panCard')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message when no PAN card is uploaded */}
+                {!existingFiles.panCard && !removedFiles.panCard && !files.panCard && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg border flex items-center justify-center">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">No PAN Card Uploaded</p>
+                        <p className="text-xs text-gray-600">Upload your PAN card for verification</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* File input for new PAN card */}
+                <div className="flex items-center space-x-4">
                   <input
+                    key={`panCard-${files.panCard?.name || 'empty'}`}
                     type="file"
-                    name="panCard"
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    accept=".pdf,image/*"
+                    onChange={(e) => handleFileSelect('panCard', e.target.files[0])}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (max 5MB)</p>
+                  {files.panCard && (
+                    <button
+                      type="button"
+                      onClick={() => handleFileRemove('panCard')}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {files.panCard && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    New file: {files.panCard.name}
+                  </p>
+                )}
                 </div>
 
-                <div>
+              {/* Company Registration Upload */}
+              <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Company Registration
                   </label>
+                
+                {/* Show existing company registration if available */}
+                {existingFiles.companyRegistration && !removedFiles.companyRegistration && (
+                  <div className="mb-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Current Company Registration</p>
+                          <p className="text-xs text-gray-600">{existingFiles.companyRegistration.filename}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleExistingFileRemove('companyRegistration')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show message when company registration is marked for removal */}
+                {existingFiles.companyRegistration && removedFiles.companyRegistration && (
+                  <div className="mb-3 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-red-100 rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-red-900">Company Registration Marked for Removal</p>
+                          <p className="text-xs text-red-600">Company Registration will be deleted when you save changes</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUndoFileRemoval('companyRegistration')}
+                        className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50"
+                      >
+                        Undo
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show new file being uploaded */}
+                {files.companyRegistration && (
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white rounded-lg border flex items-center justify-center">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">New Company Registration Selected</p>
+                          <p className="text-xs text-blue-600">{files.companyRegistration.name}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFileRemove('companyRegistration')}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show message when no company registration is uploaded */}
+                {!existingFiles.companyRegistration && !removedFiles.companyRegistration && !files.companyRegistration && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg border flex items-center justify-center">
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">No Company Registration Uploaded</p>
+                        <p className="text-xs text-gray-600">Upload your company registration document</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* File input for new company registration */}
+                <div className="flex items-center space-x-4">
                   <input
+                    key={`companyRegistration-${files.companyRegistration?.name || 'empty'}`}
                     type="file"
-                    name="companyRegistration"
-                    onChange={handleFileChange}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    accept=".pdf,image/*"
+                    onChange={(e) => handleFileSelect('companyRegistration', e.target.files[0])}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
-                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (max 5MB)</p>
+                  {files.companyRegistration && (
+                    <button
+                      type="button"
+                      onClick={() => handleFileRemove('companyRegistration')}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
+                {files.companyRegistration && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    New file: {files.companyRegistration.name}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -588,21 +1306,16 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Profession *
+                  Profession
                 </label>
                 <input
                   type="text"
                   name="individual.profession"
                   value={formData.individual.profession}
                   onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors['individual.profession'] ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Software Engineer, Doctor, etc."
                 />
-                {errors['individual.profession'] && (
-                  <p className="text-red-500 text-sm mt-1">{errors['individual.profession']}</p>
-                )}
               </div>
 
               <div>
@@ -615,7 +1328,7 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
                   value={formData.individual.organization}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Company or organization name"
+                  placeholder="Company name or self-employed"
                 />
               </div>
 
@@ -629,13 +1342,13 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
                   value={formData.individual.designation}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Manager, Director, etc."
+                  placeholder="Senior Developer, Manager, etc."
                 />
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
+                  Personal Description
                 </label>
                 <textarea
                   name="individual.description"
@@ -643,7 +1356,7 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
                   onChange={handleChange}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Tell us about yourself and your interests..."
+                  placeholder="Brief description about yourself..."
                 />
               </div>
             </div>
@@ -777,24 +1490,108 @@ const SponsorProfileForm = ({ onSuccess, onCancel, existingSponsor = null }) => 
           </div>
         </div>
 
+        {/* Upload Progress Display */}
+        {Object.keys(uploadProgress).length > 0 && (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-3">File Upload Progress</h4>
+            {Object.entries(uploadProgress).map(([fileName, progress]) => {
+              // Find the fileType for this fileName
+              const fileType = Object.keys(files).find(key => files[key]?.name === fileName);
+              const status = uploadStatus[fileName] || 'uploading';
+              
+              return (
+                <div key={fileName} className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-gray-100 rounded-lg border flex items-center justify-center">
+                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{fileName}</p>
+                        <p className="text-xs text-gray-600">{fileType}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {status === 'error' && (
+                        <button
+                          type="button"
+                          onClick={() => fileType && retryUpload(fileType)}
+                          className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50"
+                        >
+                          Retry
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => fileType && handleFileRemove(fileType)}
+                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        status === 'error' ? 'bg-red-500' : 
+                        status === 'completed' ? 'bg-green-500' : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                  
+                  {/* Status Text */}
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className={`text-xs ${
+                      status === 'error' ? 'text-red-600' : 
+                      status === 'completed' ? 'text-green-600' : 'text-blue-600'
+                    }`}>
+                      {status === 'error' ? 'Upload failed' : 
+                       status === 'completed' ? 'Upload completed' : 
+                       `Uploading... ${progress}%`}
+                    </span>
+                    {status === 'error' && (
+                      <span className="text-xs text-red-600">
+                        Click "Retry" to try again
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Form Actions */}
         <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={loading || isUploading}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          <SubmitButton
+            loading={loading || isUploading}
+            disabled={loading || isUploading}
+            className="px-6 py-3"
           >
-            {loading ? 'Saving...' : (existingSponsor ? 'Update Profile' : 'Create Profile')}
-          </button>
+            {existingSponsor ? 'Update Profile' : 'Create Profile'}
+          </SubmitButton>
         </div>
       </form>
+
+      {/* Full Screen Loader for Form Submission */}
+      <FullScreenLoader
+        isVisible={loading}
+        message="Saving sponsor profile..."
+        showProgress={false}
+      />
     </div>
   );
 };

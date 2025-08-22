@@ -11,6 +11,7 @@ import {
   ListItemText,
   Chip,
 } from "@mui/material";
+import { SubmitButton } from '../common/LoaderComponents';
 
 export default function EventPreview({ formData, questionnaireData, onBack, onSubmit, existingLetter }) {
   const displayListItem = (label, value) => (
@@ -209,9 +210,7 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
         <Button variant="outlined" color="primary" onClick={onBack}>
           Back
         </Button>
-        <Button
-          variant="contained"
-          color="success"
+        <SubmitButton
           onClick={() => {
             console.log("[EventPreview] Submit button clicked");
             if (typeof onSubmit === 'function') {
@@ -220,9 +219,10 @@ export default function EventPreview({ formData, questionnaireData, onBack, onSu
               console.error('[EventPreview] onSubmit prop is not a function', { onSubmitType: typeof onSubmit });
             }
           }}
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md font-medium"
         >
           Submit Event
-        </Button>
+        </SubmitButton>
       </Box>
     </Box>
   );
