@@ -49,8 +49,7 @@ import FAQSection from "./pages/FAQSection";
 
 import NotFoundPage from "./pages/NotFoundPage";
 import { ChatProvider, useChatContext } from "./context/ChatContext";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+
 
 const GENERAL_QUESTIONS = [
   "What is your pricing?",
@@ -596,7 +595,7 @@ function AppContent() {
         suggestions={suggestedQuestions}
         onQuickReply={handleQuickReply}
       />
-              {/* <ToastContainer /> */}
+
     </>
   );
 }

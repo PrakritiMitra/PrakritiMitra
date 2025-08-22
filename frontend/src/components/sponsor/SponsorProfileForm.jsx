@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { showAlert } from '../../utils/notifications';
+import { showAlert, showConfirm } from '../../utils/notifications';
 import sponsorAPI from '../../api/sponsor';
 import { SubmitButton, FullScreenLoader, UploadProgress } from '../common/LoaderComponents';
 
@@ -254,14 +254,45 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
     }
   };
 
+
+
   // Handle file selection and start upload
   const handleFileSelect = async (fileType, file) => {
     if (!file) return;
 
+    // Check if there's already a file of this type (either new or existing) and warn the user
+    if (files[fileType] || existingFiles[fileType]) {
+      const existingFileType = files[fileType] ? 'newly selected' : 'existing';
+      
+      showConfirm.warning(
+        `You already have a ${fileType} file (${existingFileType}). Selecting a new file will replace the existing one. Do you want to continue?`,
+        () => {
+          // Continue with file selection - call the original logic directly
+          handleFileSelectionDirect(file, fileType);
+        },
+        {
+          title: '📁 File Conflict',
+          confirmText: 'Yes, replace it',
+          cancelText: 'Keep existing file'
+        }
+      );
+      return;
+    }
+
+    // If no conflict, proceed directly
+    handleFileSelectionDirect(file, fileType);
+  };
+
+  // Helper function to handle file selection logic
+  const handleFileSelectionDirect = (file, fileType) => {
     // Validate file
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      showAlert(`File ${file.name} is too large. Maximum size is 10MB.`);
+      if (typeof showAlert === 'function') {
+        showAlert(`File ${file.name} is too large. Maximum size is 10MB.`);
+      } else {
+        console.error('showAlert is not defined:', showAlert);
+      }
       return;
     }
 
@@ -274,11 +305,38 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
     };
 
     if (allowedTypes[fileType] && !allowedTypes[fileType].includes(file.type)) {
-      showAlert(`File ${file.name} is not a supported format for ${fileType}. Please use PDF or image files.`);
+      if (typeof showAlert === 'function') {
+        showAlert(`File ${file.name} is not a supported format for ${fileType}. Please use PDF or image files.`);
+      } else {
+        console.error('showAlert is not defined:', showAlert);
+      }
       return;
     }
 
     const fileName = file.name;
+    
+    // Clear any existing file of the same type to ensure only one file per document type
+    setFiles(prev => {
+      const newFiles = { ...prev };
+      // Remove any existing file of the same type
+      if (newFiles[fileType]) {
+        // Clear upload progress and status for the old file
+        const oldFileName = newFiles[fileType].name;
+        setUploadProgress(prevProgress => {
+          const newProgress = { ...prevProgress };
+          delete newProgress[oldFileName];
+          return newProgress;
+        });
+        setUploadStatus(prevStatus => {
+          const newStatus = { ...prevStatus };
+          delete newStatus[oldFileName];
+          return newStatus;
+        });
+      }
+      // Set the new file
+      newFiles[fileType] = file;
+      return newFiles;
+    });
     
     // Reset removedFiles state for this file type when adding a new file
     setRemovedFiles(prev => ({ ...prev, [fileType]: false }));
@@ -312,7 +370,7 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
           setUploadStatus(prev => ({ ...prev, [fileName]: 'completed' }));
           
           // Store the file
-          setFiles(prev => ({ ...prev, [fileType]: file }));
+          // setFiles(prev => ({ ...prev, [fileType]: file })); // This line is now handled by the new logic
           
           // Check if all uploads are complete
           setTimeout(() => {
@@ -327,7 +385,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
         } catch (error) {
           console.error(`❌ Error in upload completion for ${fileName}:`, error);
           setUploadStatus(prev => ({ ...prev, [fileName]: 'error' }));
-          showAlert(`Failed to complete upload for ${fileName}. Please try again.`);
+          if (typeof showAlert === 'function') {
+            showAlert(`Failed to complete upload for ${fileName}. Please try again.`);
+          } else {
+            console.error('showAlert is not defined:', showAlert);
+          }
         }
       }, 2000);
 
@@ -335,7 +397,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
       console.error(`❌ Error uploading file ${fileName}:`, error);
       setUploadStatus(prev => ({ ...prev, [fileName]: 'error' }));
       setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
-      showAlert(`Failed to start upload for ${fileName}. Please check your file and try again.`);
+      if (typeof showAlert === 'function') {
+        showAlert(`Failed to start upload for ${fileName}. Please check your file and try again.`);
+      } else {
+        console.error('showAlert is not defined:', showAlert);
+      }
       
       // Check if all uploads are complete
       setTimeout(() => {
@@ -469,7 +535,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
 
     // Check if any files are currently uploading
     if (isUploading) {
-      showAlert.error('Please wait for all files to finish uploading before submitting');
+      if (typeof showAlert?.error === 'function') {
+        showAlert.error('Please wait for all files to finish uploading before submitting');
+      } else {
+        console.error('showAlert.error is not defined:', showAlert?.error);
+      }
       return;
     }
 
@@ -493,7 +563,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
       onSuccess();
     } catch (error) {
       console.error('Error saving sponsor profile:', error);
-      showAlert.error(error.message || 'Failed to save sponsor profile');
+      if (typeof showAlert?.error === 'function') {
+        showAlert.error(error.message || 'Failed to save sponsor profile');
+      } else {
+        console.error('showAlert.error is not defined:', showAlert?.error);
+      }
     } finally {
       setLoading(false);
     }
@@ -867,7 +941,7 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
                       <button
                         type="button"
                         onClick={() => handleFileRemove('logo')}
-                        className="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50"
+                        className="text-red-600 hover:text-red-800 text-sm"
                       >
                         Remove
                       </button>
@@ -894,6 +968,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
 
                 {/* File input for new logo */}
                 <div className="flex items-center space-x-4">
+                  {existingFiles.logo && !removedFiles.logo && (
+                    <p className="text-xs text-blue-600 mb-2">
+                      💡 You can replace the current logo by selecting a new file below
+                    </p>
+                  )}
                   <input
                     key={`logo-${files.logo?.name || 'empty'}`}
                     type="file"
@@ -916,6 +995,9 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
                     New file: {files.logo.name}
                   </p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Only one logo file is allowed. Selecting a new file will replace the existing one.
+                </p>
                 </div>
 
               {/* GST Certificate Upload */}
@@ -1021,6 +1103,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
 
                 {/* File input for new GST certificate */}
                 <div className="flex items-center space-x-4">
+                  {existingFiles.gstCertificate && !removedFiles.gstCertificate && (
+                    <p className="text-xs text-blue-600 mb-2">
+                      💡 You can replace the current GST Certificate by selecting a new file below
+                    </p>
+                  )}
                   <input
                     key={`gstCertificate-${files.gstCertificate?.name || 'empty'}`}
                     type="file"
@@ -1043,6 +1130,9 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
                     New file: {files.gstCertificate.name}
                   </p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Only one GST Certificate file is allowed. Selecting a new file will replace the existing one.
+                </p>
                 </div>
 
               {/* PAN Card Upload */}
@@ -1148,6 +1238,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
 
                 {/* File input for new PAN card */}
                 <div className="flex items-center space-x-4">
+                  {existingFiles.panCard && !removedFiles.panCard && (
+                    <p className="text-xs text-blue-600 mb-2">
+                      💡 You can replace the current PAN Card by selecting a new file below
+                    </p>
+                  )}
                   <input
                     key={`panCard-${files.panCard?.name || 'empty'}`}
                     type="file"
@@ -1170,6 +1265,9 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
                     New file: {files.panCard.name}
                   </p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Only one PAN Card file is allowed. Selecting a new file will replace the existing one.
+                </p>
                 </div>
 
               {/* Company Registration Upload */}
@@ -1275,6 +1373,11 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
 
                 {/* File input for new company registration */}
                 <div className="flex items-center space-x-4">
+                  {existingFiles.companyRegistration && !removedFiles.companyRegistration && (
+                    <p className="text-xs text-blue-600 mb-2">
+                      💡 You can replace the current Company Registration by selecting a new file below
+                    </p>
+                  )}
                   <input
                     key={`companyRegistration-${files.companyRegistration?.name || 'empty'}`}
                     type="file"
@@ -1297,6 +1400,9 @@ const SponsorProfileForm = ({ existingSponsor, onSuccess, onCancel }) => {
                     New file: {files.companyRegistration.name}
                   </p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Only one Company Registration file is allowed. Selecting a new file will replace the existing one.
+                </p>
               </div>
             </div>
           </div>

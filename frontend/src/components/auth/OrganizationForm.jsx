@@ -1,9 +1,9 @@
 // components/auth/OrganizationForm.jsx 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showAlert } from '../../utils/notifications';
 import {
   Box,
   TextField,
@@ -129,14 +129,7 @@ export default function OrganizationForm() {
   const handleNext = () => {
     // Check if current step has required fields filled before allowing next
     if (activeStep === 3 && !isFormValid()) {
-      toast.error('Please fill all required fields before reviewing your organization details.', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.error('Please fill all required fields before reviewing your organization details.');
       return;
     }
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -172,15 +165,7 @@ export default function OrganizationForm() {
         withCredentials: true
       });
       
-      // Show success toast
-      toast.success('Organization created successfully! Redirecting...', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.success('Organization created successfully! Redirecting...');
       
       // Organization created successfully, redirect to your-organizations
       setTimeout(() => {
@@ -189,23 +174,9 @@ export default function OrganizationForm() {
       
     } catch (err) {
       if (err.response && err.response.status === 409) {
-        toast.error('An organization with this name already exists. Please choose a different name.', {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showAlert.error('An organization with this name already exists. Please choose a different name.');
       } else {
-        toast.error('Failed to register organization. Please check your network or try again.', {
-          position: "top-right",
-          autoClose: 5000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showAlert.error('Failed to register organization. Please check your network or try again.');
       }
       console.error(err);
     } finally {

@@ -1,7 +1,7 @@
 // src/pages/EditEventPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import { showAlert } from "../utils/notifications";
 import axiosInstance from "../api/axiosInstance";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import ReadOnlyTimeSlotViewer from "../components/event/ReadOnlyTimeSlotViewer";
@@ -78,15 +78,7 @@ export default function EditEventPage() {
       } catch (err) {
         console.error("❌ Failed to load event:", err);
         
-        // Show error toast
-        toast.error("❌ Failed to load event. Redirecting to home page.", {
-          position: "top-right",
-          autoClose: 4000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showAlert.error("❌ Failed to load event. Redirecting to home page.");
         
         navigate("/");
       }
@@ -113,15 +105,7 @@ export default function EditEventPage() {
       }));
       setRemovedImages((prev) => [...prev, image.publicId]);
       
-      // Show success toast
-      toast.success(`🖼️ Image "${image.filename || 'Event Image'}" marked for removal`, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.success(`🖼️ Image "${image.filename || 'Event Image'}" marked for removal`);
     }
   };
 
@@ -135,15 +119,7 @@ export default function EditEventPage() {
     setExistingLetter(null);
     setRemovedLetter(true);
     
-    // Show warning toast
-    toast.warning("📄 Government approval letter marked for removal", {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-    });
+          showAlert.warning("📄 Government approval letter marked for removal");
   };
 
   if (loading) {
@@ -298,14 +274,7 @@ export default function EditEventPage() {
                organizationOptions={[]}
                                onClose={() => {
                   // This will be called after successful submission
-                  toast.success("✅ Event editing completed successfully!", {
-                    position: "top-right",
-                    autoClose: 3000,
-                    hideProgressBar: false,
-                    closeOnClick: true,
-                    pauseOnHover: true,
-                    draggable: true,
-                  });
+                                     showAlert.success("✅ Event editing completed successfully!");
                 }}
                isEdit={true}
                eventId={id}

@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { FaMapMarkerAlt, FaClock, FaUsers, FaCalendar, FaRedo } from 'react-icons/fa';
 import axiosInstance from '../../api/axiosInstance';
 import calendarEventEmitter from '../../utils/calendarEventEmitter';
-import { showAlert } from '../../utils/notifications';
+import { showAlert, showConfirm } from '../../utils/notifications';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
 import { getSafeUserData, getSafeUserName } from "../../utils/safeUserUtils";
 import {
@@ -135,34 +135,43 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
 
   const handleWithdraw = async () => {
     if (!event?._id) return;
-    if (!window.confirm('Are you sure you want to withdraw your registration for this event?')) return;
     
-    try {
-      setLoading(true);
-      // Use event ID for withdrawal as per backend route
-      await axiosInstance.delete(`/api/registrations/${event._id}`);
-      setIsRegistered(false);
-      setRegistrationDetails(null);
-      
-      // Notify calendar to refresh
-      calendarEventEmitter.notifyCalendarRefresh();
-      calendarEventEmitter.notifyEventChange(event._id, 'withdrawn');
-      
-      // Call callback to refresh calendar
-      if (onEventUpdated) {
-        onEventUpdated();
+    showConfirm.warning(
+      'Are you sure you want to withdraw your registration for this event?',
+      async () => {
+        try {
+          setLoading(true);
+          // Use event ID for withdrawal as per backend route
+          await axiosInstance.delete(`/api/registrations/${event._id}`);
+          setIsRegistered(false);
+          setRegistrationDetails(null);
+          
+          // Notify calendar to refresh
+          calendarEventEmitter.notifyCalendarRefresh();
+          calendarEventEmitter.notifyEventChange(event._id, 'withdrawn');
+          
+          // Call callback to refresh calendar
+          if (onEventUpdated) {
+            onEventUpdated();
+          }
+          
+          showAlert.success('Registration withdrawn successfully.');
+          
+          // Close modal after successful withdrawal
+          onClose();
+        } catch (error) {
+          console.error('Withdrawal failed:', error);
+          showAlert.error(error.response?.data?.message || 'Failed to withdraw from event');
+        } finally {
+          setLoading(false);
+        }
+      },
+      {
+        title: '📝 Withdraw Registration',
+        confirmText: 'Yes, withdraw',
+        cancelText: 'Keep my registration'
       }
-      
-      showAlert.success('Registration withdrawn successfully.');
-      
-      // Close modal after successful withdrawal
-      onClose();
-    } catch (error) {
-      console.error('Withdrawal failed:', error);
-      showAlert.error(error.response?.data?.message || 'Failed to withdraw from event');
-    } finally {
-      setLoading(false);
-    }
+    );
   };
 
   const getStatusColor = (status, isCreator = false) => {

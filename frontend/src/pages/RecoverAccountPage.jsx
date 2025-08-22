@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showAlert } from '../utils/notifications';
 import { requestAccountRecovery } from '../api/auth';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -15,7 +15,7 @@ const RecoverAccountPage = () => {
     e.preventDefault();
     
     if (!email.trim()) {
-      toast.error('Please enter your email address');
+      showAlert.error('Please enter your email address');
       return;
     }
 
@@ -24,9 +24,9 @@ const RecoverAccountPage = () => {
     try {
       const data = await requestAccountRecovery({ email: email.trim() });
       setIsSubmitted(true);
-      toast.success(data.message || 'Recovery email sent successfully!');
+              showAlert.success(data.message || 'Recovery email sent successfully!');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send recovery email');
+              showAlert.error(error.response?.data?.message || 'Failed to send recovery email');
     } finally {
       setIsLoading(false);
     }

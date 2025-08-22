@@ -19,6 +19,7 @@ import {
 } from '@mui/material';
 import { getFailedVerifications, manualVerifyIntentPayment } from '../../api/intentPayment';
 import { formatDate } from '../../utils/dateUtils';
+import { showAlert } from '../../utils/notifications';
 
 const FailedVerificationsManager = ({ organizationId, onRefresh, onFailedVerificationsChange }) => {
   const [failedVerifications, setFailedVerifications] = useState([]);
@@ -83,7 +84,7 @@ const FailedVerificationsManager = ({ organizationId, onRefresh, onFailedVerific
       fetchFailedVerifications();
       onRefresh?.();
       
-      alert('Payment verified successfully!');
+      showAlert.success('Payment verified successfully!');
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to verify payment');
     } finally {

@@ -129,8 +129,62 @@ exports.createEvent = async (req, res) => {
     let images = [];
     let approvalLetter = null;
 
-    // Upload event images to Cloudinary
-    if (req.files?.eventImages) {
+    // Handle event images - now uploaded during form steps
+    if (req.body.eventImages) {
+      try {
+        // Parse the JSON strings for each image
+        const imageData = Array.isArray(req.body.eventImages) 
+          ? req.body.eventImages 
+          : [req.body.eventImages];
+        
+        for (const imageJson of imageData) {
+          if (typeof imageJson === 'string') {
+            const imageData = JSON.parse(imageJson);
+            images.push({
+              url: imageData.url,
+              publicId: imageData.publicId,
+              filename: imageData.filename
+            });
+          } else if (imageJson && imageJson.url) {
+            // Direct object format
+            images.push({
+              url: imageJson.url,
+              publicId: imageJson.publicId,
+              filename: imageJson.filename
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing event images:', error);
+        return res.status(400).json({ message: 'Invalid event images format' });
+      }
+    }
+
+    // Handle government approval letter - now uploaded during form steps
+    if (req.body.govtApprovalLetter) {
+      try {
+        let letterData;
+        if (typeof req.body.govtApprovalLetter === 'string') {
+          letterData = JSON.parse(req.body.govtApprovalLetter);
+        } else {
+          letterData = req.body.govtApprovalLetter;
+        }
+        
+        if (letterData && letterData.url) {
+          approvalLetter = {
+            url: letterData.url,
+            publicId: letterData.publicId,
+            filename: letterData.filename
+          };
+        }
+      } catch (error) {
+        console.error('Error parsing government approval letter:', error);
+        return res.status(400).json({ message: 'Invalid approval letter format' });
+      }
+    }
+
+    // Fallback: Handle files if they exist (for backward compatibility)
+    if (req.files?.eventImages && images.length === 0) {
       for (const file of req.files.eventImages) {
         const uploadResult = await uploadToCloudinary(file, 'events/images');
         if (uploadResult.success) {
@@ -145,10 +199,9 @@ exports.createEvent = async (req, res) => {
       }
     }
 
-    // Upload government approval letter to Cloudinary
-    if (req.files?.govtApprovalLetter?.[0]) {
+    if (req.files?.govtApprovalLetter?.[0] && !approvalLetter) {
       const file = req.files.govtApprovalLetter[0];
-      const uploadResult = await uploadToCloudinary(file, 'events/documents');
+      const uploadResult = await uploadToCloudinary(file, 'events/images');
       if (uploadResult.success) {
         approvalLetter = {
           url: uploadResult.url,
@@ -157,6 +210,7 @@ exports.createEvent = async (req, res) => {
         };
       } else {
         console.error('Failed to upload approval letter:', uploadResult.error);
+        return res.status(400).json({ message: 'Failed to upload approval letter' });
       }
     }
 
@@ -405,7 +459,61 @@ exports.updateEvent = async (req, res) => {
       event.govtApprovalLetter = null;
     }
 
-    // ✅ Add new uploaded images (if any)
+    // ✅ Add new uploaded images (if any) - now handled during form steps
+    if (req.body.eventImages) {
+      try {
+        // Parse the JSON strings for each image
+        const imageData = Array.isArray(req.body.eventImages) 
+          ? req.body.eventImages 
+          : [req.body.eventImages];
+        
+        for (const imageJson of imageData) {
+          if (typeof imageJson === 'string') {
+            const imageData = JSON.parse(imageJson);
+            event.eventImages.push({
+              url: imageData.url,
+              publicId: imageData.publicId,
+              filename: imageData.filename
+            });
+          } else if (imageJson && imageJson.url) {
+            // Direct object format
+            event.eventImages.push({
+              url: imageJson.url,
+              publicId: imageJson.publicId,
+              filename: imageJson.filename
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing event images:', error);
+        return res.status(400).json({ message: 'Invalid event images format' });
+      }
+    }
+
+    // ✅ Add new approval letter (if uploaded) - now handled during form steps
+    if (req.body.govtApprovalLetter) {
+      try {
+        let letterData;
+        if (typeof req.body.govtApprovalLetter === 'string') {
+          letterData = JSON.parse(req.body.govtApprovalLetter);
+        } else {
+          letterData = req.body.govtApprovalLetter;
+        }
+        
+        if (letterData && letterData.url) {
+          event.govtApprovalLetter = {
+            url: letterData.url,
+            publicId: letterData.publicId,
+            filename: letterData.filename
+          };
+        }
+      } catch (error) {
+        console.error('Error parsing government approval letter:', error);
+        return res.status(400).json({ message: 'Invalid approval letter format' });
+      }
+    }
+
+    // Fallback: Handle files if they exist (for backward compatibility)
     if (req.files?.eventImages) {
       for (const file of req.files.eventImages) {
         const uploadResult = await uploadToCloudinary(file, 'events/images');
@@ -419,13 +527,11 @@ exports.updateEvent = async (req, res) => {
           console.error('Failed to upload event image:', uploadResult.error);
         }
       }
-
     }
 
-    // ✅ Add new approval letter (if uploaded)
     if (req.files?.govtApprovalLetter?.length) {
       const file = req.files.govtApprovalLetter[0];
-      const uploadResult = await uploadToCloudinary(file, 'events/documents');
+      const uploadResult = await uploadToCloudinary(file, 'events/images');
       if (uploadResult.success) {
         event.govtApprovalLetter = {
           url: uploadResult.url,
@@ -435,7 +541,6 @@ exports.updateEvent = async (req, res) => {
       } else {
         console.error('Failed to upload approval letter:', uploadResult.error);
       }
-
     }
 
     // Form fields

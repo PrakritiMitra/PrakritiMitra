@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import { showAlert } from "../../utils/notifications";
 import EventStepOne from "./EventStepOne";
 import EventStepTwo from "./EventStepTwo";
 import EventPreview from "./EventPreview";
@@ -73,6 +73,19 @@ export default function EventCreationWrapper({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
 
+  // Enhanced upload state management
+  const [uploadStatus, setUploadStatus] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const [uploadErrors, setUploadErrors] = useState({});
+
+  // Cleanup upload states when component unmounts
+  useEffect(() => {
+    return () => {
+      resetUploadStates();
+    };
+  }, []);
+
   const handleFormUpdate = (updater) => {
     if (typeof updater === "function") {
       setFormData(updater);
@@ -93,74 +106,89 @@ export default function EventCreationWrapper({
     setExistingLetter(null);
   };
 
+  // Upload state management utilities
+  const resetUploadStates = () => {
+    setUploadProgress({});
+    setUploadStatus({});
+    setIsUploading(false);
+    setUploadQueue([]);
+    setUploadErrors({});
+  };
+
+  const isAnyFileUploading = () => {
+    return Object.values(uploadStatus).some(status => status === 'uploading');
+  };
+
+  const hasUploadErrors = () => {
+    return Object.keys(uploadErrors).length > 0;
+  };
+
+  const canProceedToNextStep = () => {
+    // Check if any files are currently uploading
+    if (isAnyFileUploading()) {
+      return false;
+    }
+    
+    // Check if there are any upload errors that need attention
+    if (hasUploadErrors()) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  const canSubmitEvent = () => {
+    // Check if any files are currently uploading
+    if (isAnyFileUploading()) {
+      return false;
+    }
+    
+    // Check if there are any upload errors that need attention
+    if (hasUploadErrors()) {
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleStepNavigation = (newStep, direction) => {
+    // Check if files are uploading before allowing navigation
+    if (direction === 'next' && !canProceedToNextStep()) {
+      if (isAnyFileUploading()) {
+        showAlert.warning("⏳ Please wait for file uploads to complete before proceeding");
+        return;
+      }
+      if (hasUploadErrors()) {
+        showAlert.error("❌ Please resolve file upload errors before proceeding");
+        return;
+      }
+    }
+
     // Validate current step before allowing navigation
     if (direction === 'next') {
       if (currentStep === 1) {
         if (!formData.title?.trim()) {
-          toast.error("❌ Please enter an event title", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ Please enter an event title", "error");
           return;
         }
         if (!formData.description?.trim()) {
-          toast.error("❌ Please enter an event description", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ Please enter an event description", "error");
           return;
         }
         if (!formData.startDateTime) {
-          toast.error("❌ Please select a start date and time", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ Please select a start date and time", "error");
           return;
         }
         if (!formData.endDateTime) {
-          toast.error("❌ Please select an end date and time", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ Please select an end date and time", "error");
           return;
         }
         if (new Date(formData.startDateTime) >= new Date(formData.endDateTime)) {
-          toast.error("❌ End time must be after start time", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ End time must be after start time", "error");
           return;
         }
         if (!formData.location?.trim()) {
-          toast.error("❌ Please enter an event location", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ Please enter an event location", "error");
           return;
         }
       }
@@ -168,14 +196,7 @@ export default function EventCreationWrapper({
       if (currentStep === 2) {
         // Basic questionnaire validation
         if (!formData.ageGroup && (formData.waterProvided || formData.medicalSupport)) {
-          toast.warning("⚠️ Age group is recommended when providing water or medical support", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("⚠️ Age group is recommended when providing water or medical support", "warning");
         }
       }
     }
@@ -185,19 +206,25 @@ export default function EventCreationWrapper({
 
   const handleSubmit = async () => {
     // Check if any files are currently uploading
+    if (!canSubmitEvent()) {
+      if (isAnyFileUploading()) {
+        showAlert.warning("⏳ Please wait for file uploads to complete before submitting");
+        return;
+      }
+      if (hasUploadErrors()) {
+        showAlert.error("❌ Please resolve file upload errors before submitting");
+        return;
+      }
+      return;
+    }
+
     const hasFiles = (formData.eventImages && formData.eventImages.length > 0) || 
                     (formData.govtApprovalLetter && formData.govtApprovalLetter instanceof File);
     
     if (hasFiles) {
       // Show submission start notification
-      const submitToastId = toast.loading(
-        isEdit ? "🔄 Updating event..." : "🔄 Creating event...",
-        {
-          position: "top-right",
-          closeOnClick: false,
-          pauseOnHover: false,
-          draggable: false,
-        }
+      const submitToastId = showAlert.loading(
+        isEdit ? "🔄 Updating event..." : "🔄 Creating event..."
       );
 
       setIsSubmitting(true);
@@ -217,30 +244,14 @@ export default function EventCreationWrapper({
           });
           
           if (totalAllocated > eventMax) {
-            toast.dismiss(submitToastId);
-            toast.error(`❌ Volunteer allocation error: You have allocated ${totalAllocated} volunteers but the event maximum is ${eventMax}. Please adjust your category limits.`, {
-              position: "top-right",
-              autoClose: 6000,
-              hideProgressBar: false,
-              closeOnClick: true,
-              pauseOnHover: true,
-              draggable: true,
-            });
+            showAlert("❌ Volunteer allocation error: You have allocated " + totalAllocated + " volunteers but the event maximum is " + eventMax + ". Please adjust your category limits.", "error");
             return;
           }
         }
 
         // Validate required fields
         if (!formData.title?.trim()) {
-          toast.dismiss(submitToastId);
-          toast.error("❌ Event title is required", {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert("❌ Event title is required", "error");
           return;
         }
 
@@ -252,9 +263,22 @@ export default function EventCreationWrapper({
               data.append("equipmentNeeded", item)
             );
           } else if (key === "eventImages") {
-            (Array.isArray(formData.eventImages) ? formData.eventImages : []).forEach((file) =>
-              data.append("eventImages", file)
-            );
+            // Handle uploaded images - they now contain Cloudinary URLs and IDs
+            (Array.isArray(formData.eventImages) ? formData.eventImages : []).forEach((file) => {
+              if (file.uploaded && file.cloudinaryUrl) {
+                // File was uploaded to Cloudinary, send the Cloudinary data
+                data.append("eventImages", JSON.stringify({
+                  url: file.cloudinaryUrl,
+                  publicId: file.cloudinaryId,
+                  filename: file.name,
+                  format: file.type,
+                  size: file.size
+                }));
+              } else if (file instanceof File) {
+                // Fallback: if somehow we still have a File object, append it directly
+                data.append("eventImages", file);
+              }
+            });
           } else if (key === 'mapLocation') {
             if (formData.mapLocation) {
               data.append('mapLocation[address]', formData.mapLocation.address || '');
@@ -263,7 +287,19 @@ export default function EventCreationWrapper({
             }
           } else if (key === "govtApprovalLetter") {
             if (formData.govtApprovalLetter) {
-              data.append("govtApprovalLetter", formData.govtApprovalLetter);
+              if (formData.govtApprovalLetter.uploaded && formData.govtApprovalLetter.cloudinaryUrl) {
+                // File was uploaded to Cloudinary, send the Cloudinary data
+                data.append("govtApprovalLetter", JSON.stringify({
+                  url: formData.govtApprovalLetter.cloudinaryUrl,
+                  publicId: formData.govtApprovalLetter.cloudinaryId,
+                  filename: formData.govtApprovalLetter.name,
+                  format: formData.govtApprovalLetter.type,
+                  size: formData.govtApprovalLetter.size
+                }));
+              } else if (formData.govtApprovalLetter instanceof File) {
+                // Fallback: if somehow we still have a File object, append it directly
+                data.append("govtApprovalLetter", formData.govtApprovalLetter);
+              }
             }
           } else if (key === "timeSlots") {
             // Handle timeSlots as JSON string since it's a complex object
@@ -304,24 +340,13 @@ export default function EventCreationWrapper({
           response = await axiosInstance.put(url, data);
           
           // Show success notification
-          toast.dismiss(submitToastId);
+          showAlert.success("✅ Event updated successfully!");
         } else {
           response = await axiosInstance.post(url, data);
           
           // Show success notification
-          toast.dismiss(submitToastId);
-          toast.success("🎉 Event created successfully!", {
-            position: "top-right",
-            autoClose: 5000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          showAlert.success("🎉 Event created successfully!");
         }
-
-        // Dismiss loading toast first
-        toast.dismiss(submitToastId);
         
         // Call onClose callback if provided
         if (onClose) {
@@ -360,13 +385,6 @@ export default function EventCreationWrapper({
       } catch (err) {
         console.error("[EventCreationWrapper] Submit failed", err?.response || err);
         
-        // Always dismiss loading toast, even on error
-        try {
-          toast.dismiss(submitToastId);
-        } catch (dismissError) {
-          console.error("[EventCreationWrapper] Error dismissing toast:", dismissError);
-        }
-      
         let errorMessage = "Failed to submit event.";
         
         if (err?.response) {
@@ -394,14 +412,7 @@ export default function EventCreationWrapper({
           }
         }
         
-        toast.error(`❌ ${errorMessage}`, {
-          position: "top-right",
-          autoClose: 6000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showAlert(`❌ ${errorMessage}`, "error");
       } finally {
         setIsSubmitting(false);
       }
@@ -430,6 +441,14 @@ export default function EventCreationWrapper({
           onRemoveExistingLetter={handleRemoveExistingLetter}
           isEditMode={isEdit}
           readOnly={readOnly}
+          // Upload state management props
+          uploadProgress={uploadProgress}
+          uploadStatus={uploadStatus}
+          isUploading={isUploading}
+          uploadErrors={uploadErrors}
+          onUploadProgress={setUploadProgress}
+          onUploadStatus={setUploadStatus}
+          onUploadError={(fileName, error) => setUploadErrors(prev => ({ ...prev, [fileName]: error }))}
         />
       )}
       {currentStep === 2 && (

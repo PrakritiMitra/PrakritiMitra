@@ -40,6 +40,22 @@ const eventUpload = multer({
   }
 });
 
+// Single file upload for event creation (images and letters)
+const eventSingleUpload = multer({
+  storage: eventStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs for event files
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files and PDFs are allowed for event files.'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for event files
+  }
+});
+
 // For organization registration: support multiple files
 const multiUpload = organizationUpload.fields([
   { name: 'logo', maxCount: 1 },
@@ -174,6 +190,7 @@ const completedEventUpload = multer({
 module.exports = {
   organizationUpload,
   eventUpload,
+  eventSingleUpload,
   profileImageUpload,
   govtIdUpload,
   multiUpload,

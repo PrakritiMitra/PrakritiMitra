@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { toast } from 'react-toastify';
+import { showAlert } from '../../utils/notifications';
 import { forgotPassword } from '../../services/authService';
 import { Link } from 'react-router-dom';
 import { CircularProgress, Alert, Box, Typography, TextField, Button, Paper } from '@mui/material';
@@ -22,7 +22,7 @@ const ForgotPassword = () => {
     try {
       const response = await forgotPassword(email);
       setIsSuccess(true);
-      toast.success('✅ Password reset email sent successfully!');
+              showAlert.success('✅ Password reset email sent successfully!');
     } catch (error) {
       console.error('Forgot password error:', error);
       
@@ -30,25 +30,25 @@ const ForgotPassword = () => {
         setShowOAuthMessage(true);
         setOauthProvider(error.response.data.oauthProvider);
         setEmail(''); // Clear email for OAuth users
-        toast.info('ℹ️ OAuth account detected');
+        showAlert.info('ℹ️ OAuth account detected');
       } else if (error.response?.status === 429) {
         // Rate limited
         const lockoutTime = error.response.data.lockoutUntil;
         const minutes = Math.ceil((new Date(lockoutTime) - new Date()) / 1000 / 60);
         setError(`🚫 Too many password reset attempts. Please try again in ${minutes} minutes.`);
-        toast.error('🚫 Rate limited - too many attempts');
+        showAlert.error('🚫 Rate limited - too many attempts');
       } else if (error.response?.status === 404) {
         setError('❌ No account found with this email address.');
-        toast.error('❌ Email not found');
+        showAlert.error('❌ Email not found');
       } else if (error.response?.status === 500) {
         setError('💥 Server error. Please try again later.');
-        toast.error('💥 Server error');
+        showAlert.error('💥 Server error');
       } else if (error.message === 'Network Error') {
         setError('🌐 Network error. Please check your internet connection.');
-        toast.error('🌐 Network error');
+        showAlert.error('🌐 Network error');
       } else {
         setError(error.response?.data?.message || '❌ An error occurred while sending the reset email.');
-        toast.error('❌ Failed to send reset email');
+        showAlert.error('❌ Failed to send reset email');
       }
     } finally {
       setIsSubmitting(false);

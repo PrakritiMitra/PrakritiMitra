@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import RecentlyDeletedAccountModal from './RecentlyDeletedAccountModal';
@@ -23,7 +23,7 @@ import {
   Snackbar,
   Alert
 } from '@mui/material';
-import { toast } from 'react-toastify';
+import { showAlert } from '../../utils/notifications';
 
 export default function VolunteerForm() {
   const initialFormState = {
@@ -620,7 +620,7 @@ export default function VolunteerForm() {
       });
 
       // Show success message
-      toast.success('🎉 Volunteer account created successfully! Please login to continue.');
+              showAlert.success('🎉 Volunteer account created successfully! Please login to continue.');
       
       // Redirect to login page instead of auto-login
       setTimeout(() => {
@@ -673,7 +673,7 @@ export default function VolunteerForm() {
         });
       }
       
-      toast.error('❌ Signup failed. Please check the errors below.');
+              showAlert.error('❌ Signup failed. Please check the errors below.');
     } finally {
       setLoading(false);
     }

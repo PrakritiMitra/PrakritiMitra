@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showAlert } from '../../utils/notifications';
 import { resetPassword, verifyResetToken } from '../../services/authService';
 
 const ResetPassword = () => {
@@ -25,7 +25,7 @@ const ResetPassword = () => {
   useEffect(() => {
     const validateToken = async () => {
       if (!token) {
-        toast.error('No reset token provided');
+        showAlert.error('No reset token provided');
         navigate('/forgot-password');
         return;
       }
@@ -36,11 +36,11 @@ const ResetPassword = () => {
           setUserEmail(response.email);
           setIsValidToken(true);
         } else {
-          toast.error('Invalid or expired token');
+          showAlert.error('Invalid or expired token');
           navigate('/forgot-password');
         }
       } catch (error) {
-        toast.error('Error validating token');
+        showAlert.error('Error validating token');
         navigate('/forgot-password');
       } finally {
         setIsLoading(false);
@@ -152,26 +152,26 @@ const ResetPassword = () => {
     
     // Validate token is present
     if (!token) {
-      toast.error('No reset token provided. Please use the link from your email.');
+      showAlert.error('No reset token provided. Please use the link from your email.');
       navigate('/forgot-password');
       return;
     }
     
     // Validate password
     if (!validatePassword(password)) {
-      toast.error('Please fix password requirements before submitting');
+      showAlert.error('Please fix password requirements before submitting');
       return;
     }
 
     // Validate confirm password
     if (!validateConfirmPassword(confirmPassword)) {
-      toast.error('Passwords do not match');
+      showAlert.error('Passwords do not match');
       return;
     }
 
     // Check if password is too weak
     if (passwordStrength < 4) {
-      toast.error('Password is too weak. Please choose a stronger password.');
+      showAlert.error('Password is too weak. Please choose a stronger password.');
       return;
     }
 
@@ -188,7 +188,7 @@ const ResetPassword = () => {
       await resetPassword({ token, newPassword: password });
       
       console.log('✅ Password reset successful');
-      toast.success('Password reset successfully. You can now login with your new password.');
+              showAlert.success('Password reset successfully. You can now login with your new password.');
       
       // Clear form data
       setPassword('');
@@ -211,32 +211,32 @@ const ResetPassword = () => {
       
       if (error.response?.status === 400) {
         if (errorMessage?.includes('cannot be the same as your old password')) {
-          toast.error('🔒 New password cannot be the same as your old password');
+          showAlert.error('🔒 New password cannot be the same as your old password');
           // Don't redirect for this error - let user try again
         } else if (errorMessage?.includes('commonly used')) {
-          toast.error('🚫 This password is too common. Please choose a more unique password.');
+          showAlert.error('🚫 This password is too common. Please choose a more unique password.');
           // Don't redirect for this error - let user try again
         } else if (errorMessage?.includes('uppercase letter, one lowercase letter, one number, and one special character')) {
-          toast.error('⚠️ Password must meet all strength requirements. Please check the requirements below.');
+          showAlert.warning('⚠️ Password must meet all strength requirements. Please check the requirements below.');
           // Don't redirect for this error - let user try again
         } else if (errorMessage?.includes('already been used') || errorMessage?.includes('has expired') || errorMessage?.includes('already used or has expired')) {
-          toast.error('⏰ This reset link has already been used or has expired. Please request a new password reset.');
+          showAlert.error('⏰ This reset link has already been used or has expired. Please request a new password reset.');
           // Redirect to forgot password page after a delay
           setTimeout(() => {
             navigate('/forgot-password');
           }, 3000);
         } else if (errorMessage?.includes('Invalid or expired reset token')) {
-          toast.error('🔑 This reset link is invalid or has expired. Please request a new password reset.');
+          showAlert.error('🔑 This reset link is invalid or has expired. Please request a new password reset.');
           // Redirect to forgot password page after a delay
           setTimeout(() => {
             navigate('/forgot-password');
           }, 3000);
         } else {
           console.log('No specific error handler matched, showing raw error message:', errorMessage);
-          toast.error(errorMessage || '❌ An error occurred while resetting your password');
+          showAlert.error(errorMessage || '❌ An error occurred while resetting your password');
         }
       } else {
-        toast.error(errorMessage || '❌ An error occurred while resetting your password');
+        showAlert.error(errorMessage || '❌ An error occurred while resetting your password');
       }
     } finally {
       setIsSubmitting(false);
