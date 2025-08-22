@@ -1,7 +1,7 @@
 // src/pages/EventDetailsPage.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "react-toastify";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { showAlert, showConfirm } from "../utils/notifications";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
@@ -371,16 +371,24 @@ export default function EventDetailsPage() {
   }, [event, id]);
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this event?")) return;
-
-    try {
-      await axiosInstance.delete(`/api/events/${id}`);
-      toast.success("🎉 Event deleted successfully.");
-      navigate(-1); // or navigate('/your-organizations') if you prefer
-    } catch (err) {
-      console.error("Failed to delete event:", err);
-      toast.error("❌ Failed to delete event.");
-    }
+    showConfirm.danger(
+      "Are you sure you want to delete this event?",
+      async () => {
+        try {
+          await axiosInstance.delete(`/api/events/${id}`);
+          showAlert.success("🎉 Event deleted successfully.");
+          navigate(-1); // or navigate('/your-organizations') if you prefer
+        } catch (err) {
+          console.error("Failed to delete event:", err);
+          showAlert.error("❌ Failed to delete event.");
+        }
+      },
+      {
+        title: "🗑️ Delete Event",
+        confirmText: "Yes, delete it",
+        cancelText: "Cancel"
+      }
+    );
   };
 
   const handleJoinAsOrganizer = async () => {
@@ -401,16 +409,26 @@ export default function EventDetailsPage() {
   // Handler to leave as organizer
   const handleLeaveAsOrganizer = async () => {
     if (!event || !event._id) return;
-    if (!window.confirm('Are you sure you want to leave as an organizer for this event?')) return;
-    try {
-      await axiosInstance.post(`/api/events/${event._id}/leave-organizer`);
-      await fetchAndSetEvent();
-      // Clear join request status for this user after leaving
-      setJoinRequestStatus(null);
-      toast.success('✅ You have left as an organizer for this event.');
-    } catch (err) {
-      toast.error('❌ Failed to leave as organizer.');
-    }
+    
+    showConfirm.warning(
+      'Are you sure you want to leave as an organizer for this event?',
+      async () => {
+        try {
+          await axiosInstance.post(`/api/events/${event._id}/leave-organizer`);
+          await fetchAndSetEvent();
+          // Clear join request status for this user after leaving
+          setJoinRequestStatus(null);
+          showAlert.success('✅ You have left as an organizer for this event.');
+        } catch (err) {
+          showAlert.error('❌ Failed to leave as organizer.');
+        }
+      },
+      {
+        title: '👋 Leave Event',
+        confirmText: 'Yes, leave',
+        cancelText: 'Stay as organizer'
+      }
+    );
   };
 
   // Handler to send join request as organizer
@@ -433,10 +451,10 @@ export default function EventDetailsPage() {
   const handleApproveJoinRequest = async (userId) => {
     try {
       await axiosInstance.post(`/api/events/${id}/approve-join-request`, { userId });
-      toast.success("Join request approved.");
+      showAlert("Join request approved.", "success");
       await fetchAndSetEvent();
     } catch (err) {
-      toast.error('❌ Failed to approve join request.');
+              showAlert.error('❌ Failed to approve join request.');
     }
   };
 
@@ -444,10 +462,10 @@ export default function EventDetailsPage() {
   const handleRejectJoinRequest = async (userId) => {
     try {
       await axiosInstance.post(`/api/events/${id}/reject-join-request`, { userId });
-      toast.success("Join request rejected.");
+      showAlert("Join request rejected.", "success");
       await fetchAndSetEvent();
     } catch (err) {
-      toast.error('❌ Failed to reject join request.');
+              showAlert.error('❌ Failed to reject join request.');
     }
   };
 
@@ -508,7 +526,7 @@ export default function EventDetailsPage() {
         setShowQuestionnaireModal(false);
       }, 1000);
     } catch (err) {
-      toast.error("❌ Failed to submit questionnaire.");
+      showAlert("❌ Failed to submit questionnaire.", "error");
     }
   };
 
@@ -539,7 +557,7 @@ export default function EventDetailsPage() {
   // Certificate generation handler
   const handleGenerateCertificate = async () => {
     if (!canGenerateCertificate) {
-      toast.warning('⚠️ You are not eligible to generate a certificate at this time.');
+              showAlert.warning('⚠️ You are not eligible to generate a certificate at this time.');
       return;
     }
     
@@ -559,11 +577,11 @@ export default function EventDetailsPage() {
       // Force a re-render by updating state
       setForceRefresh(prev => prev + 1);
       
-      toast.success('🎉 Certificate generated successfully! You can now download it.');
+              showAlert.success('🎉 Certificate generated successfully! You can now download it.');
     } catch (err) {
       console.error('Certificate generation error:', err);
       const errorMessage = err.response?.data?.message || 'Failed to generate certificate. Please try again.';
-      toast.error(`❌ ${errorMessage}`);
+      showAlert(`❌ ${errorMessage}`, "error");
     } finally {
       setIsGeneratingCertificate(false);
     }
@@ -625,7 +643,7 @@ export default function EventDetailsPage() {
     
     if (result.success) {
       const message = result.data.isUpdate ? 'Report updated successfully!' : 'Report generated successfully!';
-      toast.success(`✅ ${message}`);
+      showAlert(`✅ ${message}`, "success");
       // Refresh event data to get the updated report
       fetchAndSetEvent();
       // Refresh eligibility to update UI
@@ -633,7 +651,7 @@ export default function EventDetailsPage() {
     } else {
       setReportError(result.error);
       const action = reportEligibility?.reportGenerated ? 'update' : 'generate';
-      toast.error(`❌ Failed to ${action} report: ${result.error}`);
+      showAlert(`❌ Failed to ${action} report: ${result.error}`, "error");
     }
     
     setGeneratingReport(false);
@@ -712,10 +730,10 @@ export default function EventDetailsPage() {
       setShowRemoveConfirm(false);
       setSelectedVolunteer(null);
       
-      toast.success('✅ Volunteer removed successfully!');
+              showAlert.success('✅ Volunteer removed successfully!');
     } catch (err) {
       console.error('Failed to remove volunteer:', err);
-      toast.error(err.response?.data?.message || '❌ Failed to remove volunteer');
+      showAlert(err.response?.data?.message || '❌ Failed to remove volunteer', "error");
     } finally {
       setRemovingVolunteer(false);
     }
@@ -736,10 +754,10 @@ export default function EventDetailsPage() {
       setShowBanConfirm(false);
       setSelectedVolunteer(null);
       
-      toast.success('🚫 Volunteer banned successfully!');
+              showAlert.success('🚫 Volunteer banned successfully!');
     } catch (err) {
       console.error('Failed to ban volunteer:', err);
-      toast.error(err.response?.data?.message || '❌ Failed to ban volunteer');
+      showAlert(err.response?.data?.message || '❌ Failed to ban volunteer', "error");
     } finally {
       setBanningVolunteer(false);
     }
@@ -748,37 +766,43 @@ export default function EventDetailsPage() {
   const handleCompleteEvent = async () => {
     if (!event?._id) return;
     
-    if (!window.confirm("Are you sure you want to complete this event? This will create the next instance if it's a recurring event.")) {
-      return;
-    }
+    showConfirm.info(
+      "Are you sure you want to complete this event? This will create the next instance if it's a recurring event.",
+      async () => {
+        try {
+          setCompletingEvent(true);
+          setCompletionError("");
+          setCompletionSuccess("");
 
-    try {
-      setCompletingEvent(true);
-      setCompletionError("");
-      setCompletionSuccess("");
-
-      const response = await completeEvent(event._id);
-      
-      if (response.success) {
-        setCompletionSuccess(response.message);
-        // Refresh event data
-        await fetchAndSetEvent();
-        
-        // If next instance was created, show info
-        if (response.nextInstance) {
-          setTimeout(() => {
-            toast.success(`🎉 Event completed successfully! Next instance created: ${response.nextInstance.title}`);
-          }, 1000);
+          const response = await completeEvent(event._id);
+          
+          if (response.success) {
+            setCompletionSuccess(response.message);
+            // Refresh event data
+            await fetchAndSetEvent();
+            
+            // If next instance was created, show info
+            if (response.nextInstance) {
+              setTimeout(() => {
+                showAlert.success(`🎉 Event completed successfully! Next instance created: ${response.nextInstance.title}`);
+              }, 1000);
+            }
+          } else {
+            setCompletionError(response.message || "Failed to complete event");
+          }
+        } catch (error) {
+          console.error("Error completing event:", error);
+          setCompletionError("Failed to complete event");
+        } finally {
+          setCompletingEvent(false);
         }
-      } else {
-        setCompletionError(response.message || "Failed to complete event");
+      },
+      {
+        title: "✅ Complete Event",
+        confirmText: "Yes, complete it",
+        cancelText: "Cancel"
       }
-    } catch (error) {
-      console.error("Error completing event:", error);
-      setCompletionError("Failed to complete event");
-    } finally {
-      setCompletingEvent(false);
-    }
+    );
   };
 
   // Handle organizer removal
@@ -796,10 +820,10 @@ export default function EventDetailsPage() {
       setShowRemoveOrganizerConfirm(false);
       setSelectedOrganizer(null);
       
-      toast.success('✅ Organizer removed successfully!');
+              showAlert.success('✅ Organizer removed successfully!');
     } catch (err) {
       console.error('Failed to remove organizer:', err);
-      toast.error(err.response?.data?.message || '❌ Failed to remove organizer');
+      showAlert(err.response?.data?.message || '❌ Failed to remove organizer', "error");
     } finally {
       setRemovingOrganizer(false);
     }
@@ -820,10 +844,10 @@ export default function EventDetailsPage() {
       setShowBanOrganizerConfirm(false);
       setSelectedOrganizer(null);
       
-      toast.success('🚫 Organizer banned successfully!');
+              showAlert.success('🚫 Organizer banned successfully!');
     } catch (err) {
       console.error('Failed to ban organizer:', err);
-      toast.error(err.response?.data?.message || '❌ Failed to ban organizer');
+      showAlert(err.response?.data?.message || '❌ Failed to ban organizer', "error");
     } finally {
       setBanningOrganizer(false);
     }
@@ -844,10 +868,10 @@ export default function EventDetailsPage() {
       setShowUnbanVolunteerConfirm(false);
       setSelectedVolunteer(null);
       
-      toast.success('✅ Volunteer unbanned successfully!');
+              showAlert.success('✅ Volunteer unbanned successfully!');
     } catch (err) {
       console.error('Failed to unban volunteer:', err);
-      toast.error(err.response?.data?.message || '❌ Failed to unban volunteer');
+      showAlert(err.response?.data?.message || '❌ Failed to unban volunteer', "error");
     } finally {
       setUnbanningVolunteer(false);
     }
@@ -868,10 +892,10 @@ export default function EventDetailsPage() {
       setShowUnbanOrganizerConfirm(false);
       setSelectedOrganizer(null);
       
-      toast.success('✅ Organizer unbanned successfully!');
+              showAlert.success('✅ Organizer unbanned successfully!');
     } catch (err) {
       console.error('Failed to unban organizer:', err);
-      toast.error(err.response?.data?.message || '❌ Failed to unban organizer');
+      showAlert(err.response?.data?.message || '❌ Failed to unban organizer', "error");
     } finally {
       setUnbanningOrganizer(false);
     }

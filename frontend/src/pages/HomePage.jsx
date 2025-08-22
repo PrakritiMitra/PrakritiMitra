@@ -16,6 +16,7 @@ import {
   ClockIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
+import { showAlert, showConfirm } from '../utils/notifications';
 
 export default function HomePage() {
   const [stats, setStats] = useState({
@@ -395,6 +396,364 @@ export default function HomePage() {
                 <ArrowRightIcon className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </span>
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Notification Test Section - REMOVE LATER */}
+      <section className="py-16 px-4 bg-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">🧪 Notification Test Section</h2>
+            <p className="text-gray-600">Test all notification types - This section will be removed later</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Basic Notifications */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Basic Notifications</h3>
+              <div className="space-y-3">
+                                 <button
+                   onClick={() => {
+                     try {
+                       showAlert.info('This is an info notification');
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Info notification test');
+                     }
+                   }}
+                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Info
+                 </button>
+                
+                                 <button
+                   onClick={() => {
+                     try {
+                       showAlert.success('This is a success notification');
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Success notification test');
+                     }
+                   }}
+                   className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Success
+                 </button>
+                
+                                 <button
+                   onClick={() => {
+                     try {
+                       showAlert.warning('This is a warning notification');
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Warning notification test');
+                     }
+                   }}
+                   className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Warning
+                 </button>
+                
+                                 <button
+                   onClick={() => {
+                     try {
+                       showAlert.error('This is an error notification');
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Error notification test');
+                     }
+                   }}
+                   className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Error
+                 </button>
+              </div>
+            </div>
+
+            {/* Advanced Features */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Advanced Features</h3>
+              <div className="space-y-3">
+                                 <button
+                   onClick={() => {
+                     try {
+                       const loadingToast = showAlert.loading('Processing... Please wait');
+                       setTimeout(() => {
+                         showAlert.dismiss(loadingToast);
+                         showAlert.success('Operation completed!');
+                       }, 3000);
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Loading test - will complete in 3 seconds');
+                     }
+                   }}
+                   className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Loading + Dismiss
+                 </button>
+                
+                                 <button
+                   onClick={() => {
+                     try {
+                       showAlert.warning('This is a very long notification message that should wrap properly and demonstrate how the notification system handles longer text content. It should still look good and be readable.');
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Long message test');
+                     }
+                   }}
+                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Long Message
+                 </button>
+                
+                                 <button
+                   onClick={() => {
+                     try {
+                       showAlert.info('Special chars: !@#$%^&*()_+-=[]{}|;:,.<>?`~"\'\\');
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Special characters test');
+                     }
+                   }}
+                   className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Special Characters
+                 </button>
+              </div>
+            </div>
+
+            {/* Confirmation Tests */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Confirmation Modals</h3>
+              <div className="space-y-3">
+                                 <button
+                   onClick={() => {
+                     try {
+                       showConfirm.action(
+                         'Are you sure you want to proceed?',
+                         () => {
+                           try {
+                             showAlert.success('Action confirmed!');
+                           } catch (error) {
+                             alert('Action confirmed!');
+                           }
+                         },
+                         {
+                           title: 'Confirm Action',
+                           confirmText: 'Yes, proceed',
+                           cancelText: 'Cancel'
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       showConfirm.action('Are you sure you want to proceed?', () => {
+                         showAlert.success('Action confirmed!');
+                       });
+                     }
+                   }}
+                   className="w-full bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Basic Confirmation
+                 </button>
+                
+                                 <button
+                   onClick={() => {
+                     try {
+                       showConfirm.action(
+                         'This is a custom confirmation with different text',
+                         () => {
+                           try {
+                             showAlert.success('Custom action confirmed!');
+                           } catch (error) {
+                             showAlert.success('Custom action confirmed!');
+                           }
+                         },
+                         {
+                           title: 'Custom Title',
+                           confirmText: 'Yes, do it!',
+                           cancelText: 'No, cancel'
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       showConfirm.action('This is a custom confirmation with different text', () => {
+                         showAlert.success('Custom action confirmed!');
+                       }, {
+                         title: 'Custom Title',
+                         confirmText: 'Yes, do it!',
+                         cancelText: 'No, cancel'
+                       });
+                     }
+                   }}
+                   className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Custom Confirmation
+                 </button>
+
+                 <button
+                   onClick={() => {
+                     try {
+                       showConfirm.danger(
+                         'This is a dangerous action that cannot be undone. Are you absolutely sure?',
+                         () => {
+                           try {
+                             showAlert.success('Dangerous action confirmed!');
+                           } catch (error) {
+                             showAlert.success('Dangerous action confirmed!');
+                           }
+                         },
+                         {
+                           title: '⚠️ Danger Zone',
+                           confirmText: 'Yes, I understand the risk',
+                           cancelText: 'Cancel, keep me safe'
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       showConfirm.danger('This is a dangerous action that cannot be undone. Are you absolutely sure?', () => {
+                         showAlert.success('Dangerous action confirmed!');
+                       }, {
+                         title: '⚠️ Danger Zone',
+                         confirmText: 'Yes, I understand the risk',
+                         cancelText: 'Cancel, keep me safe'
+                       });
+                     }
+                   }}
+                   className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Danger Confirmation
+                 </button>
+
+                 <button
+                   onClick={() => {
+                     try {
+                       showConfirm.warning(
+                         'This action will affect multiple items. Please review before proceeding.',
+                         () => {
+                           try {
+                             showAlert.success('Warning action confirmed!');
+                           } catch (error) {
+                             showAlert.success('Warning action confirmed!');
+                           }
+                         },
+                         {
+                           title: '⚠️ Warning',
+                           confirmText: 'I understand, proceed',
+                           cancelText: 'Let me review again'
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       showConfirm.warning('This action will affect multiple items. Please review before proceeding.', () => {
+                         showAlert.success('Warning action confirmed!');
+                       }, {
+                         title: '⚠️ Warning',
+                         confirmText: 'I understand, proceed',
+                         cancelText: 'Let me review again'
+                       });
+                     }
+                   }}
+                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Warning Confirmation
+                 </button>
+
+                 <button
+                   onClick={() => {
+                     try {
+                       showConfirm.info(
+                         'This will create a backup before proceeding. Do you want to continue?',
+                         () => {
+                           try {
+                             showAlert.success('Info action confirmed!');
+                           } catch (error) {
+                             showAlert.success('Info action confirmed!');
+                           }
+                         },
+                         {
+                           title: 'ℹ️ Information',
+                           confirmText: 'Yes, create backup',
+                           cancelText: 'No, proceed without backup'
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       showConfirm.info('This will create a backup before proceeding. Do you want to continue?', () => {
+                         showAlert.success('Info action confirmed!');
+                       }, {
+                         title: 'ℹ️ Information',
+                         confirmText: 'Yes, create backup',
+                         cancelText: 'No, proceed without backup'
+                       });
+                     }
+                   }}
+                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Info Confirmation
+                 </button>
+
+                 <button
+                   onClick={() => {
+                     try {
+                       showConfirm.action(
+                         'This is a very long confirmation message that should wrap properly and demonstrate how the confirmation modal handles longer text content. It should still look good and be readable.',
+                         () => {
+                           try {
+                             showAlert.success('Long message confirmed!');
+                           } catch (error) {
+                             showAlert.success('Long message confirmed!');
+                           }
+                         },
+                         {
+                           title: 'Long Message Test',
+                           confirmText: 'Yes, I read it all',
+                           cancelText: 'Too long, cancel'
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       showConfirm.action('This is a very long confirmation message that should wrap properly and demonstrate how the confirmation modal handles longer text content. It should still look good and be readable.', () => {
+                         showAlert.success('Long message confirmed!');
+                       }, {
+                         title: 'Long Message Test',
+                         confirmText: 'Yes, I read it all',
+                         cancelText: 'Too long, cancel'
+                       });
+                     }
+                   }}
+                   className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Long Message Confirmation
+                 </button>
+
+                 <button
+                   onClick={() => {
+                     try {
+                       // Simple test with minimal options
+                       showConfirm.action(
+                         'Simple test - does this work?',
+                         () => {
+                           showAlert.success('Simple test worked!');
+                         }
+                       );
+                     } catch (error) {
+                       console.error('Error:', error);
+                       alert('Simple test failed: ' + error.message);
+                     }
+                   }}
+                   className="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded transition-colors"
+                 >
+                   Test Simple Confirmation
+                 </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-8 text-center">
+            <p className="text-sm text-gray-500">
+              💡 <strong>Note:</strong> This test section will be removed after testing is complete.
+            </p>
           </div>
         </div>
       </section>

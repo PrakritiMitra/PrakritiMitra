@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Box, Button, Typography, CircularProgress, Alert } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
-import { toast } from 'react-toastify';
+import { showAlert } from '../../utils/notifications';
 
 const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSuccess = async (credentialResponse) => {
     setIsProcessing(true);
-    toast.info('🔄 Processing Google authentication...');
+    showAlert.info('🔄 Processing Google authentication...');
     
     try {
       await onSuccess(credentialResponse.credential);
@@ -25,13 +25,13 @@ const GoogleOAuthButton = ({ onSuccess, onError, disabled = false }) => {
     console.error('Google OAuth Error:', error);
     
     if (error.error === 'popup_closed_by_user') {
-      toast.warning('⚠️ Google sign-in was cancelled. Please try again.');
+      showAlert.warning('⚠️ Google sign-in was cancelled. Please try again.');
     } else if (error.error === 'access_denied') {
-      toast.error('❌ Access denied. Please allow Google sign-in permissions.');
+      showAlert.error('❌ Access denied. Please allow Google sign-in permissions.');
     } else if (error.error === 'network_error') {
-      toast.error('🌐 Network error. Please check your internet connection.');
+      showAlert.error('🌐 Network error. Please check your internet connection.');
     } else {
-      toast.error('❌ Google sign-in failed. Please try again.');
+      showAlert.error('❌ Google sign-in failed. Please try again.');
     }
     
     onError(error);

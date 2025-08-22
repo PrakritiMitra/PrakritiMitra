@@ -1,11 +1,9 @@
 // src/pages/JoinOrganizationPage.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { showAlert } from '../utils/notifications';
 import axios from "axios";
-import { toast } from 'react-toastify';
-import Navbar from "../components/layout/Navbar";
-import { useNavigate } from "react-router-dom";
-import OrganizationCard from "../components/common/OrganizationCard";
 import { 
   BuildingOfficeIcon,
   ClockIcon,
@@ -16,6 +14,8 @@ import {
   ShieldCheckIcon,
   UsersIcon
 } from '@heroicons/react/24/outline';
+import Navbar from "../components/layout/Navbar";
+import OrganizationCard from "../components/common/OrganizationCard";
 
 export default function JoinOrganizationPage() {
   const [organizations, setOrganizations] = useState([]);
@@ -109,14 +109,7 @@ export default function JoinOrganizationPage() {
       );
       
       // Show success toast
-      toast.success("Join request sent successfully!", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.success("Join request sent successfully!");
       
       setPendingOrgIds((prev) => new Set(prev).add(orgId));
       await fetchOrganizations();
@@ -126,14 +119,7 @@ export default function JoinOrganizationPage() {
       }
       
       // Show error toast
-      toast.error(err.response?.data?.message || "Request failed", {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.error(err.response?.data?.message || "Request failed");
       
       console.error(err);
     }
@@ -148,14 +134,7 @@ export default function JoinOrganizationPage() {
       });
       
       // Show success toast
-      toast.success("Join request withdrawn successfully!", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.success("Join request withdrawn successfully!");
       
       setPendingOrgIds((prev) => {
         const newSet = new Set(prev);
@@ -165,14 +144,7 @@ export default function JoinOrganizationPage() {
       await fetchOrganizations();
     } catch (err) {
       // Show error toast
-      toast.error(err.response?.data?.message || "Withdraw failed", {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.error(err.response?.data?.message || "Withdraw failed");
       
       console.error(err);
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showAlert } from '../utils/notifications';
 import { getOrganizationById, updateOrganization } from '../api';
 import Navbar from '../components/layout/Navbar';
 
@@ -50,14 +50,7 @@ export default function OrganizationSettingsPage() {
       // Check if current user is admin of this organization
       const userData = JSON.parse(localStorage.getItem("user"));
       if (!userData) {
-        toast.error('You must be logged in to edit this organization.', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showAlert.error('You must be logged in to edit this organization.');
         navigate(`/organization/${organizationId}`);
         return;
       }
@@ -71,14 +64,7 @@ export default function OrganizationSettingsPage() {
       ) : false;
       
       if (!isCreator && !isAdminMember) {
-        toast.error('You do not have permission to edit this organization.', {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
+        showAlert.error('You do not have permission to edit this organization.');
         navigate(`/organization/${organizationId}`);
         return;
       }
@@ -111,14 +97,7 @@ export default function OrganizationSettingsPage() {
       });
     } catch (error) {
       console.error('Error fetching organization data:', error);
-      toast.error('Failed to load organization data', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.error('Failed to load organization data');
       navigate(`/organization/${organizationId}`);
     } finally {
       setLoading(false);
@@ -224,28 +203,14 @@ export default function OrganizationSettingsPage() {
       await updateOrganization(organizationId, updateData);
       
       // Show success toast
-      toast.success('Organization settings updated successfully!', {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.success('Organization settings updated successfully!');
       
       navigate(`/organization/${organizationId}`);
     } catch (error) {
       console.error('Error updating organization:', error);
       
       // Show error toast
-      toast.error(error.response?.data?.message || error.message || 'Failed to update organization', {
-        position: "top-right",
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-      });
+              showAlert.error(error.response?.data?.message || error.message || 'Failed to update organization');
     } finally {
       setSaving(false);
     }

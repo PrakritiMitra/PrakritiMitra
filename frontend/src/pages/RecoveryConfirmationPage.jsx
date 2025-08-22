@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { showAlert } from '../utils/notifications';
 import { verifyRecoveryToken } from '../api/auth';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -112,9 +112,9 @@ const RecoveryConfirmationPage = () => {
       
       // Show success message based on account type
       if (data.accountType === 'OAuth') {
-        toast.success('OAuth account recovered successfully! Check your email for login instructions.');
+        showAlert.success('OAuth account recovered successfully! Check your email for login instructions.');
       } else {
-        toast.success('Account recovered successfully! Check your email for the new password.');
+        showAlert.success('Account recovered successfully! Check your email for the new password.');
       }
     } catch (error) {
       console.error('Recovery error details:', {
@@ -134,7 +134,7 @@ const RecoveryConfirmationPage = () => {
         // This is not a real failure - recovery is in progress
         setError('Account recovery is already in progress. Please wait while we complete the process...');
         setRecoveryStatus('loading'); // Keep showing loading state
-        toast.info('Recovery in progress. Please wait...');
+        showAlert.info('Recovery in progress. Please wait...');
         
         // Don't clear session storage - let the recovery continue
         // Don't set error status - keep it as loading
@@ -145,7 +145,7 @@ const RecoveryConfirmationPage = () => {
         sessionStorage.removeItem(recoveryKey);
         
         setError(error.response?.data?.message || 'Recovery failed');
-        toast.error(error.response?.data?.message || 'Recovery failed');
+        showAlert.error(error.response?.data?.message || 'Recovery failed');
         setRecoveryStatus('error');
       }
     } finally {

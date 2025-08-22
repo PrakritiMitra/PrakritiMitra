@@ -63,10 +63,8 @@ export default function SponsorProfilePage() {
     setUser(safeUserData);
     setLoading(false);
 
-    // Fetch sponsor profile if user is a sponsor
-    if (userData.sponsor?.isSponsor) {
-      fetchSponsorProfile();
-    }
+    // Always try to fetch sponsor profile - don't rely on the flag
+    fetchSponsorProfile();
   }, [navigate]);
 
   // Fetch sponsor profile data
@@ -87,7 +85,7 @@ export default function SponsorProfilePage() {
 
   // Load sponsor profile when component mounts or user changes
   useEffect(() => {
-    if (user && user.sponsor?.isSponsor) {
+    if (user) {
       fetchSponsorProfile();
     }
   }, [user]);
@@ -288,32 +286,20 @@ export default function SponsorProfilePage() {
               )}
             </div>
 
-            {user.sponsor?.isSponsor ? (
+            {sponsorLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                <p className="text-gray-600 mt-2">Loading sponsor profile...</p>
+              </div>
+            ) : sponsorProfile ? (
               <div>
-                {sponsorLoading ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                    <p className="text-gray-600 mt-2">Loading sponsor profile...</p>
-                  </div>
-                ) : sponsorProfile ? (
-                  <SponsorProfileDisplay
-                    sponsor={sponsorProfile}
-                    onEdit={handleEditSponsor}
-                    onDelete={handleDeleteSponsor}
-                    deleteLoading={deleteLoading}
-                    editLoading={formLoading}
-                  />
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-600 mb-4">Your sponsor profile is being processed...</p>
-                    <button
-                      onClick={handleCreateSponsor}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      Create Sponsor Profile
-                    </button>
-                  </div>
-                )}
+                <SponsorProfileDisplay
+                  sponsor={sponsorProfile}
+                  onEdit={handleEditSponsor}
+                  onDelete={handleDeleteSponsor}
+                  deleteLoading={deleteLoading}
+                  editLoading={formLoading}
+                />
               </div>
             ) : (
               <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -345,6 +331,15 @@ export default function SponsorProfilePage() {
                     <h3 className="font-semibold text-gray-900 mb-2">Track Impact</h3>
                     <p className="text-sm text-gray-600">Monitor the impact of your sponsorships and contributions</p>
                   </div>
+                </div>
+                
+                <div className="text-center mt-6">
+                  <button
+                    onClick={handleCreateSponsor}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                  >
+                    Create Sponsor Profile
+                  </button>
                 </div>
               </div>
             )}

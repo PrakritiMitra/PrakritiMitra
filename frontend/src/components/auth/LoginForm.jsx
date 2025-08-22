@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { Link, useNavigate } from "react-router-dom";
+import { showAlert } from "../../utils/notifications";
 import {
   TextField,
   Button,
@@ -19,7 +19,6 @@ import RoleSelectionModal from './RoleSelectionModal';
 import OAuthRegistrationForm from './OAuthRegistrationForm';
 import AccountLinkingModal from './AccountLinkingModal';
 import { googleOAuthCallback, completeOAuthRegistration, linkOAuthAccount } from '../../api/oauth';
-import { Link } from 'react-router-dom';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -313,7 +312,7 @@ export default function LoginForm() {
         console.log('💾 Stored user data in localStorage');
 
         // Show success message
-        toast.success('🎉 Account created successfully! Welcome to PrakritiMitra.');
+        showAlert.success('🎉 Account created successfully! Welcome to PrakritiMitra.');
 
         // Close the registration modal
         setShowRegistrationForm(false);
@@ -389,8 +388,7 @@ export default function LoginForm() {
 
   const handleLinkAccount = async () => {
     try {
-      // Test toast first
-      toast.info('🔄 Linking account...');
+        showAlert.info('🔄 Linking account...');
       
       console.log('Linking account with data:', {
         userId: existingUser._id,
@@ -408,8 +406,8 @@ export default function LoginForm() {
       
       console.log('Account linking response:', response);
       
-      // Show success message
-      toast.success('🎉 Account linked successfully! Please login to continue.');
+              // Show success message
+        showAlert.success('🎉 Account linked successfully! Please login to continue.');
       
       // Clear any previous errors
       setError('');
@@ -445,8 +443,7 @@ export default function LoginForm() {
         errorMessage = error.message;
       }
       
-      // Show error toast
-      toast.error(`❌ ${errorMessage}`);
+        showAlert.error(`❌ ${errorMessage}`);
       
       // Set error in state for the modal to display
       setError(`❌ ${errorMessage}`);

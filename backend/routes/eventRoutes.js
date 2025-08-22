@@ -3,7 +3,8 @@ const { protect, requireOrganizer } = require('../middlewares/authMiddleware');
 const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/eventController');
-const { eventMultiUpload, completedEventUpload } = require('../middlewares/upload');
+const { eventMultiUpload, eventSingleUpload, completedEventUpload } = require('../middlewares/upload');
+const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
 
 const Event = require("../models/event");
 
@@ -227,5 +228,84 @@ router.post('/:eventId/unban-volunteer', protect, eventController.unbanVolunteer
 
 // Unban organizer from event (can re-join)
 router.post('/:eventId/unban-organizer', protect, eventController.unbanOrganizer);
+
+// File upload endpoints for event creation
+router.post('/upload-image', protect, eventSingleUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    const file = req.file;
+    const folder = req.body.folder || 'events';
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(file, folder);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        url: result.url,
+        publicId: result.publicId,
+        filename: result.filename,
+        format: result.format,
+        size: result.size
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || 'Upload failed'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during upload'
+    });
+  }
+});
+
+router.post('/upload-letter', protect, eventSingleUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    const file = req.file;
+    const folder = req.body.folder || 'events/letters';
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(file, folder);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        url: result.url,
+        publicId: result.publicId,
+        filename: result.filename,
+        format: result.format,
+        size: result.size
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: result.error || 'Upload failed'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Letter upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during upload'
+    });
+  }
+});
 
 module.exports = router;

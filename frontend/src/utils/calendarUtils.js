@@ -1,7 +1,7 @@
 import { format, isAfter, isBefore, isEqual, addWeeks, addMonths, startOfWeek, endOfWeek } from 'date-fns';
 import { addEventToCalendar as addEventToWebsiteCalendarAPI, removeEventFromCalendar, checkCalendarStatus } from '../api/calendar';
 import calendarEventEmitter from './calendarEventEmitter';
-import toastNotification from './toastNotification';
+import { showAlert } from './notifications';
 
 // Event status determination
 export const getEventStatus = (event, userId) => {
@@ -370,14 +370,14 @@ export const addToWebsiteCalendar = async (eventId) => {
       calendarEventEmitter.notifyCalendarRefresh();
       calendarEventEmitter.notifyEventChange(eventId, 'added');
       // Show success notification
-      toastNotification.success('Event added to calendar successfully!');
+      showAlert.success('Event added to calendar successfully!');
     } else {
-      toastNotification.error(result.message || 'Failed to add event to calendar');
+      showAlert.error(result.message || 'Failed to add event to calendar');
     }
     return result;
   } catch (error) {
     console.error('Error adding to website calendar:', error);
-    toastNotification.error('Failed to add event to calendar');
+    showAlert.error('Failed to add event to calendar');
     return { success: false, message: error.message || 'Failed to add to website calendar' };
   }
 };
@@ -391,14 +391,14 @@ export const removeFromWebsiteCalendar = async (eventId) => {
       calendarEventEmitter.notifyCalendarRefresh();
       calendarEventEmitter.notifyEventChange(eventId, 'removed');
       // Show success notification
-      toastNotification.success('Event removed from calendar successfully!');
+      showAlert.success('Event removed from calendar successfully!');
     } else {
-      toastNotification.error(result.message || 'Failed to remove event from calendar');
+      showAlert.error(result.message || 'Failed to remove event from calendar');
     }
     return result;
   } catch (error) {
     console.error('Error removing from website calendar:', error);
-    toastNotification.error('Failed to remove event from calendar');
+    showAlert.error('Failed to remove event from calendar');
     return { success: false, message: error.message || 'Failed to remove from website calendar' };
   }
 };
