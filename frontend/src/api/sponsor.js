@@ -45,16 +45,16 @@ const sponsorAPI = {
       
       // Add location data
       if (sponsorData.location) {
-        formData.append('location[city]', sponsorData.location.city || '');
-        formData.append('location[state]', sponsorData.location.state || '');
-        formData.append('location[country]', sponsorData.location.country || 'India');
+        formData.append('location.city', sponsorData.location.city || '');
+        formData.append('location.state', sponsorData.location.state || '');
+        formData.append('location.country', sponsorData.location.country || 'India');
       }
       
       // Add social links
       if (sponsorData.socialLinks) {
         Object.keys(sponsorData.socialLinks).forEach(key => {
           if (sponsorData.socialLinks[key]) {
-            formData.append(`socialLinks[${key}]`, sponsorData.socialLinks[key]);
+            formData.append(`socialLinks.${key}`, sponsorData.socialLinks[key]);
           }
         });
       }
@@ -63,34 +63,28 @@ const sponsorAPI = {
       if (sponsorData.preferences) {
         if (sponsorData.preferences.focusAreas) {
           sponsorData.preferences.focusAreas.forEach(area => {
-            formData.append('preferences[focusAreas][]', area);
+            formData.append('preferences.focusAreas', area);
           });
-        }
-        if (sponsorData.preferences.preferredTier) {
-          formData.append('preferences[preferredTier]', sponsorData.preferences.preferredTier);
-        }
-        if (sponsorData.preferences.maxContribution) {
-          formData.append('preferences[maxContribution]', sponsorData.preferences.maxContribution);
         }
         if (sponsorData.preferences.preferredContributionType) {
           sponsorData.preferences.preferredContributionType.forEach(type => {
-            formData.append('preferences[preferredContributionType][]', type);
+            formData.append('preferences.preferredContributionType', type);
           });
         }
         if (sponsorData.preferences.notes) {
-          formData.append('preferences[notes]', sponsorData.preferences.notes);
+          formData.append('preferences.notes', sponsorData.preferences.notes);
         }
       }
       
       // Add business or individual details
       if (sponsorData.sponsorType === 'business') {
         if (sponsorData.business) {
-          formData.append('business[name]', sponsorData.business.name || '');
-          formData.append('business[industry]', sponsorData.business.industry || '');
-          formData.append('business[website]', sponsorData.business.website || '');
-          formData.append('business[description]', sponsorData.business.description || '');
-          formData.append('business[yearEstablished]', sponsorData.business.yearEstablished || '');
-          formData.append('business[employeeCount]', sponsorData.business.employeeCount || '');
+          formData.append('business.name', sponsorData.business.name || '');
+          formData.append('business.industry', sponsorData.business.industry || '');
+          formData.append('business.website', sponsorData.business.website || '');
+          formData.append('business.description', sponsorData.business.description || '');
+          formData.append('business.yearEstablished', sponsorData.business.yearEstablished || '');
+          formData.append('business.employeeCount', sponsorData.business.employeeCount || '');
         }
         
         // Add business files
@@ -108,10 +102,10 @@ const sponsorAPI = {
         }
       } else if (sponsorData.sponsorType === 'individual') {
         if (sponsorData.individual) {
-          formData.append('individual[profession]', sponsorData.individual.profession || '');
-          formData.append('individual[organization]', sponsorData.individual.organization || '');
-          formData.append('individual[designation]', sponsorData.individual.designation || '');
-          formData.append('individual[description]', sponsorData.individual.description || '');
+          formData.append('individual.profession', sponsorData.individual.profession || '');
+          formData.append('individual.organization', sponsorData.individual.organization || '');
+          formData.append('individual.designation', sponsorData.individual.designation || '');
+          formData.append('individual.description', sponsorData.individual.description || '');
         }
       }
 
@@ -148,16 +142,16 @@ const sponsorAPI = {
       
       // Add location data
       if (sponsorData.location) {
-        formData.append('location[city]', sponsorData.location.city || '');
-        formData.append('location[state]', sponsorData.location.state || '');
-        formData.append('location[country]', sponsorData.location.country || 'India');
+        formData.append('location.city', sponsorData.location.city || '');
+        formData.append('location.state', sponsorData.location.state || '');
+        formData.append('location.country', sponsorData.location.country || 'India');
       }
       
       // Add social links
       if (sponsorData.socialLinks) {
         Object.keys(sponsorData.socialLinks).forEach(key => {
           if (sponsorData.socialLinks[key]) {
-            formData.append(`socialLinks[${key}]`, sponsorData.socialLinks[key]);
+            formData.append(`socialLinks.${key}`, sponsorData.socialLinks[key]);
           }
         });
       }
@@ -166,40 +160,34 @@ const sponsorAPI = {
       if (sponsorData.preferences) {
         if (sponsorData.preferences.focusAreas) {
           sponsorData.preferences.focusAreas.forEach(area => {
-            formData.append('preferences[focusAreas][]', area);
+            formData.append('preferences.focusAreas', area);
           });
-        }
-        if (sponsorData.preferences.preferredTier) {
-          formData.append('preferences[preferredTier]', sponsorData.preferences.preferredTier);
-        }
-        if (sponsorData.preferences.maxContribution) {
-          formData.append('preferences[maxContribution]', sponsorData.preferences.maxContribution);
         }
         if (sponsorData.preferences.preferredContributionType) {
           sponsorData.preferences.preferredContributionType.forEach(type => {
-            formData.append('preferences[preferredContributionType][]', type);
+            formData.append('preferences.preferredContributionType', type);
           });
         }
         if (sponsorData.preferences.notes) {
-          formData.append('preferences[notes]', sponsorData.preferences.notes);
+          formData.append('preferences.notes', sponsorData.preferences.notes);
         }
       }
       
       // Add business or individual details
       if (sponsorData.business) {
-        formData.append('business[name]', sponsorData.business.name || '');
-        formData.append('business[industry]', sponsorData.business.industry || '');
-        formData.append('business[website]', sponsorData.business.website || '');
-        formData.append('business[description]', sponsorData.business.description || '');
-        formData.append('business[yearEstablished]', sponsorData.business.yearEstablished || '');
-        formData.append('business[employeeCount]', sponsorData.business.employeeCount || '');
+        formData.append('business.name', sponsorData.business.name || '');
+        formData.append('business.industry', sponsorData.business.industry || '');
+        formData.append('business.website', sponsorData.business.website || '');
+        formData.append('business.description', sponsorData.business.description || '');
+        formData.append('business.yearEstablished', sponsorData.business.yearEstablished || '');
+        formData.append('business.employeeCount', sponsorData.business.employeeCount || '');
       }
       
       if (sponsorData.individual) {
-        formData.append('individual[profession]', sponsorData.individual.profession || '');
-        formData.append('individual[organization]', sponsorData.individual.organization || '');
-        formData.append('individual[designation]', sponsorData.individual.designation || '');
-        formData.append('individual[description]', sponsorData.individual.description || '');
+        formData.append('individual.profession', sponsorData.individual.profession || '');
+        formData.append('individual.organization', sponsorData.individual.organization || '');
+        formData.append('individual.designation', sponsorData.individual.designation || '');
+        formData.append('individual.description', sponsorData.individual.description || '');
       }
       
       // Add files if provided
@@ -214,6 +202,26 @@ const sponsorAPI = {
       }
       if (sponsorData.files?.companyRegistration) {
         formData.append('companyRegistration', sponsorData.files.companyRegistration);
+      }
+
+      // Add removedFiles information
+      if (sponsorData.removedFiles) {
+        Object.keys(sponsorData.removedFiles).forEach(key => {
+          if (sponsorData.removedFiles[key]) {
+            formData.append(`removedFiles[${key}]`, 'true');
+          }
+        });
+      }
+
+      // Add existingFiles information for reference
+      if (sponsorData.existingFiles) {
+        Object.keys(sponsorData.existingFiles).forEach(key => {
+          if (sponsorData.existingFiles[key]) {
+            formData.append(`existingFiles[${key}][url]`, sponsorData.existingFiles[key].url || '');
+            formData.append(`existingFiles[${key}][publicId]`, sponsorData.existingFiles[key].publicId || '');
+            formData.append(`existingFiles[${key}][filename]`, sponsorData.existingFiles[key].filename || '');
+          }
+        });
       }
 
       const response = await axiosInstance.put(`/api/sponsors/${sponsorId}`, formData, {

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SponsorProfileDisplay = ({ sponsor, onEdit, onDelete, onRefresh }) => {
+const SponsorProfileDisplay = ({ sponsor, onEdit, onDelete, onRefresh, deleteLoading = false, editLoading = false }) => {
   const getTierColor = (tier) => {
     switch (tier) {
       case 'platinum': return 'bg-gradient-to-r from-gray-800 to-gray-600 text-white';
@@ -47,17 +47,37 @@ const SponsorProfileDisplay = ({ sponsor, onEdit, onDelete, onRefresh }) => {
                 {onEdit && (
                   <button
                     onClick={onEdit}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={editLoading}
+                    className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                      editLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
-                    Edit Profile
+                    {editLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Processing...</span>
+                      </div>
+                    ) : (
+                      'Edit Profile'
+                    )}
                   </button>
                 )}
                 {onDelete && (
                   <button
                     onClick={onDelete}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    disabled={deleteLoading}
+                    className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ${
+                      deleteLoading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
-                    Delete Profile
+                    {deleteLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Deleting...</span>
+                      </div>
+                    ) : (
+                      'Delete Profile'
+                    )}
                   </button>
                 )}
               </div>

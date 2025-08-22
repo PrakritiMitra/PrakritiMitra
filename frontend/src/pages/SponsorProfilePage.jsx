@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { sponsorAPI } from "../api";
 import { SponsorProfileForm, SponsorProfileDisplay } from "../components/sponsor";
+import { FullScreenLoader } from "../components/common/LoaderComponents";
 import Navbar from "../components/layout/Navbar";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
 import { 
@@ -26,7 +27,7 @@ import {
   ExclamationTriangleIcon,
   XCircleIcon
 } from "@heroicons/react/24/outline";
-import { showAlert } from "../utils/notifications";
+import { showAlert, showConfirm } from "../utils/notifications";
 
 export default function SponsorProfilePage() {
   const [user, setUser] = useState(null);
@@ -34,6 +35,9 @@ export default function SponsorProfilePage() {
   const [showSponsorForm, setShowSponsorForm] = useState(false);
   const [sponsorLoading, setSponsorLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   
   const navigate = useNavigate();
 
@@ -67,16 +71,26 @@ export default function SponsorProfilePage() {
 
   // Fetch sponsor profile data
   const fetchSponsorProfile = async () => {
+    setFetchLoading(true);
     setSponsorLoading(true);
     try {
       const sponsorResponse = await sponsorAPI.getMySponsorProfile();
       setSponsorProfile(sponsorResponse);
     } catch (error) {
       console.error('Error fetching sponsor profile:', error);
+      setSponsorProfile(null);
     } finally {
+      setFetchLoading(false);
       setSponsorLoading(false);
     }
   };
+
+  // Load sponsor profile when component mounts or user changes
+  useEffect(() => {
+    if (user && user.sponsor?.isSponsor) {
+      fetchSponsorProfile();
+    }
+  }, [user]);
 
   const handleCreateSponsor = () => {
     setShowSponsorForm(true);
@@ -84,22 +98,30 @@ export default function SponsorProfilePage() {
 
   const handleSponsorSuccess = async () => {
     setShowSponsorForm(false);
+    setFormLoading(true);
     
-    // Update user data in localStorage
-    const userData = JSON.parse(localStorage.getItem("user"));
-    userData.sponsor = { isSponsor: true };
-    localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
-    
-    // Dispatch custom event to notify other components about user data update
-    window.dispatchEvent(new CustomEvent('userDataUpdated', {
-      detail: { user: userData }
-    }));
-    
-    // Refresh sponsor profile
-    await fetchSponsorProfile();
-    
-    showAlert.success('Sponsor profile created successfully!');
+    try {
+      // Refresh sponsor profile data
+      await fetchSponsorProfile();
+      
+      // Update user data in localStorage
+      const userData = JSON.parse(localStorage.getItem("user"));
+      userData.sponsor = { isSponsor: true };
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      
+      // Dispatch custom event to notify other components about user data update
+      window.dispatchEvent(new CustomEvent('userDataUpdated', {
+        detail: { user: userData }
+      }));
+      
+      showAlert.success('Sponsor profile saved successfully!');
+    } catch (error) {
+      console.error('Error refreshing sponsor profile:', error);
+      showAlert.error('Profile saved but failed to refresh data. Please refresh the page.');
+    } finally {
+      setFormLoading(false);
+    }
   };
 
   const handleSponsorCancel = () => {
@@ -115,8 +137,15 @@ export default function SponsorProfilePage() {
     showConfirm.action(
       'Are you sure you want to delete your sponsor profile? This action cannot be undone.',
       async () => {
+        setDeleteLoading(true);
         try {
-          await sponsorAPI.deleteSponsorProfile();
+          // Check if sponsor profile exists before deleting
+          if (!sponsorProfile || !sponsorProfile._id) {
+            showAlert.error('No sponsor profile found to delete.');
+            return;
+          }
+          
+          await sponsorAPI.deleteSponsor(sponsorProfile._id);
           
           // Update user data in localStorage
           const userData = JSON.parse(localStorage.getItem("user"));
@@ -134,6 +163,8 @@ export default function SponsorProfilePage() {
         } catch (error) {
           console.error('Error deleting sponsor profile:', error);
           showAlert.error('Failed to delete sponsor profile. Please try again.');
+        } finally {
+          setDeleteLoading(false);
         }
       },
       {
@@ -240,9 +271,19 @@ export default function SponsorProfilePage() {
               {!user.sponsor?.isSponsor && (
                 <button
                   onClick={handleCreateSponsor}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                  disabled={formLoading}
+                  className={`px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg ${
+                    formLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  Become a Sponsor
+                  {formLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Processing...</span>
+                    </div>
+                  ) : (
+                    'Become a Sponsor'
+                  )}
                 </button>
               )}
             </div>
@@ -259,6 +300,8 @@ export default function SponsorProfilePage() {
                     sponsor={sponsorProfile}
                     onEdit={handleEditSponsor}
                     onDelete={handleDeleteSponsor}
+                    deleteLoading={deleteLoading}
+                    editLoading={formLoading}
                   />
                 ) : (
                   <div className="text-center py-8">
@@ -313,6 +356,7 @@ export default function SponsorProfilePage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
               <SponsorProfileForm
+                key={`sponsor-form-${sponsorProfile?._id || 'new'}`}
                 onSuccess={handleSponsorSuccess}
                 onCancel={handleSponsorCancel}
                 existingSponsor={sponsorProfile}
@@ -331,6 +375,13 @@ export default function SponsorProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Full Screen Loader for Delete Operation */}
+      <FullScreenLoader
+        isVisible={deleteLoading}
+        message="Deleting sponsor profile and cleaning up files..."
+        showProgress={false}
+      />
     </div>
   );
 } 
