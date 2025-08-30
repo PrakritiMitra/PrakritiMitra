@@ -94,6 +94,9 @@ router.post('/:id/add-creator-certificate', protect, requireOrganizer, eventCont
 // Handle event completion and create next recurring instance if needed
 router.post('/:eventId/complete', protect, eventController.handleEventCompletion);
 
+// Delete file from Cloudinary (for event creation process)
+router.post('/delete-cloudinary-file', protect, eventController.deleteCloudinaryFile);
+
 // @route   GET /api/events/organization/:orgId
 router.get('/organization/:orgId', eventController.getEventsByOrganization);
 

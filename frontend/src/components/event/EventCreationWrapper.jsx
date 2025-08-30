@@ -1,15 +1,15 @@
 // src/components/event/EventCreationWrapper.jsx
 
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { showAlert } from "../../utils/notifications";
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useLocation } from "react-router-dom";
+import { showAlert, showConfirm } from "../../utils/notifications";
 import EventStepOne from "./EventStepOne";
 import EventStepTwo from "./EventStepTwo";
 import EventPreview from "./EventPreview";
 import axiosInstance from "../../api/axiosInstance";
 import { FullScreenLoader } from '../common/LoaderComponents';
 
-export default function EventCreationWrapper({
+const EventCreationWrapper = forwardRef(function EventCreationWrapper({
   selectedOrgId,
   organizationOptions = [],
   onClose,
@@ -18,8 +18,8 @@ export default function EventCreationWrapper({
   initialFormData = null,
   initialQuestionnaireData = null,
   readOnly = false
-}) {
-  const navigate = useNavigate();
+  }, ref) {
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState(
     initialFormData || {
@@ -86,6 +86,96 @@ export default function EventCreationWrapper({
     };
   }, []);
 
+  // Navigation guard to prevent accidental data loss
+  const hasUnsavedChanges = () => {
+    try {
+      const defaultFormData = {
+        title: "",
+        description: "",
+        location: "",
+        mapLocation: { address: "", lat: null, lng: null },
+        startDateTime: "",
+        endDateTime: "",
+        maxVolunteers: "",
+        unlimitedVolunteers: false,
+        equipmentNeeded: [],
+        otherEquipment: "",
+        eventType: "",
+        instructions: "",
+        groupRegistration: false,
+        recurringEvent: false,
+        recurringType: "",
+        recurringValue: "",
+        recurringEndDate: "",
+        recurringMaxInstances: "",
+        organization: selectedOrgId || "",
+        eventImages: [],
+        govtApprovalLetter: null,
+      };
+
+      // Safety check for formData
+      if (!formData) return false;
+
+      // Check if any form field has been modified
+      const hasFormChanges = Object.keys(defaultFormData).some(key => {
+        const current = formData[key];
+        const initial = defaultFormData[key];
+        
+        if (Array.isArray(current)) {
+          return current && current.length > 0;
+        }
+        if (typeof current === 'object' && current !== null) {
+          return Object.values(current).some(val => val !== null && val !== "");
+        }
+        return current !== initial && current !== "" && current !== null;
+      });
+
+      // Check if questionnaire has been modified
+      const hasQuestionnaireChanges = questionnaireData && (
+        (questionnaireData.timeSlots?.length > 0) || 
+        (questionnaireData.workCategories?.length > 0) ||
+        (questionnaireData.questionSets?.length > 0) ||
+        questionnaireData.waterProvided ||
+        questionnaireData.medicalSupport ||
+        (questionnaireData.ageGroup && questionnaireData.ageGroup.trim() !== "") ||
+        (questionnaireData.precautions && questionnaireData.precautions.trim() !== "") ||
+        (questionnaireData.publicTransport && questionnaireData.publicTransport.trim() !== "") ||
+        (questionnaireData.contactPerson && questionnaireData.contactPerson.trim() !== "")
+      );
+
+      // Check if any uploads are in progress
+      const hasActiveUploads = Object.keys(uploadStatus || {}).length > 0 || 
+                              Object.keys(uploadProgress || {}).length > 0;
+
+      // Only consider it unsaved if there are actual changes, not just step progression
+      return hasFormChanges || hasQuestionnaireChanges || hasActiveUploads;
+    } catch (error) {
+      console.warn('Error in hasUnsavedChanges:', error);
+      return false; // Safe fallback
+    }
+  };
+
+  // Handle browser back/forward/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (hasUnsavedChanges()) {
+        event.preventDefault();
+        event.returnValue = ''; // For Chrome
+        return ''; // For other browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [formData, questionnaireData, uploadStatus, uploadProgress, currentStep]);
+
+
+
+
+
   const handleFormUpdate = (updater) => {
     if (typeof updater === "function") {
       setFormData(updater);
@@ -113,6 +203,101 @@ export default function EventCreationWrapper({
     setIsUploading(false);
     setUploadQueue([]);
     setUploadErrors({});
+  };
+
+  // Clean up Cloudinary files before discarding event
+  const cleanupCloudinaryFiles = async () => {
+    try {
+      let deletedCount = 0;
+      let errorCount = 0;
+      
+      // Delete uploaded images
+      if (formData.eventImages && Array.isArray(formData.eventImages)) {
+        for (const image of formData.eventImages) {
+          if (image.cloudinaryId && image.cloudinaryId.trim()) {
+            try {
+              await axiosInstance.post('/api/events/delete-cloudinary-file', {
+                publicId: image.cloudinaryId,
+                fileName: image.name
+              });
+              deletedCount++;
+            } catch (error) {
+              console.warn(`⚠️ Failed to delete image ${image.name} from Cloudinary:`, error);
+              errorCount++;
+            }
+          }
+        }
+      }
+      
+      // Delete uploaded letter
+      if (formData.govtApprovalLetter?.cloudinaryId && formData.govtApprovalLetter.cloudinaryId.trim()) {
+        try {
+          await axiosInstance.post('/api/events/delete-cloudinary-file', {
+            publicId: formData.govtApprovalLetter.cloudinaryId,
+            fileName: formData.govtApprovalLetter.name
+          });
+          deletedCount++;
+        } catch (error) {
+          console.warn(`⚠️ Failed to delete letter ${formData.govtApprovalLetter.name} from Cloudinary:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Return cleanup summary
+      return { deletedCount, errorCount };
+    } catch (error) {
+      console.error('Error during Cloudinary cleanup:', error);
+      return { deletedCount: 0, errorCount: 1 };
+    }
+  };
+
+  // Check if there are any Cloudinary files that would be cleaned up
+  const hasCloudinaryFiles = () => {
+    const hasImages = formData.eventImages?.some(img => img.cloudinaryId) || false;
+    const hasLetter = formData.govtApprovalLetter?.cloudinaryId || false;
+    return hasImages || hasLetter;
+  };
+
+  // Reset form data to initial state
+  const resetFormData = () => {
+    setFormData({
+      title: "",
+      description: "",
+      location: "",
+      mapLocation: { address: "", lat: null, lng: null },
+      startDateTime: "",
+      endDateTime: "",
+      maxVolunteers: "",
+      unlimitedVolunteers: false,
+      equipmentNeeded: [],
+      otherEquipment: "",
+      eventType: "",
+      instructions: "",
+      groupRegistration: false,
+      recurringEvent: false,
+      recurringType: "",
+      recurringValue: "",
+      recurringEndDate: "",
+      recurringMaxInstances: "",
+      organization: selectedOrgId || "",
+      eventImages: [],
+      govtApprovalLetter: null,
+      timeSlotsEnabled: false,
+      timeSlots: [],
+    });
+    
+    setQuestionnaireData({
+      waterProvided: false,
+      medicalSupport: false,
+      ageGroup: "",
+      precautions: "",
+      publicTransport: "",
+      contactPerson: "",
+    });
+    
+    setCurrentStep(1);
+    setExistingImages([]);
+    setExistingLetter(null);
   };
 
   const isAnyFileUploading = () => {
@@ -151,7 +336,30 @@ export default function EventCreationWrapper({
     return true;
   };
 
-  const handleStepNavigation = (newStep, direction) => {
+  const handleStepNavigation = async (newStep, direction) => {
+    // Add confirmation for going back to step 1 if user has made progress
+    if (direction === 'back' && newStep === 1 && currentStep > 1) {
+      if (hasUnsavedChanges()) {
+        showConfirm.warning(
+          'Going back to step 1 might lose some of your progress in the questionnaire. Are you sure you want to continue?',
+          () => {
+            // User confirmed - proceed with navigation
+            setCurrentStep(newStep);
+          },
+          () => {
+            // User cancelled - stay on current step
+            // Do nothing, just return
+          },
+          {
+            title: 'Go Back to Step 1?',
+            confirmText: 'Go Back',
+            cancelText: 'Stay Here'
+          }
+        );
+        return; // Exit early, let the confirmation handle navigation
+      }
+    }
+
     // Check if files are uploading before allowing navigation
     if (direction === 'next' && !canProceedToNextStep()) {
       if (isAnyFileUploading()) {
@@ -163,6 +371,9 @@ export default function EventCreationWrapper({
         return;
       }
     }
+
+    // If we get here, proceed with navigation
+    setCurrentStep(newStep);
 
     // Validate current step before allowing navigation
     if (direction === 'next') {
@@ -200,9 +411,84 @@ export default function EventCreationWrapper({
         }
       }
     }
-
-    setCurrentStep(newStep);
   };
+
+  // Protected close function for external use
+  const handleProtectedClose = async () => {
+    if (hasUnsavedChanges()) {
+      const hasFiles = hasCloudinaryFiles();
+      const message = hasFiles 
+        ? 'You have unsaved changes and uploaded files. Are you sure you want to discard this event? All progress will be lost and uploaded files will be permanently deleted from Cloudinary.'
+        : 'You have unsaved changes in your event creation. Are you sure you want to leave? All progress will be lost.';
+      
+      showConfirm.warning(
+        message,
+        async () => {
+          // onConfirm callback - cleanup Cloudinary files and close
+          try {
+            // Show loading message
+            const hasFiles = hasCloudinaryFiles();
+            if (hasFiles) {
+              showAlert.info("🧹 Cleaning up uploaded files from Cloudinary...");
+            } else {
+              showAlert.info("🧹 Discarding event...");
+            }
+            
+            // Clean up Cloudinary files
+            const cleanupResult = await cleanupCloudinaryFiles();
+            
+            // Reset local states
+            resetUploadStates();
+            
+            // Reset form data to initial state
+            resetFormData();
+            
+            // Show success message with cleanup details
+            if (cleanupResult.deletedCount > 0) {
+              showAlert.success(`✅ Event discarded successfully! ${cleanupResult.deletedCount} file(s) cleaned up from Cloudinary.`);
+            } else {
+              showAlert.success("✅ Event discarded successfully!");
+            }
+            
+            // Close modal
+            if (onClose) {
+              onClose();
+            }
+          } catch (error) {
+            console.error('Error during event discard cleanup:', error);
+            showAlert.error("❌ Error during cleanup, but event was discarded");
+            
+            // Still close even if cleanup failed
+            if (onClose) {
+              onClose();
+            }
+          }
+        },
+        () => {
+          // onCancel callback - do nothing, stay on page
+        },
+        {
+          title: 'Discard Event Creation?',
+          confirmText: 'Confirm',
+          cancelText: 'Cancel'
+        }
+      );
+    } else {
+      if (onClose) {
+        onClose();
+      }
+    }
+  };
+
+  // Expose protected close function to parent components
+  useImperativeHandle(ref, () => ({
+    close: handleProtectedClose,
+    hasUnsavedChanges: hasUnsavedChanges,
+    discardEvent: handleProtectedClose, // Expose discard functionality
+    hasCloudinaryFiles: hasCloudinaryFiles // Expose file check functionality
+  }));
+
+
 
   const handleSubmit = async () => {
     // Check if any files are currently uploading
@@ -353,34 +639,13 @@ export default function EventCreationWrapper({
           try {
             onClose();
           } catch (error) {
-            console.error("[EventCreationWrapper] Error in onClose callback:", error);
+
           }
         }
         
-        // Navigate to the event details page
-        try {
-          let eventIdToNavigate;
-          
-          if (isEdit && eventId) {
-            // For editing, use the existing event ID
-            eventIdToNavigate = eventId;
-          } else if (response?.data?._id) {
-            // For creating, get the event ID from the response
-            eventIdToNavigate = response.data._id;
-          }
-          
-          if (eventIdToNavigate) {
-            // Navigate to the event details page
-            navigate(`/events/${eventIdToNavigate}`);
-          } else {
-            // Fallback: navigate to home page if we can't get the event ID
-            console.warn("[EventCreationWrapper] Could not determine event ID for navigation");
-            navigate('/');
-          }
-        } catch (error) {
-          console.error("[EventCreationWrapper] Navigation error:", error);
-          // Fallback navigation
-          navigate('/');
+        // Close the modal after successful submission
+        if (onClose) {
+          onClose();
         }
       } catch (err) {
         console.error("[EventCreationWrapper] Submit failed", err?.response || err);
@@ -388,8 +653,7 @@ export default function EventCreationWrapper({
         let errorMessage = "Failed to submit event.";
         
         if (err?.response) {
-          console.error("[EventCreationWrapper] Error status:", err.response.status);
-          console.error("[EventCreationWrapper] Error data:", err.response.data);
+
           
           if (err.response.status === 400) {
             errorMessage = err.response.data?.message || "Validation error. Please check your input.";
@@ -427,6 +691,9 @@ export default function EventCreationWrapper({
         message={isEdit ? "Updating event..." : "Creating event..."}
         showProgress={false}
       />
+      
+
+      
       {currentStep === 1 && (
         <EventStepOne
           formData={formData}
@@ -448,7 +715,22 @@ export default function EventCreationWrapper({
           uploadErrors={uploadErrors}
           onUploadProgress={setUploadProgress}
           onUploadStatus={setUploadStatus}
-          onUploadError={(fileName, error) => setUploadErrors(prev => ({ ...prev, [fileName]: error }))}
+          onUploadError={(fileName, error) => {
+            if (!fileName) {
+              // If no fileName provided, reset all errors
+              setUploadErrors({});
+            } else if (error === null || error === undefined) {
+              // Clear specific error
+              setUploadErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[fileName];
+                return newErrors;
+              });
+            } else {
+              // Set specific error
+              setUploadErrors(prev => ({ ...prev, [fileName]: error }));
+            }
+          }}
         />
       )}
       {currentStep === 2 && (
@@ -465,8 +747,12 @@ export default function EventCreationWrapper({
           questionnaireData={questionnaireData}
           onBack={() => handleStepNavigation(2, 'back')}
           onSubmit={handleSubmit}
+          existingLetter={existingLetter}
+          existingImages={existingImages}
         />
       )}
     </>
   );
-}
+});
+
+export default EventCreationWrapper;

@@ -1961,3 +1961,35 @@ exports.unbanOrganizer = async (req, res) => {
     res.status(500).json({ message: 'Failed to unban organizer', error: err.message });
   }
 };
+
+// Delete file from Cloudinary (for event creation process)
+exports.deleteCloudinaryFile = async (req, res) => {
+  try {
+    const { publicId, fileName } = req.body;
+    const userId = req.user._id;
+
+    if (!publicId) {
+      return res.status(400).json({ message: 'Public ID is required' });
+    }
+
+    console.log(`🗑️ Deleting file from Cloudinary: ${fileName} (${publicId})`);
+
+    // Use the existing deleteFromCloudinary utility
+    await deleteFromCloudinary(publicId);
+
+    console.log(`✅ Successfully deleted file from Cloudinary: ${fileName}`);
+
+    res.status(200).json({ 
+      message: 'File deleted successfully',
+      fileName: fileName,
+      publicId: publicId
+    });
+
+  } catch (err) {
+    console.error('Error deleting file from Cloudinary:', err);
+    res.status(500).json({ 
+      message: 'Failed to delete file from Cloudinary', 
+      error: err.message 
+    });
+  }
+};

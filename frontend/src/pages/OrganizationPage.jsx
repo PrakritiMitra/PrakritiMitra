@@ -1,6 +1,6 @@
 // src/pages/OrganizationPage.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
@@ -36,6 +36,30 @@ export default function OrganizationPage() {
   const [joining, setJoining] = useState(false);
   const [hasRequested, setHasRequested] = useState(false);
   const [showEventForm, setShowEventForm] = useState(false);
+  const eventCreationRef = useRef(null);
+
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showEventForm) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Prevent body scroll
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        // Restore body scroll
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        
+        // Restore scroll position
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showEventForm]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -56,15 +80,14 @@ export default function OrganizationPage() {
         setLoading(true);
         setOrganizersError("");
 
-        console.log('🔍 Fetching organization data for ID:', id);
+
         
         const [orgRes, eventRes] = await Promise.all([
           axiosInstance.get(`/api/organizations/${id}`),
           axiosInstance.get(`/api/events/organization/${id}`),
         ]);
 
-        console.log('✅ Organization data received:', orgRes.data);
-        console.log('✅ Events data received:', eventRes.data);
+
 
         setOrganization(orgRes.data);
         
@@ -73,10 +96,10 @@ export default function OrganizationPage() {
         setEvents(safeEvents);
 
         if (user?.role === "organizer") {
-          console.log('🔍 Fetching team data for organizer...');
+
           const teamRes = await axiosInstance.get(`/api/organizations/${id}/team`);
           const team = teamRes.data;
-          console.log('✅ Team data received:', team);
+
 
           // Ensure team is always an array
           const safeTeam = Array.isArray(team) ? team : [];
@@ -112,15 +135,15 @@ export default function OrganizationPage() {
         if (token) {
           try {
             const organizersRes = await getOrganizationOrganizers(id);
-            console.log('🔍 Organizers response:', organizersRes);
+
             
             // Ensure organizers is always an array
             if (organizersRes && organizersRes.data) {
               const organizersData = Array.isArray(organizersRes.data) ? organizersRes.data : [];
-              console.log('✅ Processed organizers data:', organizersData);
+
               setOrganizers(organizersData);
             } else {
-              console.log('⚠️ No organizers data or invalid format, setting empty array');
+
               setOrganizers([]);
             }
           } catch (error) {
@@ -133,15 +156,7 @@ export default function OrganizationPage() {
         }
       } catch (error) {
         console.error("❌ Error fetching organization data:", error);
-        console.error("❌ Error details:", {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status
-        });
-        
-        if (error.response?.status === 500) {
-          console.error("❌ Server error - check backend logs");
-        }
+
         
         setOrganizersError("Failed to load organization data");
       } finally {
@@ -658,18 +673,50 @@ export default function OrganizationPage() {
 
       {/* Event creation modal */}
       {showEventForm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-4xl relative my-10 max-h-[90vh] overflow-y-auto border border-white/20">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 overflow-hidden"
+          style={{ 
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: '2rem',
+            paddingBottom: '2rem'
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl relative border border-white/20"
+            style={{
+              maxHeight: 'calc(100vh - 4rem)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div 
+              className="p-6 overflow-y-auto flex-1"
+              style={{ 
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#CBD5E0 #F7FAFC'
+              }}
+            >
             <button
-              className="absolute top-4 right-6 text-slate-500 hover:text-red-600 text-3xl font-bold transition-colors duration-200"
-              onClick={() => setShowEventForm(false)}
+              className="absolute top-4 right-6 text-slate-500 hover:text-red-600 text-3xl font-bold transition-colors duration-200 z-50"
+              onClick={async () => {
+                if (eventCreationRef.current && eventCreationRef.current.close) {
+                  await eventCreationRef.current.close();
+                } else {
+                  setShowEventForm(false);
+                }
+              }}
             >
               ×
             </button>
-            <EventCreationWrapper
-              selectedOrgId={id}
-              onClose={() => setShowEventForm(false)}
-            />
+              <EventCreationWrapper
+                ref={eventCreationRef}
+                selectedOrgId={id}
+                onClose={() => setShowEventForm(false)}
+              />
+            </div>
           </div>
         </div>
       )}
