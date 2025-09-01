@@ -156,19 +156,26 @@ exports.signupVolunteer = async (req, res) => {
     const user = new User(userData);
 
     // Handle profile image upload to Cloudinary
-let profileImageUrl = null;
-if (req.files?.profileImage?.[0]) {
-  const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
-  const uploadResult = await uploadToCloudinary(req.files.profileImage[0], 'profiles');
-  
-  if (uploadResult.success) {
-    profileImageUrl = uploadResult.url;
-    user.profileImage = profileImageUrl;
-  } else {
-    console.error('Profile image upload failed:', uploadResult.error);
-    return res.status(500).json({ message: 'Failed to upload profile image' });
-  }
-}
+    let profileImageUrl = null;
+    
+    // Check for pre-uploaded Cloudinary URL (from frontend)
+    if (req.body.profileImageUrl) {
+      profileImageUrl = req.body.profileImageUrl;
+      user.profileImage = profileImageUrl;
+    }
+    // Fallback: Handle direct file upload
+    else if (req.files?.profileImage?.[0]) {
+      const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+      const uploadResult = await uploadToCloudinary(req.files.profileImage[0], 'profiles');
+      
+      if (uploadResult.success) {
+        profileImageUrl = uploadResult.url;
+        user.profileImage = profileImageUrl;
+      } else {
+        console.error('Profile image upload failed:', uploadResult.error);
+        return res.status(500).json({ message: 'Failed to upload profile image' });
+      }
+    }
 
     await user.save();
 
@@ -179,7 +186,8 @@ if (req.files?.profileImage?.[0]) {
         name: user.name,
         email: user.email,
         role: user.role,
-        username: user.username
+        username: user.username,
+        profileImage: user.profileImage || null
       }
     });
   } catch (err) {
@@ -356,9 +364,13 @@ exports.signupOrganizer = async (req, res) => {
     user.oauthId = undefined;
     
     // Handle file uploads if any
-    if (req.files) {
+    if (req.files || req.body.profileImageUrl || req.body.govtIdProofUrl) {
       // Handle profile image upload to Cloudinary
-      if (req.files.profileImage?.[0]) {
+      if (req.body.profileImageUrl) {
+        // Use pre-uploaded Cloudinary URL from frontend
+        user.profileImage = req.body.profileImageUrl;
+      } else if (req.files?.profileImage?.[0]) {
+        // Fallback: Handle direct file upload
         const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
         const uploadResult = await uploadToCloudinary(req.files.profileImage[0], 'profiles');
         
@@ -371,7 +383,11 @@ exports.signupOrganizer = async (req, res) => {
       }
       
       // Handle government ID proof upload to Cloudinary
-      if (req.files.govtIdProof?.[0]) {
+      if (req.body.govtIdProofUrl) {
+        // Use pre-uploaded Cloudinary URL from frontend
+        user.govtIdProofUrl = req.body.govtIdProofUrl;
+      } else if (req.files?.govtIdProof?.[0]) {
+        // Fallback: Handle direct file upload
         const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
         const uploadResult = await uploadToCloudinary(req.files.govtIdProof[0], 'documents');
         
@@ -393,7 +409,9 @@ exports.signupOrganizer = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        username: user.username
+        username: user.username,
+        profileImage: user.profileImage || null,
+        govtIdProofUrl: user.govtIdProofUrl || null
       } 
     });
   } catch (err) {
@@ -518,7 +536,9 @@ exports.login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      username: user.username
+      username: user.username,
+      profileImage: user.profileImage || null,
+      govtIdProofUrl: user.govtIdProofUrl || null
     };
 
     // Only include organization if it exists

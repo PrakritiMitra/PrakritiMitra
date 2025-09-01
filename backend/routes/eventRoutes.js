@@ -232,7 +232,7 @@ router.post('/:eventId/unban-volunteer', protect, eventController.unbanVolunteer
 // Unban organizer from event (can re-join)
 router.post('/:eventId/unban-organizer', protect, eventController.unbanOrganizer);
 
-// File upload endpoints for event creation
+// File upload endpoints for event creation (requires authentication)
 router.post('/upload-image', protect, eventSingleUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -268,6 +268,121 @@ router.post('/upload-image', protect, eventSingleUpload.single('file'), async (r
     res.status(500).json({
       success: false,
       message: 'Server error during upload'
+    });
+  }
+});
+
+// File upload endpoint for signup (no authentication required)
+router.post('/upload-signup-image', eventSingleUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    const file = req.file;
+    const folder = req.body.folder || 'profiles';
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(file, folder);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        url: result.url,
+        publicId: result.publicId,
+        filename: result.filename,
+        format: result.format,
+        size: result.size
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || 'Upload failed'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Signup image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during upload'
+    });
+  }
+});
+
+// File upload endpoint for signup documents (no authentication required)
+router.post('/upload-signup-document', eventSingleUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded' 
+      });
+    }
+
+    const file = req.file;
+    const folder = req.body.folder || 'documents';
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(file, folder);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        url: result.url,
+        publicId: result.publicId,
+        filename: result.filename,
+        format: result.format,
+        size: result.size
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || 'Upload failed'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Signup document upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during upload'
+    });
+  }
+});
+
+// Delete file from Cloudinary (no authentication required for signup)
+router.post('/delete-signup-file', async (req, res) => {
+  try {
+    const { publicId } = req.body;
+    
+    if (!publicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Public ID is required'
+      });
+    }
+
+    const { deleteFromCloudinary } = require('../utils/cloudinaryUtils');
+    const result = await deleteFromCloudinary(publicId);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'File deleted successfully'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || 'Failed to delete file'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Signup file deletion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during file deletion'
     });
   }
 });

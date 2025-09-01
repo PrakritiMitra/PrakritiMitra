@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import RecentlyDeletedAccountModal from './RecentlyDeletedAccountModal';
@@ -24,7 +24,9 @@ import {
 } from "@mui/material";
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { showAlert } from '../../utils/notifications';
-import { FullScreenLoader } from '../../components/common/LoaderComponents';
+import ProfileImageUpload from '../common/ProfileImageUpload';
+import DocumentUpload from '../common/DocumentUpload';
+import { FullScreenLoader } from '../common/LoaderComponents';
 
 export default function OrganizerForm() {
   const initialFormState = {
@@ -82,6 +84,7 @@ export default function OrganizerForm() {
   const [usernameError, setUsernameError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -519,8 +522,32 @@ export default function OrganizerForm() {
     }
   };
 
+  // Handle profile image change from ProfileImageUpload component
+  const handleProfileImageChange = useCallback((imageData) => {
+    setFormData((prev) => ({ ...prev, profileImage: imageData }));
+  }, []);
+
+  // Handle government ID proof change from DocumentUpload component
+  const handleGovtIdProofChange = useCallback((documentData) => {
+    setFormData((prev) => ({ ...prev, govtIdProof: documentData }));
+  }, []);
+
+  // Check if any upload is in progress
+  const isUploading = (formData.profileImage && formData.profileImage.uploading) || 
+                     (formData.govtIdProof && formData.govtIdProof.uploading);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🎯 Organizer form submitted!');
+    console.log('Form data:', formData);
+    console.log('Validation states:', {
+      passwordErrors: passwordErrors.length,
+      confirmPasswordError: !!confirmPasswordError,
+      passwordStrength,
+      usernameStatus,
+      usernameError: !!usernameError,
+      isUploading
+    });
     setError(null);
 
     // Validate date of birth
@@ -602,26 +629,45 @@ export default function OrganizerForm() {
     }
 
     setLoading(true);
+    setIsSigningUp(true);
+    setError(null);
+    
     try {
+      console.log('🚀 Starting organizer signup process...');
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
         if (key === 'profileImage' && formData[key]) {
-          formDataToSend.append('profileImage', formData[key]);
+          // Handle both file objects and Cloudinary image data
+          if (formData[key] instanceof File) {
+            formDataToSend.append('profileImage', formData[key]);
+          } else if (formData[key] && formData[key].url) {
+            // If it's Cloudinary data, we need to send the URL
+            formDataToSend.append('profileImageUrl', formData[key].url);
+          }
         } else if (key === 'govtIdProof' && formData[key]) {
-          formDataToSend.append('govtIdProof', formData[key]);
+          // Handle both file objects and Cloudinary document data
+          if (formData[key] instanceof File) {
+            formDataToSend.append('govtIdProof', formData[key]);
+          } else if (formData[key] && formData[key].url) {
+            // If it's Cloudinary data, we need to send the URL
+            formDataToSend.append('govtIdProofUrl', formData[key].url);
+          }
         } else if (key !== 'profileImage' && key !== 'govtIdProof') {
           formDataToSend.append(key, formData[key]);
         }
       });
 
+            console.log('📡 Sending organizer signup request to server...');
       const response = await axios.post('http://localhost:5000/api/auth/signup-organizer', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
+      console.log('✅ Organizer signup successful:', response.data);
+      
       // Show success message
-              showAlert.success('🎉 Organizer account created successfully! Please login to continue.');
+      showAlert.success('🎉 Organizer account created successfully! Please login to continue.');
       
       // Redirect to login page instead of auto-login
       setTimeout(() => {
@@ -629,7 +675,12 @@ export default function OrganizerForm() {
       }, 1500);
 
     } catch (err) {
-      console.error('Organizer signup error:', err);
+      console.error('❌ Organizer signup error:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
       
       // Check if it's a recently deleted account error
       if (err.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
@@ -675,9 +726,10 @@ export default function OrganizerForm() {
       }
       
               showAlert.error('❌ Signup failed. Please check the errors below.');
-    } finally {
-      setLoading(false);
-    }
+          } finally {
+        setLoading(false);
+        setIsSigningUp(false);
+      }
   };
 
   return (
@@ -1002,13 +1054,28 @@ export default function OrganizerForm() {
       </FormControl>
 
       <Box mt={2}>
-        <Typography variant="subtitle1">Upload Profile Image</Typography>
-        <input type="file" accept="image/*" name="profileImage" onChange={handleChange} />
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#374151' }}>
+          📸 Profile Image
+        </Typography>
+        <ProfileImageUpload
+          onImageChange={handleProfileImageChange}
+          disabled={loading}
+          folder="profiles"
+        />
       </Box>
 
-      <Box mt={2}>
-        <Typography variant="subtitle1">Upload Govt ID Proof (Image/PDF)</Typography>
-        <input type="file" accept="image/*,.pdf" name="govtIdProof" onChange={handleChange} />
+      <Box mt={3}>
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#374151' }}>
+          🆔 Government ID Proof
+        </Typography>
+        <DocumentUpload
+          onDocumentChange={handleGovtIdProofChange}
+          disabled={loading}
+          folder="documents"
+          title="Upload Government ID Proof"
+          description="Upload a clear image or PDF of your government-issued ID"
+          acceptedTypes="image/*,.pdf"
+        />
       </Box>
 
 
@@ -1018,11 +1085,39 @@ export default function OrganizerForm() {
         variant="contained" 
         color="primary" 
         fullWidth 
-        sx={{ mt: 2 }}
-        disabled={loading || passwordErrors.length > 0 || confirmPasswordError || passwordStrength < 4}
-      >
-        {loading ? 'Signing up...' : 'Sign Up as Organizer'}
-      </Button>
+        sx={{ 
+           mt: 2,
+           py: 1.5,
+           fontSize: '1.1rem',
+           fontWeight: 600,
+           textTransform: 'none',
+           position: 'relative',
+           '&:disabled': {
+             opacity: 0.7,
+             cursor: 'not-allowed'
+           }
+         }}
+         disabled={loading || isSigningUp || passwordErrors.length > 0 || confirmPasswordError || passwordStrength < 4 || isUploading}
+       >
+         {isSigningUp ? (
+           <>
+             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+             Creating Account...
+           </>
+         ) : loading ? (
+           <>
+             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+             Processing...
+           </>
+         ) : isUploading ? (
+           <>
+             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+             Uploading Files...
+           </>
+         ) : (
+           '🚀 Sign Up as Organizer'
+         )}
+       </Button>
 
 
       
@@ -1094,10 +1189,11 @@ export default function OrganizerForm() {
         />
       )}
 
-      {/* Page Loader for Form Submission */}
+      {/* Full Screen Loader for Signup Process */}
       <FullScreenLoader
-        isVisible={loading}
-        message="Creating Account..."
+        isVisible={isSigningUp}
+        message="Creating Your Account..."
+        subMessage="Setting up your organizer profile and uploading files..."
         showProgress={false}
       />
     </Box>
