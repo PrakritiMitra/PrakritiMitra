@@ -34,6 +34,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { showAlert, showConfirm } from "../utils/notifications";
 import { getProfileImageUrl, getGovtIdProofUrl, getAvatarInitial, getRoleColors } from "../utils/avatarUtils";
+import { FullScreenLoader } from "../components/common/LoaderComponents";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -51,6 +52,12 @@ export default function ProfilePage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Profile update loading states
+  const [isProfileImageUploading, setIsProfileImageUploading] = useState(false);
+  const [isProfileImageDeleting, setIsProfileImageDeleting] = useState(false);
+  const [isDocumentUploading, setIsDocumentUploading] = useState(false);
+  const [isDocumentDeleting, setIsDocumentDeleting] = useState(false);
 
   const navigate = useNavigate();
 
@@ -253,6 +260,32 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
+      // Show appropriate loading notifications based on what's being updated
+      let loadingNotifications = [];
+      
+      if (formData.profileImage) {
+        setIsProfileImageUploading(true);
+        loadingNotifications.push(showAlert.profileImageUploading('Uploading profile image to Cloudinary...'));
+      }
+      
+      if (removeProfileImage && user.profileImage) {
+        setIsProfileImageDeleting(true);
+        loadingNotifications.push(showAlert.profileImageDeleting('Deleting profile image from Cloudinary...'));
+      }
+      
+      if (formData.govtIdProof) {
+        setIsDocumentUploading(true);
+        loadingNotifications.push(showAlert.documentUploading('Uploading government ID to Cloudinary...'));
+      }
+      
+      if (removeGovtIdProof && user.govtIdProofUrl) {
+        setIsDocumentDeleting(true);
+        loadingNotifications.push(showAlert.documentDeleting('Deleting government ID from Cloudinary...'));
+      }
+      
+      // Show general profile update notification
+      const profileUpdateNotification = showAlert.profileUpdating('Updating profile information...');
+      
       const data = new FormData();
       
       // Add all form data
@@ -308,13 +341,18 @@ export default function ProfilePage() {
           detail: { user: response.data.user }
         }));
         
-        showAlert.success('Profile updated successfully!');
+        showAlert.success('Profile updated successfully! All files processed.');
       }
     } catch (error) {
       console.error('Profile update error:', error);
       showAlert.error('Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
+      // Reset all loading states
+      setIsProfileImageUploading(false);
+      setIsProfileImageDeleting(false);
+      setIsDocumentUploading(false);
+      setIsDocumentDeleting(false);
     }
   };
 
@@ -421,9 +459,20 @@ export default function ProfilePage() {
                 <button
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      {isProfileImageUploading ? 'Uploading Image...' :
+                       isProfileImageDeleting ? 'Deleting Image...' :
+                       isDocumentUploading ? 'Uploading Document...' :
+                       isDocumentDeleting ? 'Deleting Document...' :
+                       'Saving Changes...'}
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
                 </button>
               )}
             </div>
@@ -471,14 +520,25 @@ export default function ProfilePage() {
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    disabled={isProfileImageUploading || isProfileImageDeleting}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <p className="text-xs text-gray-500 mt-1">Recommended: Square image, max 2MB</p>
+                  
+                  {/* Loading indicator for profile image operations */}
+                  {(isProfileImageUploading || isProfileImageDeleting) && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                      {isProfileImageUploading ? 'Uploading image...' : 'Deleting image...'}
+                    </div>
+                  )}
+                  
                   {user.profileImage && !removeProfileImage && (
                     <button
                       type="button"
                       onClick={handleRemoveProfileImage}
-                      className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                      disabled={isProfileImageDeleting}
+                      className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Remove Current Photo
                     </button>
@@ -553,14 +613,25 @@ export default function ProfilePage() {
                       type="file"
                       accept="image/*,application/pdf"
                       onChange={handleGovtIdChange}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                      disabled={isDocumentUploading || isDocumentDeleting}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <p className="text-xs text-gray-500 mt-1">Accepted: Image/PDF, max 5MB</p>
+                    
+                    {/* Loading indicator for government ID operations */}
+                    {(isDocumentUploading || isDocumentDeleting) && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-600"></div>
+                        {isDocumentUploading ? 'Uploading document...' : 'Deleting document...'}
+                      </div>
+                    )}
+                    
                     {user.govtIdProofUrl && !removeGovtIdProof && (
                       <button
                         type="button"
                         onClick={handleRemoveGovtIdProof}
-                        className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                        disabled={isDocumentDeleting}
+                        className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Remove Current Govt ID
                       </button>
@@ -941,6 +1012,13 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Page Loader for Form Submission */}
+        <FullScreenLoader
+          isVisible={saving}
+          message="Updating Profile..."
+          showProgress={false}
+        />
       </div>
     </div>
   );

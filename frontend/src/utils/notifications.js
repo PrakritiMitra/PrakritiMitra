@@ -50,6 +50,70 @@ showAlert.loading = (message) => {
   return 'loading-' + Date.now();
 };
 
+// QR Code specific loading notifications
+showAlert.qrGenerating = (message = 'Generating QR code...') => {
+  toastNotification.show(message, 'info');
+  return 'qr-generating-' + Date.now();
+};
+
+showAlert.qrDeleting = (message = 'Deleting QR code...') => {
+  toastNotification.show(message, 'info');
+  return 'qr-deleting-' + Date.now();
+};
+
+showAlert.qrUploading = (message = 'Uploading QR code to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'qr-uploading-' + Date.now();
+};
+
+// Profile Update specific loading notifications
+showAlert.profileUpdating = (message = 'Updating profile...') => {
+  toastNotification.show(message, 'info');
+  return 'profile-updating-' + Date.now();
+};
+
+showAlert.profileImageUploading = (message = 'Uploading profile image to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'profile-image-uploading-' + Date.now();
+};
+
+showAlert.profileImageDeleting = (message = 'Deleting profile image from Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'profile-image-deleting-' + Date.now();
+};
+
+showAlert.documentUploading = (message = 'Uploading document to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'document-uploading-' + Date.now();
+};
+
+showAlert.documentDeleting = (message = 'Deleting document from Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'document-deleting-' + Date.now();
+};
+
+// Organization document upload notifications
+showAlert.organizationLogoUploading = (message = 'Uploading organization logo to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'org-logo-uploading-' + Date.now();
+};
+
+showAlert.organizationDocumentUploading = (message = 'Uploading organization document to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'org-doc-uploading-' + Date.now();
+};
+
+// Sponsor document upload notifications
+showAlert.sponsorLogoUploading = (message = 'Uploading sponsor logo to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'sponsor-logo-uploading-' + Date.now();
+};
+
+showAlert.sponsorDocumentUploading = (message = 'Uploading sponsor document to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'sponsor-doc-uploading-' + Date.now();
+};
+
 // Dismiss functionality (simplified - just logs for now)
 showAlert.dismiss = (toastId) => {
   console.log('Dismissing toast:', toastId);

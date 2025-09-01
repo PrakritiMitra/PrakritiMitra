@@ -1,4 +1,7 @@
 // src/components/event/EventCreationWrapper.jsx
+// Enhanced to support both event creation and editing modes
+// When used in edit mode, upload states are managed by EditEventPage
+// When used in creation mode, upload states are managed locally
 
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { useLocation } from "react-router-dom";
@@ -13,12 +16,24 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
   selectedOrgId,
   organizationOptions = [],
   onClose,
+  onEventCreated,
   isEdit = false,
   eventId = null,
   initialFormData = null,
   initialQuestionnaireData = null,
-  readOnly = false
-  }, ref) {
+  readOnly = false,
+  // Upload state management props from EditEventPage
+  uploadProgress,
+  setUploadProgress,
+  uploadStatus,
+  setUploadStatus,
+  isUploading,
+  setIsUploading,
+  uploadQueue,
+  setUploadQueue,
+  uploadErrors,
+  setUploadErrors
+}, ref) {
   const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState(
@@ -71,13 +86,27 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
     initialFormData?.existingLetter || null
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({});
+  
+  // Use upload state management props from EditEventPage if provided, otherwise use local state
+  const [localUploadProgress, setLocalUploadProgress] = useState({});
+  const [localUploadStatus, setLocalUploadStatus] = useState({});
+  const [localIsUploading, setLocalIsUploading] = useState(false);
+  const [localUploadQueue, setLocalUploadQueue] = useState([]);
+  const [localUploadErrors, setLocalUploadErrors] = useState({});
 
-  // Enhanced upload state management
-  const [uploadStatus, setUploadStatus] = useState({});
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadQueue, setUploadQueue] = useState([]);
-  const [uploadErrors, setUploadErrors] = useState({});
+  // Determine which upload states to use based on whether props are provided
+  const effectiveUploadProgress = uploadProgress !== undefined ? uploadProgress : localUploadProgress;
+  const effectiveUploadStatus = uploadStatus !== undefined ? uploadStatus : localUploadStatus;
+  const effectiveIsUploading = isUploading !== undefined ? isUploading : localIsUploading;
+  const effectiveUploadQueue = uploadQueue !== undefined ? uploadQueue : localUploadQueue;
+  const effectiveUploadErrors = uploadErrors !== undefined ? uploadErrors : localUploadErrors;
+
+  // Determine which setters to use
+  const effectiveSetUploadProgress = setUploadProgress || setLocalUploadProgress;
+  const effectiveSetUploadStatus = setUploadStatus || setLocalUploadStatus;
+  const effectiveSetIsUploading = setIsUploading || setLocalIsUploading;
+  const effectiveSetUploadQueue = setUploadQueue || setLocalUploadQueue;
+  const effectiveSetUploadErrors = setUploadErrors || setLocalUploadErrors;
 
   // Cleanup upload states when component unmounts
   useEffect(() => {
@@ -85,6 +114,77 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
       resetUploadStates();
     };
   }, []);
+
+  // Cleanup upload states when switching between creation and edit modes
+  useEffect(() => {
+    if (isEdit) {
+      // In edit mode, clear local states since they're managed by EditEventPage
+      setLocalUploadProgress({});
+      setLocalUploadStatus({});
+      setLocalIsUploading(false);
+      setLocalUploadQueue([]);
+      setLocalUploadErrors({});
+    }
+  }, [isEdit]);
+
+  // Sync upload states with EditEventPage when props change
+  useEffect(() => {
+    if (isEdit && uploadProgress !== undefined) {
+      // When in edit mode and upload props are provided, sync local states
+      setLocalUploadProgress(uploadProgress);
+      setLocalUploadStatus(uploadStatus || {});
+      setLocalIsUploading(isUploading || false);
+      setLocalUploadQueue(uploadQueue || []);
+      setLocalUploadErrors(uploadErrors || {});
+    }
+  }, [isEdit, uploadProgress, uploadStatus, isUploading, uploadQueue, uploadErrors]);
+
+  // Function to handle upload state updates from EditEventPage
+  const handleUploadStateUpdate = (type, data) => {
+    if (isEdit && setUploadProgress && setUploadStatus && setIsUploading && setUploadQueue && setUploadErrors) {
+      // In edit mode, update the parent component's upload states
+      switch (type) {
+        case 'progress':
+          setUploadProgress(data);
+          break;
+        case 'status':
+          setUploadStatus(data);
+          break;
+        case 'uploading':
+          setIsUploading(data);
+          break;
+        case 'queue':
+          setUploadQueue(data);
+          break;
+        case 'errors':
+          setUploadErrors(data);
+          break;
+        default:
+          break;
+      }
+    } else {
+      // In creation mode, update local states
+      switch (type) {
+        case 'progress':
+          setLocalUploadProgress(data);
+          break;
+        case 'status':
+          setLocalUploadStatus(data);
+          break;
+        case 'uploading':
+          setLocalIsUploading(data);
+          break;
+        case 'queue':
+          setLocalUploadQueue(data);
+          break;
+        case 'errors':
+          setLocalUploadErrors(data);
+          break;
+        default:
+          break;
+      }
+    }
+  };
 
   // Navigation guard to prevent accidental data loss
   const hasUnsavedChanges = () => {
@@ -143,9 +243,9 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
         (questionnaireData.contactPerson && questionnaireData.contactPerson.trim() !== "")
       );
 
-      // Check if any uploads are in progress
-      const hasActiveUploads = Object.keys(uploadStatus || {}).length > 0 || 
-                              Object.keys(uploadProgress || {}).length > 0;
+      // Check if any uploads are in progress using effective states
+      const hasActiveUploads = Object.keys(effectiveUploadStatus || {}).length > 0 || 
+                              Object.keys(effectiveUploadProgress || {}).length > 0;
 
       // Only consider it unsaved if there are actual changes, not just step progression
       return hasFormChanges || hasQuestionnaireChanges || hasActiveUploads;
@@ -170,7 +270,7 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [formData, questionnaireData, uploadStatus, uploadProgress, currentStep]);
+  }, [formData, questionnaireData, effectiveUploadStatus, effectiveUploadProgress, currentStep]);
 
 
 
@@ -188,21 +288,154 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
     setFormData((prev) => ({ ...prev, govtApprovalLetter: file }));
   };
 
-  const handleRemoveExistingImage = (filename) => {
-    setExistingImages((prev) => prev.filter((img) => img !== filename));
+  const handleRemoveExistingImage = async (image) => {
+    try {
+      // Handle Cloudinary structure - image can be either a string (filename) or object with publicId
+      let imageToRemove = image;
+      let publicId = null;
+      let filename = null;
+
+      if (typeof image === 'object' && image.publicId) {
+        // New Cloudinary structure
+        publicId = image.publicId;
+        filename = image.filename || image.name || 'Event Image';
+        imageToRemove = image.publicId;
+      } else if (typeof image === 'string') {
+        // Legacy structure - just filename
+        filename = image;
+        imageToRemove = image;
+      } else {
+        console.warn('Unknown image format for removal:', image);
+        return;
+      }
+
+      // Show loading state for this specific image
+      setExistingImages(prev => prev.map((img) => {
+        const imgId = typeof img === 'object' ? img.publicId : img;
+        return imgId === imageToRemove ? { ...img, isDeleting: true } : img;
+      }));
+
+      // If it's a Cloudinary image (has publicId), delete it immediately
+      if (publicId) {
+        try {
+          console.log(`🗑️ Deleting existing image from Cloudinary: ${filename} (${publicId})`);
+          
+          const response = await axiosInstance.post('/api/events/delete-cloudinary-file', {
+            publicId: publicId,
+            fileName: filename
+          });
+
+          if (response.status === 200) {
+            showAlert.success(`🗑️ Image deleted from Cloudinary: ${filename}`);
+          } else {
+            showAlert.warning(`⚠️ Image removed from form but Cloudinary cleanup failed: ${filename}`);
+          }
+        } catch (error) {
+          console.warn('Failed to delete existing image from Cloudinary, but removed from form:', error);
+          showAlert.warning(`⚠️ Image removed from form but Cloudinary cleanup failed: ${filename}`);
+        }
+      } else {
+        // No Cloudinary ID, just show removal message
+        showAlert.info(`🗑️ Image marked for removal: ${filename}`);
+      }
+
+      // Remove from existing images
+      setExistingImages(prev => prev.filter((img) => {
+        const imgId = typeof img === 'object' ? img.publicId : img;
+        return imgId !== imageToRemove;
+      }));
+
+      // Add to removed images list for backend processing
+      setFormData(prev => ({
+        ...prev,
+        removedImages: [...(prev.removedImages || []), imageToRemove]
+      }));
+
+    } catch (error) {
+      console.error('🔍 DEBUG: Error removing existing image:', error);
+      showAlert.error(`❌ Error removing image: ${error.message}`);
+      
+      // Clear loading state
+      setExistingImages(prev => prev.map((img) => {
+        const imgId = typeof img === 'object' ? img.publicId : img;
+        return imgId === (typeof image === 'object' ? image.publicId : image) ? { ...img, isDeleting: false } : img;
+      }));
+    }
   };
 
-  const handleRemoveExistingLetter = () => {
-    setExistingLetter(null);
+  const handleRemoveExistingLetter = async () => {
+    try {
+      if (!existingLetter) {
+        return;
+      }
+
+      let publicId = null;
+      let filename = null;
+
+      if (typeof existingLetter === 'object' && existingLetter.publicId) {
+        // New Cloudinary structure
+        publicId = existingLetter.publicId;
+        filename = existingLetter.filename || existingLetter.name || 'Government Approval Letter';
+      } else if (typeof existingLetter === 'string') {
+        // Legacy structure - just filename
+        filename = existingLetter;
+      } else {
+        console.warn('Unknown letter format for removal:', existingLetter);
+        return;
+      }
+
+      // Show loading state
+      setExistingLetter(prev => prev ? { ...prev, isDeleting: true } : null);
+
+      // If it's a Cloudinary file (has publicId), delete it immediately
+      if (publicId) {
+        try {
+          console.log(`🗑️ Deleting existing letter from Cloudinary: ${filename} (${publicId})`);
+          
+          const response = await axiosInstance.post('/api/events/delete-cloudinary-file', {
+            publicId: publicId,
+            fileName: filename
+          });
+
+          if (response.status === 200) {
+            showAlert.success(`🗑️ Letter deleted from Cloudinary: ${filename}`);
+          } else {
+            showAlert.warning(`⚠️ Letter removed from form but Cloudinary cleanup failed: ${filename}`);
+          }
+        } catch (error) {
+          console.warn('Failed to delete existing letter from Cloudinary, but removed from form:', error);
+          showAlert.warning(`⚠️ Letter removed from form but Cloudinary cleanup failed: ${filename}`);
+        }
+      } else {
+        // No Cloudinary ID, just show removal message
+        showAlert.info(`🗑️ Letter marked for removal: ${filename}`);
+      }
+
+      // Remove from existing letter
+      setExistingLetter(null);
+
+      // Add to removed letter flag for backend processing
+      setFormData(prev => ({
+        ...prev,
+        removedLetter: true
+      }));
+
+    } catch (error) {
+      console.error('🔍 DEBUG: Error removing existing letter:', error);
+      showAlert.error(`❌ Error removing letter: ${error.message}`);
+      
+      // Clear loading state
+      setExistingLetter(prev => prev ? { ...prev, isDeleting: false } : null);
+    }
   };
 
   // Upload state management utilities
   const resetUploadStates = () => {
-    setUploadProgress({});
-    setUploadStatus({});
-    setIsUploading(false);
-    setUploadQueue([]);
-    setUploadErrors({});
+    effectiveSetUploadProgress({});
+    effectiveSetUploadStatus({});
+    effectiveSetIsUploading(false);
+    effectiveSetUploadQueue([]);
+    effectiveSetUploadErrors({});
   };
 
   // Clean up Cloudinary files before discarding event
@@ -301,11 +534,11 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
   };
 
   const isAnyFileUploading = () => {
-    return Object.values(uploadStatus).some(status => status === 'uploading');
+    return Object.values(effectiveUploadStatus || {}).some(status => status === 'uploading');
   };
 
   const hasUploadErrors = () => {
-    return Object.keys(uploadErrors).length > 0;
+    return Object.keys(effectiveUploadErrors || {}).length > 0;
   };
 
   const canProceedToNextStep = () => {
@@ -592,6 +825,9 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
             if (formData.timeSlots && formData.timeSlots.length > 0) {
               data.append("timeSlots", JSON.stringify(formData.timeSlots));
             }
+          } else if (key === "existingImages" || key === "removedImages" || key === "removedLetter") {
+            // Skip these keys as they are handled separately for edit mode
+            continue;
           } else {
             data.append(key, formData[key]);
           }
@@ -601,12 +837,116 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
           data.append(key, questionnaireData[key]);
         }
 
-        // Append deleted files
-        existingImages.forEach((filename) =>
-          data.append("existingImages", filename)
-        );
-        if (existingLetter) {
-          data.append("existingLetter", existingLetter);
+        // Handle removed files for editing (if provided)
+        if (formData.removedImages && Array.isArray(formData.removedImages)) {
+          formData.removedImages.forEach((img) => data.append("removedImages", img));
+        }
+        if (formData.removedLetter === true) {
+          data.append("removedLetter", "true");
+        }
+
+        const isUpdating = Boolean(isEdit && eventId);
+        const url = isUpdating ? `/api/events/${eventId}` : "/api/events/create";
+        const method = isUpdating ? 'PUT' : 'POST';
+
+        let response;
+        if (isUpdating) {
+          response = await axiosInstance.put(url, data);
+        } else {
+          response = await axiosInstance.post(url, data);
+          
+          // Show success notification
+          showAlert.success("🎉 Event created successfully!");
+          
+          // Call onEventCreated callback if provided
+          if (onEventCreated && response.data) {
+            try {
+              onEventCreated(response.data);
+            } catch (error) {
+              console.error("Error in onEventCreated callback:", error);
+            }
+          }
+        }
+        
+        // Call onClose callback if provided
+        if (onClose) {
+          try {
+            onClose();
+          } catch (error) {
+            console.error("Error in onClose callback:", error);
+          }
+        }
+        
+        // Close the modal after successful submission
+        if (onClose) {
+          onClose();
+        }
+      } catch (err) {
+        console.error("[EventCreationWrapper] Submit failed", err?.response || err);
+        
+        // Show error notification
+        const errorMessage = err?.response?.data?.message || err?.message || "Failed to save event";
+        showAlert.error(`❌ ${errorMessage}`);
+        
+        // Reset submission state
+        setIsSubmitting(false);
+      }
+    } else {
+      // No files to upload, proceed with normal submission
+      try {
+        // Validate volunteer allocation if time slots are enabled
+        if (formData.timeSlotsEnabled && formData.timeSlots && formData.timeSlots.length > 0 && !formData.unlimitedVolunteers) {
+          const eventMax = parseInt(formData.maxVolunteers) || 0;
+          let totalAllocated = 0;
+          
+          formData.timeSlots.forEach(slot => {
+            slot.categories.forEach(category => {
+              if (category.maxVolunteers && category.maxVolunteers > 0) {
+                totalAllocated += category.maxVolunteers;
+              }
+            });
+          });
+          
+          if (totalAllocated > eventMax) {
+            showAlert("❌ Volunteer allocation error: You have allocated " + totalAllocated + " volunteers but the event maximum is " + eventMax + ". Please adjust your category limits.", "error");
+            return;
+          }
+        }
+
+        // Validate required fields
+        if (!formData.title?.trim()) {
+          showAlert("❌ Event title is required", "error");
+          return;
+        }
+
+        const data = new FormData();
+
+        for (const key in formData) {
+          if (key === "equipmentNeeded") {
+            formData.equipmentNeeded.forEach((item) =>
+              data.append("equipmentNeeded", item)
+            );
+          } else if (key === 'mapLocation') {
+            if (formData.mapLocation) {
+              data.append('mapLocation[address]', formData.mapLocation.address || '');
+              data.append('mapLocation[lat]', formData.mapLocation.lat || '');
+              data.append('mapLocation[lng]', formData.mapLocation.lng || '');
+            }
+          } else if (key === "timeSlots") {
+            // Handle timeSlots as JSON string since it's a complex object
+            if (formData.timeSlots && formData.timeSlots.length > 0) {
+              data.append("timeSlots", JSON.stringify(formData.timeSlots));
+            }
+          } else if (key === "existingImages" || key === "removedImages" || key === "removedLetter") {
+            // Skip these keys as they are handled separately for edit mode
+            continue;
+          } else {
+            data.append(key, formData[key]);
+          }
+        }
+
+        for (const key in questionnaireData) {
+          data.append(key, questionnaireData[key]);
         }
 
         // Handle removed files for editing (if provided)
@@ -632,6 +972,15 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
           
           // Show success notification
           showAlert.success("🎉 Event created successfully!");
+          
+          // Call onEventCreated callback if provided
+          if (onEventCreated && response.data) {
+            try {
+              onEventCreated(response.data);
+            } catch (error) {
+              console.error("Error in onEventCreated callback:", error);
+            }
+          }
         }
         
         // Call onClose callback if provided
@@ -639,7 +988,7 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
           try {
             onClose();
           } catch (error) {
-
+            console.error("Error in onClose callback:", error);
           }
         }
         
@@ -650,34 +999,11 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
       } catch (err) {
         console.error("[EventCreationWrapper] Submit failed", err?.response || err);
         
-        let errorMessage = "Failed to submit event.";
+        // Show error notification
+        const errorMessage = err?.response?.data?.message || err?.message || "Failed to save event";
+        showAlert.error(`❌ ${errorMessage}`);
         
-        if (err?.response) {
-
-          
-          if (err.response.status === 400) {
-            errorMessage = err.response.data?.message || "Validation error. Please check your input.";
-          } else if (err.response.status === 401) {
-            errorMessage = "Authentication required. Please log in again.";
-          } else if (err.response.status === 403) {
-            errorMessage = "Permission denied. You don't have access to perform this action.";
-          } else if (err.response.status === 404) {
-            errorMessage = "Event not found or has been removed.";
-          } else if (err.response.status === 409) {
-            errorMessage = "Conflict detected. The event may have been modified by another user.";
-          } else if (err.response.status >= 500) {
-            errorMessage = "Server error. Please try again later.";
-          }
-        } else if (err?.message) {
-          if (err.message.includes('Network Error')) {
-            errorMessage = "Network error. Please check your internet connection.";
-          } else if (err.message.includes('timeout')) {
-            errorMessage = "Request timeout. Please try again.";
-          }
-        }
-        
-        showAlert(`❌ ${errorMessage}`, "error");
-      } finally {
+        // Reset submission state
         setIsSubmitting(false);
       }
     }
@@ -708,27 +1034,28 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
           onRemoveExistingLetter={handleRemoveExistingLetter}
           isEditMode={isEdit}
           readOnly={readOnly}
-          // Upload state management props
-          uploadProgress={uploadProgress}
-          uploadStatus={uploadStatus}
-          isUploading={isUploading}
-          uploadErrors={uploadErrors}
-          onUploadProgress={setUploadProgress}
-          onUploadStatus={setUploadStatus}
+          // Upload state management props using effective states and setters
+          uploadProgress={effectiveUploadProgress}
+          uploadStatus={effectiveUploadStatus}
+          isUploading={effectiveIsUploading}
+          uploadErrors={effectiveUploadErrors}
+          onUploadProgress={effectiveSetUploadProgress}
+          onUploadStatus={effectiveSetUploadStatus}
           onUploadError={(fileName, error) => {
             if (!fileName) {
               // If no fileName provided, reset all errors
-              setUploadErrors({});
+              handleUploadStateUpdate('errors', {});
             } else if (error === null || error === undefined) {
               // Clear specific error
-              setUploadErrors(prev => {
-                const newErrors = { ...prev };
-                delete newErrors[fileName];
-                return newErrors;
-              });
+              const currentErrors = effectiveUploadErrors || {};
+              const newErrors = { ...currentErrors };
+              delete newErrors[fileName];
+              handleUploadStateUpdate('errors', newErrors);
             } else {
               // Set specific error
-              setUploadErrors(prev => ({ ...prev, [fileName]: error }));
+              const currentErrors = effectiveUploadErrors || {};
+              const newErrors = { ...currentErrors, [fileName]: error };
+              handleUploadStateUpdate('errors', newErrors);
             }
           }}
         />

@@ -1108,6 +1108,26 @@ exports.completeQuestionnaire = async (req, res) => {
 
     // Handle media files (optional, only for creator)
     let media = [];
+    
+    // Check for Cloudinary media URLs in request body
+    if (req.body.media) {
+      try {
+        const mediaData = typeof req.body.media === 'string' ? JSON.parse(req.body.media) : req.body.media;
+        if (Array.isArray(mediaData)) {
+          media = mediaData.map(item => ({
+            url: item.url,
+            publicId: item.id || item.publicId,
+            filename: item.filename,
+            format: item.format,
+            size: item.size
+          }));
+        }
+      } catch (error) {
+        console.error('Error parsing media data:', error);
+      }
+    }
+    
+    // Fallback: Handle file uploads if they exist (for backward compatibility)
     if (req.files && req.files.length > 0) {
       // Upload media files to Cloudinary
       for (const file of req.files) {

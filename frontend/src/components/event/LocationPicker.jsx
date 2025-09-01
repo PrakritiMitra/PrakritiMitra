@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect } from "react";
-import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 
 const libraries = ["places"];
 const mapContainerStyle = { width: "100%", height: "300px" };
@@ -245,18 +245,36 @@ export default function LocationPicker({ value, onChange }) {
           </div>
         )}
       </div>
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={safeValue?.lat && safeValue?.lng ? { lat: safeValue.lat, lng: safeValue.lng } : defaultCenter}
-        zoom={safeValue?.lat && safeValue?.lng ? 15 : 10}
-        onClick={handleMapClick}
-        onError={(error) => {
-          console.error("Google Map error:", error);
-          setError(error);
-        }}
-      >
-        {safeValue?.lat && safeValue?.lng && <Marker position={{ lat: safeValue.lat, lng: safeValue.lng }} />}
-      </GoogleMap>
+      <div style={{ position: 'relative' }}>
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          center={safeValue?.lat && safeValue?.lng ? { lat: safeValue.lat, lng: safeValue.lng } : defaultCenter}
+          zoom={safeValue?.lat && safeValue?.lng ? 15 : 10}
+          onClick={handleMapClick}
+          onError={(error) => {
+            console.error("Google Map error:", error);
+            setError(error);
+          }}
+        />
+        {safeValue?.lat && safeValue?.lng && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '20px',
+              height: '20px',
+              backgroundColor: '#1976d2',
+              border: '2px solid white',
+              borderRadius: '50%',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+              zIndex: 1,
+              pointerEvents: 'none'
+            }}
+          />
+        )}
+      </div>
       {error && (
         <div style={{ marginTop: 8, padding: 8, backgroundColor: '#ffebee', color: '#c62828', borderRadius: 4 }}>
           <strong>Map Error:</strong> {error.message}

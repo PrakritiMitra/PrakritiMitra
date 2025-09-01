@@ -7,6 +7,7 @@ import calendarEventEmitter from '../../utils/calendarEventEmitter';
 import { showAlert, showConfirm } from '../../utils/notifications';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
 import { getSafeUserData, getSafeUserName } from "../../utils/safeUserUtils";
+import { ButtonLoader, FullScreenLoader } from '../../components/common/LoaderComponents';
 import {
   XMarkIcon,
   CalendarIcon,
@@ -104,6 +105,7 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
   const handleRegistrationSubmit = async ({ groupMembers, selectedTimeSlot }) => {
     try {
       setLoading(true);
+      const qrLoadingId = showAlert.qrGenerating('Generating entry QR code...');
       const payload = { eventId: event._id, groupMembers, selectedTimeSlot };
       await axiosInstance.post('/api/registrations', payload);
       
@@ -124,7 +126,7 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
         onEventUpdated();
       }
       
-      showAlert.success("Registered successfully!");
+      showAlert.success("Registered successfully! Entry QR code generated.");
     } catch (error) {
       console.error('Registration failed:', error);
       showAlert.error(error.response?.data?.message || 'Failed to register for event');
@@ -141,6 +143,7 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
       async () => {
         try {
           setLoading(true);
+          const qrDeletingId = showAlert.qrDeleting('Deleting QR codes...');
           // Use event ID for withdrawal as per backend route
           await axiosInstance.delete(`/api/registrations/${event._id}`);
           setIsRegistered(false);
@@ -155,7 +158,7 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
             onEventUpdated();
           }
           
-          showAlert.success('Registration withdrawn successfully.');
+          showAlert.success('Registration withdrawn successfully. QR codes deleted.');
           
           // Close modal after successful withdrawal
           onClose();
@@ -411,9 +414,16 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
                 <button
                   onClick={handleRegister}
                   disabled={loading}
-                  className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                  className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Registering...' : 'Register'}
+                  {loading ? (
+                    <>
+                      <ButtonLoader size="sm" color="white" />
+                      Generating QR Code...
+                    </>
+                  ) : (
+                    'Register'
+                  )}
                 </button>
               </div>
             </div>
@@ -584,6 +594,13 @@ const EventModal = ({ event, onClose, role, onEventUpdated }) => {
       
       {/* Registration Modal */}
       <RegistrationModal />
+
+      {/* Page Loader for Registration */}
+      <FullScreenLoader
+        isVisible={loading}
+        message="Processing Registration..."
+        showProgress={false}
+      />
     </>
   );
 };

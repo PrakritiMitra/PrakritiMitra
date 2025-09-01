@@ -1289,6 +1289,123 @@ export default function EventStepOne({
     }
   };
 
+  const handlePreviewExistingLetter = (letter) => {
+    try {
+      const letterUrl = letter.url || letter.cloudinaryUrl;
+      
+      if (!letterUrl) {
+        showAlert.error('❌ Letter URL not found. Cannot preview.');
+        return;
+      }
+
+      if (letterUrl.includes('.pdf') || letter.type === 'application/pdf') {
+        // For PDFs, open in new tab
+        window.open(letterUrl, '_blank');
+      } else {
+        // For images, show preview modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.9);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+          cursor: pointer;
+        `;
+        
+        const img = document.createElement('img');
+        img.src = letterUrl;
+        img.style.cssText = `
+          max-width: 90%;
+          max-height: 90%;
+          object-fit: contain;
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        `;
+        
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '✕';
+        closeButton.style.cssText = `
+          position: absolute;
+          top: 20px;
+          right: 30px;
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          font-size: 24px;
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background-color 0.3s;
+        `;
+        
+        closeButton.addEventListener('mouseenter', () => {
+          closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+        });
+        
+        closeButton.addEventListener('mouseleave', () => {
+          closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        });
+        
+        const fileInfo = document.createElement('div');
+        fileInfo.style.cssText = `
+          position: absolute;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+          padding: 10px 20px;
+          border-radius: 20px;
+          font-size: 14px;
+          text-align: center;
+        `;
+        fileInfo.innerHTML = `
+          <div><strong>${letter.filename || letter.name || 'Government Approval Letter'}</strong></div>
+          <div>${letter.format || 'Document'}</div>
+          <div>✅ Existing File</div>
+        `;
+        
+        modal.appendChild(img);
+        modal.appendChild(closeButton);
+        modal.appendChild(fileInfo);
+        document.body.appendChild(modal);
+        
+        // Close modal on click
+        const closeModal = () => {
+          if (modal && modal.parentNode) {
+            document.body.removeChild(modal);
+          }
+        };
+        
+        modal.addEventListener('click', closeModal);
+        closeButton.addEventListener('click', closeModal);
+        
+        // Close on escape key
+        const handleEscape = (e) => {
+          if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
+      }
+      
+    } catch (error) {
+      console.error('Error previewing existing letter:', error);
+      showAlert.error('❌ Failed to preview letter. Please try again.');
+    }
+  };
+
   const handlePreviewLetter = (file) => {
     try {
       if (file.type === 'application/pdf') {
@@ -2143,7 +2260,7 @@ export default function EventStepOne({
             </Box>
           </Box>
           {getUploadGuidance('image').tips.map((tip, index) => (
-            <Typography variant="caption" color="info.contrastText" display="block">
+            <Typography key={index} variant="caption" color="info.contrastText" display="block">
               {tip}
             </Typography>
           ))}
@@ -2352,20 +2469,23 @@ export default function EventStepOne({
               {existingImages.map((img, index) => {
                 // Handle Cloudinary structure
                 if (typeof img === 'object' && img.url) {
+                  const isDeleting = img.isDeleting || false;
+                  
                   return (
                     <Box 
                       key={index} 
                       sx={{
                         position: 'relative',
                         border: '2px solid',
-                        borderColor: 'info.main',
+                        borderColor: isDeleting ? 'error.main' : 'info.main',
                         borderRadius: 2,
                         p: 1,
                         minWidth: 120,
-                        backgroundColor: 'background.paper',
+                        backgroundColor: isDeleting ? 'error.light' : 'background.paper',
+                        opacity: isDeleting ? 0.7 : 1,
                         '&:hover': {
                           boxShadow: 2,
-                          transform: 'scale(1.02)',
+                          transform: isDeleting ? 'none' : 'scale(1.02)',
                           transition: 'all 0.2s ease'
                         }
                       }}
@@ -2382,12 +2502,61 @@ export default function EventStepOne({
                           fontSize: '0.7rem',
                           fontWeight: 'bold',
                           color: 'white',
-                          backgroundColor: 'info.main',
-                          zIndex: 1
+                          backgroundColor: isDeleting ? 'error.main' : 'info.main',
+                          zIndex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5
                         }}
                       >
-                        📁
+                        {isDeleting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            🗑️
+                          </>
+                        ) : (
+                          '📁'
+                        )}
                       </Box>
+
+                      {/* Deletion Loading Overlay */}
+                      {isDeleting && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 3
+                          }}
+                        >
+                          <Box sx={{ textAlign: 'center', color: 'white' }}>
+                            <Box
+                              sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: '50%',
+                                border: '3px solid rgba(255,255,255,0.3)',
+                                borderTopColor: 'white',
+                                animation: 'spin 1s linear infinite',
+                                mb: 1,
+                                '@keyframes spin': {
+                                  '0%': { transform: 'rotate(0deg)' },
+                                  '100%': { transform: 'rotate(360deg)' }
+                                }
+                              }}
+                            />
+                            <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                              Deleting...
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
 
                       {/* Image Preview */}
                       <Box
@@ -2402,7 +2571,8 @@ export default function EventStepOne({
                             opacity: 0.8
                           }
                         }}
-                        onClick={() => handlePreviewExistingImage(img, index)}
+                        onClick={() => !isDeleting && handlePreviewExistingImage(img, index)}
+                        style={{ cursor: isDeleting ? 'not-allowed' : 'pointer' }}
                       >
                       <img 
                         src={img.url} 
@@ -2435,6 +2605,41 @@ export default function EventStepOne({
                           Existing File
                         </Typography>
 
+                        {/* Deletion Progress Indicator */}
+                        {isDeleting && (
+                          <Box sx={{ mb: 1, mt: 1 }}>
+                            <Box
+                              sx={{
+                                width: '100%',
+                                height: 6,
+                                bgcolor: 'grey.300',
+                                borderRadius: 3,
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: '100%',
+                                  height: '100%',
+                                  bgcolor: 'error.main',
+                                  borderRadius: 3,
+                                  background: 'linear-gradient(90deg, #f44336 0%, #ff9800 50%, #f44336 100%)',
+                                  backgroundSize: '200% 100%',
+                                  animation: 'shimmer 1.5s ease-in-out infinite',
+                                  '@keyframes shimmer': {
+                                    '0%': { backgroundPosition: '200% 0' },
+                                    '100%': { backgroundPosition: '-200% 0' }
+                                  }
+                                }}
+                              />
+                            </Box>
+                            <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', mt: 0.5, fontWeight: 'bold' }}>
+                              🗑️ Deleting from Cloudinary...
+                            </Typography>
+                          </Box>
+                        )}
+
                         {/* Action Buttons */}
                         <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>
                           <Button 
@@ -2442,8 +2647,9 @@ export default function EventStepOne({
                             color="primary" 
                             variant="outlined"
                             onClick={() => handlePreviewExistingImage(img, index)}
-                            sx={{ minWidth: 'auto', px: 1 }}
+                            sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
                             title="Preview Image"
+                            disabled={isDeleting}
                           >
                             👁️
                           </Button>
@@ -2452,10 +2658,18 @@ export default function EventStepOne({
                         color="error" 
                         variant="outlined"
                         onClick={() => onRemoveExistingImage(img)}
-                            sx={{ minWidth: 'auto', px: 1 }}
-                            title="Remove Image"
+                        sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                        title="Remove Image"
+                        disabled={isDeleting}
                       >
-                            🗑️
+                        {isDeleting ? (
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <CircularProgress size={12} color="inherit" />
+                            <span style={{ fontSize: '0.6rem' }}>Deleting...</span>
+                          </Box>
+                        ) : (
+                          '🗑️'
+                        )}
                       </Button>
                         </Box>
                       </Box>
@@ -2902,17 +3116,58 @@ export default function EventStepOne({
           <Box 
             sx={{
               border: '2px solid',
-              borderColor: 'info.main',
+              borderColor: existingLetter.isDeleting ? 'error.main' : 'info.main',
               borderRadius: 2,
               p: 2,
               mb: 2,
-              backgroundColor: 'background.paper',
+              backgroundColor: existingLetter.isDeleting ? 'error.light' : 'background.paper',
+              opacity: existingLetter.isDeleting ? 0.7 : 1,
               '&:hover': {
                 boxShadow: 1,
                 transition: 'all 0.2s ease'
-              }
+              },
+              position: 'relative'
             }}
           >
+            {/* Deletion Progress Overlay */}
+            {existingLetter.isDeleting && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2,
+                  borderRadius: 1
+                }}
+              >
+                <Box sx={{ textAlign: 'center', color: 'white' }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      border: '3px solid rgba(255,255,255,0.3)',
+                      borderTopColor: 'white',
+                      animation: 'spin 1s linear infinite',
+                      mb: 1,
+                      '@keyframes spin': {
+                        '0%': { transform: 'rotate(0deg)' },
+                        '100%': { transform: 'rotate(360deg)' }
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Deleting...
+                  </Typography>
+                </Box>
+              </Box>
+            )}
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box sx={{ flex: 1 }}>
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
@@ -2927,15 +3182,25 @@ export default function EventStepOne({
                       fontSize: '0.7rem',
                       fontWeight: 'bold',
                       color: 'white',
-                      backgroundColor: 'info.main'
+                      backgroundColor: existingLetter.isDeleting ? 'error.main' : 'info.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
                     }}
                   >
-                    STORED
+                    {existingLetter.isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        DELETING
+                      </>
+                    ) : (
+                      'STORED'
+                    )}
                   </Box>
                 </Box>
                 
                 <Typography variant="body2" color="textSecondary" gutterBottom>
-                  📄 {existingLetter}
+                  📄 {existingLetter?.filename || existingLetter?.name || 'Government Approval Letter'}
                 </Typography>
                 
                 <Typography variant="caption" color="textSecondary" display="block">
@@ -2949,12 +3214,15 @@ export default function EventStepOne({
                   size="small" 
                   color="primary" 
                   variant="outlined"
-                  component="a"
-                  href={`http://localhost:5000/uploads/${existingLetter}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ minWidth: 'auto', px: 1 }}
-                  title="View Letter"
+                  onClick={() => handlePreviewExistingLetter(existingLetter)}
+                  disabled={existingLetter.isDeleting}
+                  sx={{ 
+                    minWidth: 'auto', 
+                    px: 1,
+                    opacity: existingLetter.isDeleting ? 0.5 : 1,
+                    cursor: existingLetter.isDeleting ? 'not-allowed' : 'pointer'
+                  }}
+                  title={existingLetter.isDeleting ? "Deleting..." : "View Letter"}
                 >
                   👁️ View
                 </Button>
@@ -2963,10 +3231,18 @@ export default function EventStepOne({
                   color="error" 
                   variant="outlined"
                   onClick={onRemoveExistingLetter}
-                  sx={{ minWidth: 'auto', px: 1 }}
+                  sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
                   title="Remove Letter"
+                  disabled={existingLetter.isDeleting}
                 >
-                  🗑️ Remove
+                  {existingLetter.isDeleting ? (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <CircularProgress size={12} color="inherit" />
+                      <span style={{ fontSize: '0.6rem' }}>Deleting...</span>
+                    </Box>
+                  ) : (
+                    '🗑️ Remove'
+                  )}
                 </Button>
               </Box>
             </Box>
@@ -2974,7 +3250,7 @@ export default function EventStepOne({
         )}
         
                 {/* Enhanced Letter Upload Card */}
-        {(newLetterFile || formData.govtApprovalLetter) && (
+        {(newLetterFile || (formData.govtApprovalLetter && !existingLetter)) && (
           <Box 
             sx={{
               border: '2px solid',

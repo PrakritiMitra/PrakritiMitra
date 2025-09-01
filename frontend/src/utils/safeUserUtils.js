@@ -182,14 +182,19 @@ export const getAttendanceProfileImageUrl = (attendanceUser) => {
     return null;
   }
   
-  // Handle Cloudinary URLs only
-  if (attendanceUser.profileImage) {
-    // If it's already a URL (Cloudinary or OAuth), return it directly
+  // Check for uploaded profile image first (user's custom choice)
+  if (attendanceUser?.profileImage) {
+    // If profileImage is already a URL (Cloudinary or OAuth), return it directly
     if (attendanceUser.profileImage.startsWith('http')) {
       return attendanceUser.profileImage;
     }
     // No legacy support - only Cloudinary URLs
     return null;
+  }
+  
+  // Check for OAuth profile image
+  if (attendanceUser?.oauthProfileImage) {
+    return attendanceUser.oauthProfileImage;
   }
   
   return null;

@@ -73,6 +73,131 @@ router.get('/test', (req, res) => {
   res.json({ message: 'User routes are working!' });
 });
 
+// Cleanup invalid Cloudinary URLs (admin only)
+router.post('/cleanup-cloudinary-urls', protect, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only administrators can perform this action' 
+      });
+    }
+
+    const axios = require('axios');
+    
+    // Function to check if Cloudinary URL is valid
+    const checkCloudinaryUrl = async (url) => {
+      try {
+        const cloudinaryRegex = /https:\/\/res\.cloudinary\.com\/[^\/]+\/image\/upload\/v\d+\/[^\/]+\/[^\/]+\.(jpg|jpeg|png|gif|webp)/i;
+        if (!cloudinaryRegex.test(url)) {
+          return { valid: false, reason: 'Invalid URL format' };
+        }
+
+        if (url.length < 50 || url.length > 500) {
+          return { valid: false, reason: 'Suspicious URL length' };
+        }
+
+        const response = await axios.head(url, {
+          timeout: 5000,
+          validateStatus: (status) => status < 500
+        });
+
+        if (response.status === 200) {
+          return { valid: true };
+        } else if (response.status === 404) {
+          return { valid: false, reason: 'Image not found (404)' };
+        } else {
+          return { valid: false, reason: `HTTP ${response.status}` };
+        }
+      } catch (error) {
+        if (error.code === 'ECONNABORTED') {
+          return { valid: false, reason: 'Request timeout' };
+        } else if (error.response) {
+          return { valid: false, reason: `HTTP ${error.response.status}` };
+        } else {
+          return { valid: false, reason: error.message };
+        }
+      }
+    };
+
+    // Get users with profile images or govt ID proofs
+    const users = await User.find({
+      $or: [
+        { profileImage: { $exists: true, $ne: null } },
+        { govtIdProofUrl: { $exists: true, $ne: null } }
+      ]
+    });
+
+    let stats = {
+      total: users.length,
+      profileImages: { checked: 0, valid: 0, cleaned: 0, errors: 0 },
+      govtIdProofs: { checked: 0, valid: 0, cleaned: 0, errors: 0 },
+      cleanedUsers: []
+    };
+
+    for (const user of users) {
+      let userCleaned = false;
+
+      // Check profile image
+      if (user.profileImage) {
+        stats.profileImages.checked++;
+        const urlCheck = await checkCloudinaryUrl(user.profileImage);
+        
+        if (urlCheck.valid) {
+          stats.profileImages.valid++;
+        } else {
+          await User.findByIdAndUpdate(user._id, {
+            $unset: { profileImage: 1 }
+          });
+          stats.profileImages.cleaned++;
+          userCleaned = true;
+        }
+      }
+
+      // Check govt ID proof
+      if (user.govtIdProofUrl) {
+        stats.govtIdProofs.checked++;
+        const urlCheck = await checkCloudinaryUrl(user.govtIdProofUrl);
+        
+        if (urlCheck.valid) {
+          stats.govtIdProofs.valid++;
+        } else {
+          await User.findByIdAndUpdate(user._id, {
+            $unset: { govtIdProofUrl: 1 }
+          });
+          stats.govtIdProofs.cleaned++;
+          userCleaned = true;
+        }
+      }
+
+      if (userCleaned) {
+        stats.cleanedUsers.push({
+          userId: user._id,
+          username: user.username || user.name
+        });
+      }
+
+      // Add delay to avoid overwhelming Cloudinary
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    res.json({
+      success: true,
+      message: 'Cloudinary URL cleanup completed',
+      stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error during Cloudinary URL cleanup:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to cleanup Cloudinary URLs',
+      error: error.message 
+    });
+  }
+});
+
 router.get('/profile', protect, (req, res) => {
   res.json({ user: req.user });
 });

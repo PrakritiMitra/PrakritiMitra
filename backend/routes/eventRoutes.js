@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/eventController');
 const { eventMultiUpload, eventSingleUpload, completedEventUpload } = require('../middlewares/upload');
-const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 
 const Event = require("../models/event");
 
@@ -310,5 +310,7 @@ router.post('/upload-letter', protect, eventSingleUpload.single('file'), async (
     });
   }
 });
+
+
 
 module.exports = router;

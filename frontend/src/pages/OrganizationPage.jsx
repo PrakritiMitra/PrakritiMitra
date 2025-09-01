@@ -692,29 +692,44 @@ export default function OrganizationPage() {
               flexDirection: 'column'
             }}
           >
+            {/* Sticky Header */}
+            <div className="sticky top-0 bg-white rounded-t-2xl px-6 py-4 border-b border-slate-200 z-[100] shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900">Create New Event</h2>
+                <button
+                  className="w-8 h-8 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:text-red-600 transition-colors"
+                  onClick={async () => {
+                    if (eventCreationRef.current && eventCreationRef.current.close) {
+                      await eventCreationRef.current.close();
+                    } else {
+                      setShowEventForm(false);
+                    }
+                  }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            {/* Scrollable Content */}
             <div 
-              className="p-6 overflow-y-auto flex-1"
+              className="flex-1 overflow-y-auto p-6"
               style={{ 
                 scrollbarWidth: 'thin',
                 scrollbarColor: '#CBD5E0 #F7FAFC'
               }}
             >
-            <button
-              className="absolute top-4 right-6 text-slate-500 hover:text-red-600 text-3xl font-bold transition-colors duration-200 z-50"
-              onClick={async () => {
-                if (eventCreationRef.current && eventCreationRef.current.close) {
-                  await eventCreationRef.current.close();
-                } else {
-                  setShowEventForm(false);
-                }
-              }}
-            >
-              ×
-            </button>
               <EventCreationWrapper
                 ref={eventCreationRef}
                 selectedOrgId={id}
                 onClose={() => setShowEventForm(false)}
+                onEventCreated={(eventData) => {
+                  // Refresh the events list by refetching
+                  fetchEvents();
+                  showAlert.success("🎉 Event created successfully and added to the organization!");
+                }}
               />
             </div>
           </div>

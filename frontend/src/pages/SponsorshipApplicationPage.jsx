@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI, getOrganizationById, sponsorAPI } from '../api';
 import Navbar from '../components/layout/Navbar';
 import { showAlert } from '../utils/notifications';
+import { FullScreenLoader } from '../components/common/LoaderComponents';
 
 export default function SponsorshipApplicationPage() {
   const { organizationId, eventId } = useParams();
@@ -1352,6 +1353,13 @@ export default function SponsorshipApplicationPage() {
             )}
           </div>
         </div>
+
+        {/* Page Loader for Form Submission */}
+        <FullScreenLoader
+          isVisible={submitting}
+          message="Submitting Sponsorship Application..."
+          showProgress={false}
+        />
       </div>
     </div>
   );

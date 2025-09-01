@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { showAlert } from '../../utils/notifications';
+import { FullScreenLoader } from '../../components/common/LoaderComponents';
 
 export default function OrganizerForm() {
   const initialFormState = {
@@ -1092,6 +1093,13 @@ export default function OrganizerForm() {
           onClose={() => setShowLinkingModal(false)}
         />
       )}
+
+      {/* Page Loader for Form Submission */}
+      <FullScreenLoader
+        isVisible={loading}
+        message="Creating Account..."
+        showProgress={false}
+      />
     </Box>
   );
 }

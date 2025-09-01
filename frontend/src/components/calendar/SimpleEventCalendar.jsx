@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import EventModal from './EventModal';
 import AddEventModal from './AddEventModal';
 import calendarEventEmitter from '../../utils/calendarEventEmitter';
 import { showAlert } from '../../utils/notifications';
 
-const SimpleEventCalendar = ({ role, userId, organizations = [], onAddEvent, onExpand, isExpanded = false }) => {
+const SimpleEventCalendar = forwardRef(({ role, userId, organizations = [], onAddEvent, onExpand, isExpanded = false }, ref) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -15,6 +15,11 @@ const SimpleEventCalendar = ({ role, userId, organizations = [], onAddEvent, onE
   const [showExpandedCalendar, setShowExpandedCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [error, setError] = useState(null);
+
+  // Expose fetchEvents function to parent components
+  useImperativeHandle(ref, () => ({
+    fetchEvents: (isRefresh = false) => fetchEvents(isRefresh)
+  }));
 
   // Event color coding - base colors for different statuses
   const EVENT_COLORS = {
@@ -689,6 +694,6 @@ const SimpleEventCalendar = ({ role, userId, organizations = [], onAddEvent, onE
       )}
     </div>
   );
-};
+});
 
 export default SimpleEventCalendar; 
