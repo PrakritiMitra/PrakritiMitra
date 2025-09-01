@@ -34,6 +34,7 @@ import {
   canNavigateToUser 
 } from "../utils/safeUserUtils";
 import { showAlert, showConfirm } from "../utils/notifications";
+import { ButtonLoader, FullScreenLoader } from "../components/common/LoaderComponents";
 
 // CommentAvatarAndName component
 const CommentAvatarAndName = ({ comment }) => {
@@ -86,6 +87,7 @@ export default function VolunteerEventDetailsPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [registrationDetails, setRegistrationDetails] = useState(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [isGeneratingQrCode, setIsGeneratingQrCode] = useState(false);
   
   // UI Interaction state
   const [showExitQr, setShowExitQr] = useState(false);
@@ -113,6 +115,7 @@ export default function VolunteerEventDetailsPage() {
 
   // Certificate state
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
+  const [isDownloadingCertificate, setIsDownloadingCertificate] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
   
   // Report state
@@ -353,6 +356,9 @@ export default function VolunteerEventDetailsPage() {
 
   const handleRegistrationSubmit = async ({ groupMembers, selectedTimeSlot }) => {
     try {
+      setIsGeneratingQrCode(true);
+      const qrLoadingId = showAlert.qrGenerating('Generating entry QR code...');
+      
       const payload = { eventId: event._id, groupMembers, selectedTimeSlot };
       await axiosInstance.post("/api/registrations", payload);
       setShowRegisterModal(false);
@@ -363,11 +369,13 @@ export default function VolunteerEventDetailsPage() {
         setIsRegistered(true);
         setRegistrationDetails(regDetailsRes.data.registration);
       }
-      showAlert.success("Registered successfully!");
+      showAlert.success("Registered successfully! Entry QR code generated.");
     } catch (err) {
       console.error("Registration failed:", err);
       const errorMessage = err.response?.data?.message || "Failed to register. Please try again.";
       showAlert.error(errorMessage);
+    } finally {
+      setIsGeneratingQrCode(false);
     }
   };
 
@@ -378,11 +386,12 @@ export default function VolunteerEventDetailsPage() {
       'Are you sure you want to withdraw your registration for this event?',
       async () => {
         try {
+          const qrDeletingId = showAlert.qrDeleting('Deleting QR codes...');
           // Use event ID for withdrawal as per backend route
           await axiosInstance.delete(`/api/registrations/${event._id}`);
           setIsRegistered(false);
           setRegistrationDetails(null);
-          showAlert.success('Registration withdrawn successfully.');
+          showAlert.success('Registration withdrawn successfully. QR codes deleted.');
         } catch (err) {
           showAlert.error(err.response?.data?.message || 'Failed to withdraw registration.');
         }
@@ -400,11 +409,16 @@ export default function VolunteerEventDetailsPage() {
   const handleGenerateExitQr = async () => {
     if (!registrationDetails?._id) return;
     try {
+      setLoading(true);
+      const qrLoadingId = showAlert.qrGenerating('Generating exit QR code...');
       const res = await axiosInstance.get(`/api/registrations/${registrationDetails._id}/exit-qr`);
       setExitQrPath(res.data.exitQrPath);
       setShowExitQr(true);
+      showAlert.success('Exit QR code generated successfully!');
     } catch (err) {
       showAlert.error(err.response?.data?.message || 'Failed to generate exit QR.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -421,7 +435,7 @@ export default function VolunteerEventDetailsPage() {
     }
   };
   
-  const handleQuestionnaireSubmit = async (answers) => {
+  const handleQuestionnaireSubmit = async (answers, mediaFiles = []) => {
     if (questionnaireCompleted) {
       showAlert.warning('You have already submitted your questionnaire.');
       return;
@@ -429,7 +443,24 @@ export default function VolunteerEventDetailsPage() {
     
     setQuestionnaireSubmitting(true);
     try {
-      await axiosInstance.post(`/api/registrations/event/${event._id}/questionnaire`, { answers });
+      // Handle Cloudinary media files - they are already uploaded
+      if (mediaFiles && mediaFiles.length > 0) {
+        const formData = new FormData();
+        formData.append('answers', JSON.stringify(answers));
+        
+        // Filter out files that are already uploaded to Cloudinary
+        const cloudinaryMedia = mediaFiles.filter(file => file.uploaded && file.url);
+        if (cloudinaryMedia.length > 0) {
+          formData.append('media', JSON.stringify(cloudinaryMedia));
+        }
+        
+        await axiosInstance.post(`/api/registrations/event/${event._id}/questionnaire`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        // No media files, use regular JSON
+        await axiosInstance.post(`/api/registrations/event/${event._id}/questionnaire`, { answers });
+      }
       
       setQuestionnaireCompleted(true);
       setShowQuestionnaireModal(false);
@@ -461,15 +492,62 @@ export default function VolunteerEventDetailsPage() {
     
     setIsGeneratingCertificate(true);
     try {
+      // Step 1: Initiate certificate generation
+      showAlert.info('🔄 Starting certificate generation...');
       await axiosInstance.post(`/api/events/${event._id}/generate-certificate`);
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Allow backend time to process
+      
+      // Step 2: Wait for backend processing with progress feedback
+      showAlert.info('📄 Generating PDF certificate...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Step 3: Uploading to Cloudinary
+      showAlert.info('☁️ Uploading certificate to Cloudinary...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 4: Refresh event data
       setForceRefresh(prev => prev + 1); // Trigger re-fetch of event data
-      showAlert.success('Certificate generated successfully! You can now download it.');
+      showAlert.success('🎉 Certificate generated successfully! You can now download it.');
     } catch (err) {
       console.error('Certificate generation error:', err);
       showAlert.error(err.response?.data?.message || 'Failed to generate certificate. Please try again.');
     } finally {
       setIsGeneratingCertificate(false);
+    }
+  };
+
+  // Enhanced certificate download handler with loading state
+  const handleDownloadCertificate = async (certificateUrl, certificateName) => {
+    setIsDownloadingCertificate(true);
+    try {
+      showAlert.info('📥 Starting certificate download...');
+      
+      // For Cloudinary URLs, add download parameters to force download
+      let downloadUrl = certificateUrl;
+      if (certificateUrl.includes('cloudinary.com')) {
+        const separator = certificateUrl.includes('?') ? '&' : '?';
+        downloadUrl = `${certificateUrl}${separator}fl_attachment`;
+      }
+
+      // Create a temporary link element for download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = certificateName || 'certificate.pdf';
+      link.style.display = 'none';
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Small delay to ensure download starts
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      showAlert.success('✅ Certificate download started!');
+    } catch (error) {
+      console.error('Certificate download error:', error);
+      showAlert.error('❌ Failed to download certificate. Please try again.');
+    } finally {
+      setIsDownloadingCertificate(false);
     }
   };
 
@@ -865,14 +943,23 @@ export default function VolunteerEventDetailsPage() {
                       <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm mb-3">
                         🎉 <strong>Certificate ready!</strong> You can now download your certificate.
                       </div>
-                      <a
-                        href={userCertificates[0].filePath.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      <button
+                        onClick={() => handleDownloadCertificate(
+                          userCertificates[0].filePath.url,
+                          `${event.title}_${userCertificates[0].award}_certificate.pdf`
+                        )}
+                        disabled={isDownloadingCertificate}
+                        className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        📄 Download Certificate
-                      </a>
+                        {isDownloadingCertificate ? (
+                          <>
+                            <ButtonLoader size="sm" className="mr-2" />
+                            Downloading...
+                          </>
+                        ) : (
+                          '📄 Download Certificate'
+                        )}
+                      </button>
                     </div>
                   ) : (
                        <div className="space-y-3">
@@ -889,7 +976,14 @@ export default function VolunteerEventDetailsPage() {
                            disabled={!canGenerateCertificate || isGeneratingCertificate}
                            className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                          >
-                           {isGeneratingCertificate ? "🔄 Generating..." : "🎨 Generate Certificate"}
+                           {isGeneratingCertificate ? (
+                             <>
+                               <ButtonLoader size="sm" className="mr-2" />
+                               Generating Certificate...
+                             </>
+                           ) : (
+                             "🎨 Generate Certificate"
+                           )}
                     </button>
                   </div>
                 )}
@@ -1768,19 +1862,39 @@ export default function VolunteerEventDetailsPage() {
       
       {event && <EventChatbox eventId={event._id} currentUser={user} />}
 
-              <VolunteerRegisterModal open={showRegisterModal} onClose={() => setShowRegisterModal(false)} volunteer={user} onSubmit={handleRegistrationSubmit} event={event} />
+              <VolunteerRegisterModal 
+          open={showRegisterModal} 
+          onClose={() => setShowRegisterModal(false)} 
+          volunteer={user} 
+          onSubmit={handleRegistrationSubmit} 
+          event={event} 
+          isRegistering={isGeneratingQrCode}
+        />
       
       <VolunteerQuestionnaireModal open={showQuestionnaireModal} onClose={() => setShowQuestionnaireModal(false)} eventType={event?.eventType} onSubmit={handleQuestionnaireSubmit} />
       
-      {/* Loader for certificate generation */}
-      {isGeneratingCertificate && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-8 flex items-center gap-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="text-lg font-semibold text-blue-700">Generating certificate...</span>
-          </div>
-        </div>
-      )}
+      {/* Page Loader for Registration */}
+      <FullScreenLoader
+        isVisible={isGeneratingQrCode}
+        message="Generating QR Code..."
+        showProgress={false}
+      />
+
+      {/* Page Loader for Questionnaire Submission */}
+      <FullScreenLoader
+        isVisible={questionnaireSubmitting}
+        message="Submitting Questionnaire..."
+        subMessage="Please wait while we save your responses and media files..."
+        showProgress={false}
+      />
+      
+      {/* Full Screen Loader for Certificate Generation */}
+      <FullScreenLoader
+        isVisible={isGeneratingCertificate}
+        message="Generating Certificate..."
+        subMessage="Creating your personalized certificate with award details..."
+        showProgress={false}
+      />
 
       {/* FIX: Report Modal is now correctly placed outside other conditional blocks */}
       {showReportModal && eventReport && (

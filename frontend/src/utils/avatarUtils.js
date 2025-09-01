@@ -17,6 +17,33 @@ export const getAvatarInitial = (user) => {
   return displayName.charAt(0).toUpperCase();
 };
 
+// Validate and clean Cloudinary URL
+export const validateCloudinaryUrl = (url) => {
+  if (!url || !isCloudinaryUrl(url)) {
+    return null;
+  }
+  
+  try {
+    // Check if the URL has a valid format
+    const cloudinaryRegex = /https:\/\/res\.cloudinary\.com\/[^\/]+\/image\/upload\/v\d+\/[^\/]+\/[^\/]+\.(jpg|jpeg|png|gif|webp)/i;
+    if (!cloudinaryRegex.test(url)) {
+      console.warn('Invalid Cloudinary URL format:', url);
+      return null;
+    }
+    
+    // Check if the URL has a reasonable length (not too short or too long)
+    if (url.length < 50 || url.length > 500) {
+      console.warn('Suspicious Cloudinary URL length:', url.length, url);
+      return null;
+    }
+    
+    return url;
+  } catch (error) {
+    console.error('Error validating Cloudinary URL:', error, url);
+    return null;
+  }
+};
+
 // Get profile image URL
 export const getProfileImageUrl = (user) => {
   // Handle deleted users
@@ -28,6 +55,10 @@ export const getProfileImageUrl = (user) => {
   if (user?.profileImage) {
     // If profileImage is already a URL (Cloudinary or OAuth), return it directly
     if (user.profileImage.startsWith('http')) {
+      // Validate Cloudinary URL format
+      if (isCloudinaryUrl(user.profileImage)) {
+        return validateCloudinaryUrl(user.profileImage);
+      }
       return user.profileImage;
     }
     // No legacy support - only Cloudinary URLs
@@ -118,4 +149,47 @@ export const getRoleColors = (role) => {
   };
   
   return colors[role] || colors.user;
+};
+
+// Handle image loading errors
+export const handleImageError = (event, user) => {
+  // Hide the image
+  event.target.style.display = 'none';
+  
+  // Find the fallback avatar element (next sibling)
+  const fallbackElement = event.target.nextElementSibling;
+  if (fallbackElement) {
+    // Remove the 'hidden' class to make it visible
+    fallbackElement.classList.remove('hidden');
+    fallbackElement.style.display = 'flex';
+  }
+  
+  // Also try to find any parent container that might need to show fallback
+  const parentContainer = event.target.parentElement;
+  if (parentContainer) {
+    // Look for any fallback elements within the parent
+    const fallbackInParent = parentContainer.querySelector('.fallback-avatar');
+    if (fallbackInParent) {
+      fallbackInParent.classList.remove('hidden');
+      fallbackInParent.style.display = 'flex';
+    }
+  }
+  
+  // Log the error for debugging (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('Profile image failed to load:', event.target.src, 'for user:', user?.username || user?.name);
+  }
+};
+
+// Get fallback avatar component
+export const getFallbackAvatar = (user, sizeClasses = 'w-8 h-8', displayClass = 'hidden') => {
+  const initial = getAvatarInitial(user);
+  const colors = getRoleColors(user?.role || 'user');
+  
+  return {
+    initial,
+    sizeClasses,
+    displayClass,
+    colors
+  };
 };

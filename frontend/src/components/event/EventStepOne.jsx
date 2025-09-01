@@ -15,6 +15,7 @@ import {
   FormGroup,
   Alert,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import LocationPicker from './LocationPicker'; // Make sure this path is correct
 import TimeSlotBuilder from './TimeSlotBuilder';
@@ -111,31 +112,28 @@ export default function EventStepOne({
   // Cleanup upload states when component unmounts
   useEffect(() => {
     return () => {
-      // Reset any upload-related states
-      if (typeof onUploadProgress === 'function') {
-        onUploadProgress({});
-      }
-      if (typeof onUploadStatus === 'function') {
-        onUploadStatus({});
-      }
-      if (typeof onUploadError === 'function') {
-        onUploadError({});
-      }
-      
-      // Clean up any object URLs to prevent memory leaks
+      // Only clean up object URLs - don't call state setters during unmount to avoid infinite loops
       if (formData.eventImages) {
         formData.eventImages.forEach(file => {
-          if (!file.uploaded && file instanceof File) {
-            URL.revokeObjectURL(URL.createObjectURL(file));
+          if (file && !file.uploaded && file instanceof File && file.preview) {
+            try {
+              URL.revokeObjectURL(file.preview);
+            } catch (error) {
+              // Ignore cleanup errors
+            }
           }
         });
       }
       
-      if (newLetterFile && !newLetterFile.uploaded && newLetterFile instanceof File) {
-        URL.revokeObjectURL(URL.createObjectURL(newLetterFile));
+      if (newLetterFile && !newLetterFile.uploaded && newLetterFile instanceof File && newLetterFile.preview) {
+        try {
+          URL.revokeObjectURL(newLetterFile.preview);
+        } catch (error) {
+          // Ignore cleanup errors
+        }
       }
     };
-  }, [onUploadProgress, onUploadStatus, onUploadError, formData.eventImages, newLetterFile]);
+  }, [formData.eventImages, newLetterFile]);
 
   const handleMaxVolunteersChange = (e) => {
     const { name, value } = e.target;
@@ -194,7 +192,9 @@ export default function EventStepOne({
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
     
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      return;
+    }
 
     // Enhanced file validation with better feedback
     const validationResults = validateImageFiles(files);
@@ -215,7 +215,7 @@ export default function EventStepOne({
       showAlert.success(`✅ ${validationResults.validFiles.length} image(s) validated: ${fileNames}`);
     }
 
-    // Start upload for each valid file
+    // Start upload for each valid file (files will be added to formData after successful upload)
     for (const file of validationResults.validFiles) {
       await handleImageUpload(file);
     }
@@ -223,6 +223,8 @@ export default function EventStepOne({
     // Clear the file input
     e.target.value = '';
   };
+
+
 
   // Enhanced image file validation with comprehensive checks
   const validateImageFiles = (files) => {
@@ -455,6 +457,51 @@ export default function EventStepOne({
     return tips[fileType] || tips.image;
   };
 
+  const handleCancelUpload = (fileName, index) => {
+    try {
+      // Clear upload progress
+      onUploadProgress(fileName, null);
+      
+      // Remove the file from the form data
+      const updatedImages = formData.eventImages.filter((_, idx) => idx !== index);
+      setFormData(prev => ({ ...prev, eventImages: updatedImages }));
+      
+      // Clear any error for this file
+      onUploadError(fileName, '');
+      
+      showAlert.info(`⏹️ Upload cancelled for ${fileName}`);
+      
+    } catch (error) {
+      console.error('Error cancelling upload:', error);
+      showAlert.error(`❌ Failed to cancel upload: ${error.message || error}`);
+    }
+  };
+
+  const handleCancelLetterUpload = (fileName) => {
+    try {
+      // Clear upload progress
+      onUploadProgress(fileName, null);
+      
+      // Clear the new letter file
+      setNewLetterFile(null);
+      
+      // Clear the letter from form data
+    setFormData(prev => ({
+      ...prev,
+        govtApprovalLetter: null
+      }));
+      
+      // Clear any error for this file
+      onUploadError(fileName, '');
+      
+      showAlert.info(`⏹️ Letter upload cancelled for ${fileName}`);
+      
+    } catch (error) {
+      console.error('Error cancelling letter upload:', error);
+      showAlert.error(`❌ Failed to cancel letter upload: ${error.message || error}`);
+    }
+  };
+
   const handleRetryUpload = async (fileName, fileType) => {
     try {
       // Find the file in the appropriate state
@@ -463,7 +510,9 @@ export default function EventStepOne({
       if (fileType === 'image') {
         fileToRetry = formData.eventImages?.find(img => img.name === fileName);
       } else if (fileType === 'letter') {
-        fileToRetry = newLetterFile?.name === fileName ? newLetterFile : null;
+        // Check both newLetterFile and formData.govtApprovalLetter
+        fileToRetry = newLetterFile?.name === fileName ? newLetterFile : 
+                     formData.govtApprovalLetter?.name === fileName ? formData.govtApprovalLetter : null;
       }
 
       if (!fileToRetry) {
@@ -568,24 +617,32 @@ export default function EventStepOne({
     const closeBtn = content.querySelector('#closeBtn');
     
     retryBtn.addEventListener('click', () => {
-      document.body.removeChild(modal);
+      if (modal && modal.parentNode) {
+        document.body.removeChild(modal);
+      }
       handleRetryUpload(fileName, fileType);
     });
     
     closeBtn.addEventListener('click', () => {
-      document.body.removeChild(modal);
+      if (modal && modal.parentNode) {
+        document.body.removeChild(modal);
+      }
     });
     
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
       }
     });
     
     // Close on escape key
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
         document.removeEventListener('keydown', handleEscape);
       }
     };
@@ -696,19 +753,25 @@ export default function EventStepOne({
     // Add event listener
     const closeBtn = content.querySelector('#closeTroubleshootingBtn');
     closeBtn.addEventListener('click', () => {
-      document.body.removeChild(modal);
+      if (modal && modal.parentNode) {
+        document.body.removeChild(modal);
+      }
     });
     
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
       }
     });
     
     // Close on escape key
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
         document.removeEventListener('keydown', handleEscape);
       }
     };
@@ -824,19 +887,25 @@ export default function EventStepOne({
     // Add event listener
     const closeBtn = content.querySelector('#closeOptimizationBtn');
     closeBtn.addEventListener('click', () => {
-      document.body.removeChild(modal);
+      if (modal && modal.parentNode) {
+        document.body.removeChild(modal);
+      }
     });
     
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
       }
     });
     
     // Close on escape key
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
         document.removeEventListener('keydown', handleEscape);
       }
     };
@@ -864,6 +933,7 @@ export default function EventStepOne({
           '📄 Upload government approval letter or official document',
           '📋 Supported formats: Images (JPEG, PNG, GIF, WebP) and PDF',
           '📏 Maximum file size: 10MB',
+          '🔢 Maximum letters: 1 per event',
           '✅ Required for event approval'
         ],
         recommendations: [
@@ -883,7 +953,7 @@ export default function EventStepOne({
     const uploadedFiles = (formData.eventImages || []).filter(img => img.uploaded).length + 
                          (newLetterFile && newLetterFile.uploaded ? 1 : 0);
     const pendingFiles = totalFiles - uploadedFiles;
-    const errorFiles = Object.keys(uploadErrors).length;
+    const errorFiles = uploadErrors && typeof uploadErrors === 'object' ? Object.keys(uploadErrors).length : 0;
     
     return {
       total: totalFiles,
@@ -924,11 +994,11 @@ export default function EventStepOne({
   }, []);
 
   const isUploadInProgress = useMemo(() => {
-    return isUploading || Object.values(uploadProgress).some(progress => progress > 0 && progress < 100);
+    return isUploading || (uploadProgress && typeof uploadProgress === 'object' && Object.values(uploadProgress).some(progress => progress > 0 && progress < 100));
   }, [isUploading, uploadProgress]);
 
   const hasCriticalErrors = useMemo(() => {
-    return Object.keys(uploadErrors).length > 0;
+    return uploadErrors && typeof uploadErrors === 'object' && Object.keys(uploadErrors).length > 0;
   }, [uploadErrors]);
 
   const canProceedToNextStepOptimized = useMemo(() => {
@@ -1089,7 +1159,9 @@ export default function EventStepOne({
       
       // Close modal on click
       const closeModal = () => {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
         if (!file.uploaded) {
           URL.revokeObjectURL(imageUrl);
         }
@@ -1194,7 +1266,9 @@ export default function EventStepOne({
       
       // Close modal on click
       const closeModal = () => {
-        document.body.removeChild(modal);
+        if (modal && modal.parentNode) {
+          document.body.removeChild(modal);
+        }
       };
       
       modal.addEventListener('click', closeModal);
@@ -1212,6 +1286,123 @@ export default function EventStepOne({
     } catch (error) {
       console.error('Error previewing existing image:', error);
       showAlert.error('❌ Failed to preview image. Please try again.');
+    }
+  };
+
+  const handlePreviewExistingLetter = (letter) => {
+    try {
+      const letterUrl = letter.url || letter.cloudinaryUrl;
+      
+      if (!letterUrl) {
+        showAlert.error('❌ Letter URL not found. Cannot preview.');
+        return;
+      }
+
+      if (letterUrl.includes('.pdf') || letter.type === 'application/pdf') {
+        // For PDFs, open in new tab
+        window.open(letterUrl, '_blank');
+      } else {
+        // For images, show preview modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.9);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+          cursor: pointer;
+        `;
+        
+        const img = document.createElement('img');
+        img.src = letterUrl;
+        img.style.cssText = `
+          max-width: 90%;
+          max-height: 90%;
+          object-fit: contain;
+          border-radius: 8px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        `;
+        
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '✕';
+        closeButton.style.cssText = `
+          position: absolute;
+          top: 20px;
+          right: 30px;
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          font-size: 24px;
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background-color 0.3s;
+        `;
+        
+        closeButton.addEventListener('mouseenter', () => {
+          closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+        });
+        
+        closeButton.addEventListener('mouseleave', () => {
+          closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        });
+        
+        const fileInfo = document.createElement('div');
+        fileInfo.style.cssText = `
+          position: absolute;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+          padding: 10px 20px;
+          border-radius: 20px;
+          font-size: 14px;
+          text-align: center;
+        `;
+        fileInfo.innerHTML = `
+          <div><strong>${letter.filename || letter.name || 'Government Approval Letter'}</strong></div>
+          <div>${letter.format || 'Document'}</div>
+          <div>✅ Existing File</div>
+        `;
+        
+        modal.appendChild(img);
+        modal.appendChild(closeButton);
+        modal.appendChild(fileInfo);
+        document.body.appendChild(modal);
+        
+        // Close modal on click
+        const closeModal = () => {
+          if (modal && modal.parentNode) {
+            document.body.removeChild(modal);
+          }
+        };
+        
+        modal.addEventListener('click', closeModal);
+        closeButton.addEventListener('click', closeModal);
+        
+        // Close on escape key
+        const handleEscape = (e) => {
+          if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
+      }
+      
+    } catch (error) {
+      console.error('Error previewing existing letter:', error);
+      showAlert.error('❌ Failed to preview letter. Please try again.');
     }
   };
 
@@ -1305,7 +1496,9 @@ export default function EventStepOne({
         
         // Close modal on click
         const closeModal = () => {
-          document.body.removeChild(modal);
+          if (modal && modal.parentNode) {
+            document.body.removeChild(modal);
+          }
           if (!file.uploaded) {
             URL.revokeObjectURL(imageUrl);
           }
@@ -1341,7 +1534,7 @@ export default function EventStepOne({
       // Create FormData for upload
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('folder', 'events');
+      formData.append('folder', 'events/images');
 
       // Upload to Cloudinary via backend
       const response = await axiosInstance.post('/api/events/upload-image', formData, {
@@ -1358,15 +1551,19 @@ export default function EventStepOne({
         onUploadStatus(prev => ({ ...prev, [fileName]: 'completed' }));
         
         // Add uploaded file info to form data
-        setFormData(prev => ({
-          ...prev,
-          eventImages: [...(prev.eventImages || []), {
+        setFormData(prev => {
+          const newEventImages = [...(prev.eventImages || []), {
             ...file,
+            name: fileName, // Explicitly set the name property
             cloudinaryUrl: response.data.url,
             cloudinaryId: response.data.publicId,
             uploaded: true
-          }]
-        }));
+          }];
+          return {
+      ...prev,
+            eventImages: newEventImages
+          };
+        });
 
         showAlert.success(`✅ ${fileName} uploaded successfully!`);
         
@@ -1522,6 +1719,16 @@ export default function EventStepOne({
         
         setNewLetterFile(uploadedFile);
         setLetterFile(uploadedFile);
+        
+        // Update form data with the uploaded letter
+        setFormData(prev => ({
+          ...prev,
+          govtApprovalLetter: uploadedFile
+        }));
+        
+        // Debug: Log the uploaded file data
+        console.log('Letter uploaded successfully:', uploadedFile);
+        console.log('Current formData after letter upload:', formData);
 
         showAlert.success(`✅ ${fileName} uploaded successfully!`);
         
@@ -1629,50 +1836,173 @@ export default function EventStepOne({
     }
   };
 
-  const handleRemoveNewLetter = () => {
-    console.log("[EventStepOne] Removing new letter:", newLetterFile?.name);
-    
+  const handleRemoveNewLetter = async () => {
     if (newLetterFile) {
-      showAlert(`🗑️ Government approval letter removed: ${newLetterFile.name}`, 'warning');
+      try {
+        // If the file was uploaded to Cloudinary, delete it from there too
+        if (newLetterFile.uploaded && newLetterFile.cloudinaryId) {
+          try {
+            // Show loading state for the letter
+            setNewLetterFile(prev => prev ? { ...prev, isDeleting: true } : null);
+
+            // Call the existing Cloudinary deletion utility through a simple endpoint
+            const response = await axiosInstance.post('/api/events/delete-cloudinary-file', {
+              publicId: newLetterFile.cloudinaryId,
+              fileName: newLetterFile.name
+            });
+
+            if (response.status === 200) {
+              // Format-specific success message
+              const fileType = newLetterFile.type || '';
+              let fileTypeText = 'Government approval letter';
+              
+              if (fileType.startsWith('image/')) {
+                fileTypeText = 'Image document';
+              } else if (fileType === 'application/pdf') {
+                fileTypeText = 'PDF document';
+              } else if (fileType.startsWith('text/')) {
+                fileTypeText = 'Text document';
+              }
+              
+              showAlert.success(`🗑️ ${fileTypeText} removed from Cloudinary: ${newLetterFile.name}`);
+            } else {
+              showAlert.warning(`⚠️ Document removed from form but Cloudinary cleanup failed: ${newLetterFile.name}`);
+            }
+          } catch (error) {
+            console.warn('Failed to delete document from Cloudinary, but removed from form:', error);
+            showAlert.warning(`⚠️ Document removed from form but Cloudinary cleanup failed: ${newLetterFile.name}`);
+          } finally {
+            // Clear loading state
+            setNewLetterFile(prev => prev ? { ...prev, isDeleting: false } : null);
+          }
+        } else {
+          // File wasn't uploaded yet, just show removal message
+          const fileType = newLetterFile.type || '';
+          let fileTypeText = 'Government approval letter';
+          
+          if (fileType.startsWith('image/')) {
+            fileTypeText = 'Image document';
+          } else if (fileType === 'application/pdf') {
+            fileTypeText = 'PDF document';
+          } else if (fileType.startsWith('text/')) {
+            fileTypeText = 'Text document';
+          }
+          
+          showAlert.info(`🗑️ ${fileTypeText} removed: ${newLetterFile.name}`);
+        }
+      } catch (error) {
+        console.error('Error removing document:', error);
+        showAlert.error(`❌ Error removing document: ${error.message}`);
+      }
     }
     
+    // Clean up all states
     setNewLetterFile(null);
     setLetterFile(null);
+    
+    // Clear the letter from form data
+    setFormData(prev => ({
+      ...prev,
+      govtApprovalLetter: null
+    }));
+    
+    // Clear upload progress and status for this file
+    if (newLetterFile?.name) {
+      onUploadProgress(prev => {
+        const newProgress = { ...prev };
+        delete newProgress[newLetterFile.name];
+        return newProgress;
+      });
+      onUploadStatus(prev => {
+        const newStatus = { ...prev };
+        delete newStatus[newLetterFile.name];
+        return newStatus;
+      });
+      onUploadError(newLetterFile.name, null);
+    }
     
     // Clear the file input more reliably
     const fileInputs = document.querySelectorAll('input[type="file"][accept="image/*,application/pdf"]');
     fileInputs.forEach(input => {
       if (input.files && input.files.length > 0) {
         input.value = '';
-        console.log("[EventStepOne] Cleared file input");
       }
     });
   };
 
-  const handleRemoveImage = (index) => {
+  const handleRemoveImage = async (index) => {
     const removedFile = formData.eventImages[index];
     if (removedFile) {
-      showAlert(`🗑️ Image removed: ${removedFile.name}`, 'warning');
-      
-      // Remove from form data
-      setFormData(prev => ({
-        ...prev,
-        eventImages: prev.eventImages.filter((_, i) => i !== index)
-      }));
+      try {
+        // If the file was uploaded to Cloudinary, delete it from there too
+        if (removedFile.uploaded && removedFile.cloudinaryId) {
+          try {
+            // Show loading state for this specific image
+            setFormData(prev => ({
+              ...prev,
+              eventImages: prev.eventImages.map((img, idx) => 
+                idx === index ? { ...img, isDeleting: true } : img
+              )
+            }));
 
-      // Clear upload states for this file
-      if (removedFile.name) {
-        onUploadProgress(prev => {
-          const newProgress = { ...prev };
-          delete newProgress[removedFile.name];
-          return newProgress;
-        });
-        onUploadStatus(prev => {
-          const newStatus = { ...prev };
-          delete newStatus[removedFile.name];
-          return newStatus;
-        });
-        onUploadError(removedFile.name, null); // Clear error
+            // Call the existing Cloudinary deletion utility through a simple endpoint
+            const response = await axiosInstance.post('/api/events/delete-cloudinary-file', {
+              publicId: removedFile.cloudinaryId,
+              fileName: removedFile.name
+            });
+
+            if (response.status === 200) {
+              showAlert.success(`🗑️ Image removed from Cloudinary: ${removedFile.name}`);
+            } else {
+              showAlert.warning(`⚠️ Image removed from form but Cloudinary cleanup failed: ${removedFile.name}`);
+            }
+          } catch (error) {
+            console.warn('Failed to delete from Cloudinary, but removed from form:', error);
+            showAlert.warning(`⚠️ Image removed from form but Cloudinary cleanup failed: ${removedFile.name}`);
+          } finally {
+            // Clear loading state
+            setFormData(prev => ({
+              ...prev,
+              eventImages: prev.eventImages.map((img, idx) => 
+                idx === index ? { ...img, isDeleting: false } : img
+              )
+            }));
+          }
+        } else {
+          // File wasn't uploaded yet, just show removal message
+          showAlert.info(`🗑️ Image removed: ${removedFile.name}`);
+        }
+        
+        // Remove from form data
+        setFormData(prev => ({
+          ...prev,
+          eventImages: prev.eventImages.filter((_, i) => i !== index)
+        }));
+
+        // Clear upload states for this file
+        if (removedFile.name) {
+          onUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[removedFile.name];
+            return newProgress;
+          });
+          onUploadStatus(prev => {
+            const newStatus = { ...prev };
+            delete newStatus[removedFile.name];
+            return newStatus;
+          });
+          onUploadError(removedFile.name, null); // Clear error
+        }
+        
+      } catch (error) {
+        console.error('🔍 DEBUG: Error removing image:', error);
+        showAlert.error(`❌ Error removing image: ${error.message}`);
+        
+        // Still remove from form data even if Cloudinary deletion fails
+        setFormData(prev => ({
+          ...prev,
+          eventImages: prev.eventImages.filter((_, i) => i !== index)
+        }));
       }
     }
   };
@@ -1904,142 +2234,31 @@ export default function EventStepOne({
         </Box>
       )}
 
-      {/* Enhanced Status Indicator */}
-      <Box mb={3} p={2} bgcolor="grey.50" borderRadius={2} border="1px solid" borderColor="grey.300">
-        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-          <Box display="flex" alignItems="center" gap={2}>
-            <Typography variant="subtitle2" color="textPrimary">
-              📊 Upload Status Overview
-            </Typography>
-            <Box
-              sx={{
-                px: 1.5,
-                py: 0.5,
-                borderRadius: 2,
-                fontSize: '0.75rem',
-                fontWeight: 'bold',
-                color: 'white',
-                backgroundColor: hasCriticalErrors ? 'error.main' : isUploadInProgress ? 'warning.main' : 'success.main'
-              }}
-            >
-              {hasCriticalErrors ? '❌ Errors' : isUploadInProgress ? '⏳ In Progress' : '✅ Ready'}
-            </Box>
-          </Box>
-          
-          <Box display="flex" alignItems="center" gap={2}>
-            {isProcessing && (
-              <Box display="flex" alignItems="center" gap={1}>
-                <Box
-                  sx={{
-                    width: 16,
-                    height: 16,
-                    border: '2px solid',
-                    borderColor: 'primary.main',
-                    borderTopColor: 'transparent',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}
-                />
-                <Typography variant="caption" color="textSecondary">
-                  {processingMessage || 'Processing...'}
-                </Typography>
-              </Box>
-            )}
-            
-            {hasError && (
-              <Button
-                size="small"
-                variant="outlined"
-                color="error"
-                onClick={resetErrorState}
-                sx={{ fontSize: '0.75rem' }}
-              >
-                Reset Error State
-              </Button>
-            )}
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Comprehensive Help Section */}
-      <Box mb={3} p={3} bgcolor="primary.light" borderRadius={2} border="1px solid" borderColor="primary.main">
-        <Typography variant="h6" color="primary.contrastText" gutterBottom>
-          🆘 Need Help with File Uploads?
-        </Typography>
-        <Typography variant="body2" color="primary.contrastText" paragraph>
-          Having trouble uploading files? Here's a quick guide to help you get started:
-        </Typography>
-        
-        <Box display="flex" flexWrap="wrap" gap={2} mb={2}>
-          <Box sx={{ flex: 1, minWidth: 250 }}>
-            <Typography variant="subtitle2" color="primary.contrastText" gutterBottom>
-              📷 Image Requirements:
-            </Typography>
-            <Box component="ul" sx={{ margin: 0, paddingLeft: 2, color: 'primary.contrastText' }}>
-              <li>Maximum 5 images per event</li>
-              <li>Supported formats: JPEG, PNG, GIF, WebP</li>
-              <li>Maximum file size: 10MB per image</li>
-              <li>Recommended dimensions: 1200x800px</li>
-            </Box>
-          </Box>
-          
-          <Box sx={{ flex: 1, minWidth: 250 }}>
-            <Typography variant="subtitle2" color="primary.contrastText" gutterBottom>
-              📄 Letter Requirements:
-            </Typography>
-            <Box component="ul" sx={{ margin: 0, paddingLeft: 2, color: 'primary.contrastText' }}>
-              <li>Government approval letter required</li>
-              <li>Supported formats: Images (JPEG, PNG, GIF, WebP) and PDF</li>
-              <li>Maximum file size: 10MB</li>
-              <li>Ensure text is clearly readable</li>
-            </Box>
-          </Box>
-        </Box>
-        
-        <Box display="flex" gap={2} flexWrap="wrap">
-          <Button
-            size="small"
-            variant="contained"
-            onClick={() => handleShowUploadTroubleshooting()}
-            sx={{ 
-              backgroundColor: 'white',
-              color: 'primary.main',
-              '&:hover': {
-                backgroundColor: 'grey.100'
-              }
-            }}
-            startIcon={<span>🔧</span>}
-          >
-            Upload Troubleshooting
-          </Button>
-          <Button
-            size="small"
-            variant="contained"
-            onClick={() => handleShowFileOptimizationGuide()}
-            sx={{ 
-              backgroundColor: 'white',
-              color: 'primary.main',
-              '&:hover': {
-                backgroundColor: 'grey.100'
-              }
-            }}
-            startIcon={<span>📚</span>}
-          >
-            File Optimization Guide
-          </Button>
-        </Box>
-      </Box>
-
       <Box mt={2}>
         <Typography variant="subtitle1" gutterBottom>
-          Event Images (optional)
+          Event Images (optional) - Limit: 5
         </Typography>
         
         {/* Upload Guidance */}
         <Box mb={2} p={2} bgcolor="info.light" borderRadius={1}>
-          <Typography variant="subtitle2" color="info.contrastText" gutterBottom>
-            💡 Upload Tips & Guidelines
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+            <Typography variant="subtitle2" color="info.contrastText">
+              💡 Upload Tips & Guidelines
+            </Typography>
+            <Box
+              sx={{
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                color: 'white',
+                backgroundColor: 'info.main'
+              }}
+            >
+              MAX: 5
+            </Box>
+          </Box>
           {getUploadGuidance('image').tips.map((tip, index) => (
             <Typography key={index} variant="caption" color="info.contrastText" display="block">
               {tip}
@@ -2050,125 +2269,19 @@ export default function EventStepOne({
           </Typography>
         </Box>
         
-        {/* File Management Summary */}
-        <Box mb={2} p={2} bgcolor="grey.50" borderRadius={1} border="1px solid" borderColor="grey.300">
-          <Typography variant="subtitle2" color="textPrimary" gutterBottom>
-            📊 File Management Summary
-          </Typography>
-          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="caption" color="textSecondary">
-                📷 Images: {existingImages.length + (formData.eventImages?.length || 0)} total
-              </Typography>
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontSize: '0.7rem',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  backgroundColor: (existingImages.length + (formData.eventImages?.length || 0)) >= 5 ? 'error.main' : 'success.main'
-                }}
-              >
-                {Math.min((existingImages.length + (formData.eventImages?.length || 0)), 5)}/5
-              </Box>
-            </Box>
-            
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="caption" color="textSecondary">
-                📄 Letter: {existingLetter || newLetterFile ? 'Available' : 'Not Uploaded'}
-              </Typography>
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontSize: '0.7rem',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  backgroundColor: existingLetter || newLetterFile ? 'success.main' : 'warning.main'
-                }}
-              >
-                {existingLetter || newLetterFile ? '✓' : '!'}
-              </Box>
-            </Box>
-            
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="caption" color="textSecondary">
-                ⚠️ Errors: {Object.keys(uploadErrors).length}
-              </Typography>
-              {Object.keys(uploadErrors).length > 0 && (
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 1,
-                    fontSize: '0.7rem',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    backgroundColor: 'error.main'
-                  }}
-                >
-                  {Object.keys(uploadErrors).length}
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </Box>
+
         
-        {/* Upload Statistics */}
-        {(() => {
-          const stats = getUploadStatistics();
-          if (stats.total > 0) {
-            return (
-              <Box mb={2} p={2} bgcolor="success.light" borderRadius={1}>
-                <Typography variant="subtitle2" color="success.contrastText" gutterBottom>
-                  📊 Upload Progress Summary
-                </Typography>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                  <Typography variant="caption" color="success.contrastText">
-                    Total Files: {stats.total}
-                  </Typography>
-                  <Typography variant="caption" color="success.contrastText">
-                    Progress: {stats.progress}%
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="caption" color="success.contrastText">
-                    ✅ Uploaded: {stats.uploaded}
-                  </Typography>
-                  <Typography variant="caption" color="success.contrastText">
-                    ⏳ Pending: {stats.pending}
-                  </Typography>
-                  {stats.errors > 0 && (
-                    <Typography variant="caption" color="error" sx={{ fontWeight: 'bold' }}>
-                      ❌ Errors: {stats.errors}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            );
-          }
-          return null;
-        })()}
+
         
-        {/* Image Upload Status */}
-        {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && (
-          <Box mb={2} p={2} bgcolor="success.light" borderRadius={1}>
-            <Typography variant="body2" color="success.contrastText">
-              ✓ {formData.eventImages.length} image{formData.eventImages.length !== 1 ? 's' : ''} uploaded
-            </Typography>
-          </Box>
-        )}
+
 
         {/* Upload Progress Indicator */}
-        {isUploading && Object.keys(uploadProgress).length > 0 && (
+        {isUploading && uploadProgress && typeof uploadProgress === 'object' && Object.keys(uploadProgress).length > 0 && (
           <Box mb={2} p={2} bgcolor="info.light" borderRadius={1}>
             <Typography variant="body2" color="info.contrastText" gutterBottom>
               📤 Uploading files... Please wait before proceeding
             </Typography>
-            {Object.entries(uploadProgress).map(([fileName, progress]) => (
+            {uploadProgress && typeof uploadProgress === 'object' && Object.entries(uploadProgress).map(([fileName, progress]) => (
               <Box key={fileName} mt={1}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
                   <Typography variant="caption" color="info.contrastText">
@@ -2202,17 +2315,24 @@ export default function EventStepOne({
         )}
 
         {/* Enhanced Upload Errors with Recovery Options */}
-        {Object.keys(uploadErrors).length > 0 && (
+        {uploadErrors && typeof uploadErrors === 'object' && Object.keys(uploadErrors).length > 0 && (
           <Box mb={2} p={2} bgcolor="error.light" borderRadius={1}>
             <Typography variant="body2" color="error.contrastText" gutterBottom>
               ❌ Upload errors detected. Please resolve before proceeding:
             </Typography>
-            {Object.entries(uploadErrors).map(([fileName, error]) => {
+            {Object.entries(uploadErrors)
+              .filter(([fileName, error]) => fileName && error) // Filter out invalid entries
+              .map(([fileName, error]) => {
               // Determine file type for recovery options
               const fileType = fileName.includes('.pdf') || fileName.includes('letter') ? 'letter' : 'image';
               
               // Smart error categorization based on error message
               const getErrorCategory = (errorMsg) => {
+                // Safety check for undefined/null error messages
+                if (!errorMsg || typeof errorMsg !== 'string') {
+                  return 'unknown';
+                }
+                
                 const msg = errorMsg.toLowerCase();
                 if (msg.includes('size') || msg.includes('large') || msg.includes('mb')) return 'size';
                 if (msg.includes('format') || msg.includes('type') || msg.includes('invalid')) return 'validation';
@@ -2349,20 +2469,23 @@ export default function EventStepOne({
               {existingImages.map((img, index) => {
                 // Handle Cloudinary structure
                 if (typeof img === 'object' && img.url) {
+                  const isDeleting = img.isDeleting || false;
+                  
                   return (
                     <Box 
                       key={index} 
                       sx={{
                         position: 'relative',
                         border: '2px solid',
-                        borderColor: 'info.main',
+                        borderColor: isDeleting ? 'error.main' : 'info.main',
                         borderRadius: 2,
                         p: 1,
                         minWidth: 120,
-                        backgroundColor: 'background.paper',
+                        backgroundColor: isDeleting ? 'error.light' : 'background.paper',
+                        opacity: isDeleting ? 0.7 : 1,
                         '&:hover': {
                           boxShadow: 2,
-                          transform: 'scale(1.02)',
+                          transform: isDeleting ? 'none' : 'scale(1.02)',
                           transition: 'all 0.2s ease'
                         }
                       }}
@@ -2379,12 +2502,61 @@ export default function EventStepOne({
                           fontSize: '0.7rem',
                           fontWeight: 'bold',
                           color: 'white',
-                          backgroundColor: 'info.main',
-                          zIndex: 1
+                          backgroundColor: isDeleting ? 'error.main' : 'info.main',
+                          zIndex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5
                         }}
                       >
-                        📁
+                        {isDeleting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            🗑️
+                          </>
+                        ) : (
+                          '📁'
+                        )}
                       </Box>
+
+                      {/* Deletion Loading Overlay */}
+                      {isDeleting && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 3
+                          }}
+                        >
+                          <Box sx={{ textAlign: 'center', color: 'white' }}>
+                            <Box
+                              sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: '50%',
+                                border: '3px solid rgba(255,255,255,0.3)',
+                                borderTopColor: 'white',
+                                animation: 'spin 1s linear infinite',
+                                mb: 1,
+                                '@keyframes spin': {
+                                  '0%': { transform: 'rotate(0deg)' },
+                                  '100%': { transform: 'rotate(360deg)' }
+                                }
+                              }}
+                            />
+                            <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                              Deleting...
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
 
                       {/* Image Preview */}
                       <Box
@@ -2399,11 +2571,12 @@ export default function EventStepOne({
                             opacity: 0.8
                           }
                         }}
-                        onClick={() => handlePreviewExistingImage(img, index)}
+                        onClick={() => !isDeleting && handlePreviewExistingImage(img, index)}
+                        style={{ cursor: isDeleting ? 'not-allowed' : 'pointer' }}
                       >
-                        <img 
-                          src={img.url} 
-                          alt={img.filename || `Event Image ${index + 1}`} 
+                      <img 
+                        src={img.url} 
+                        alt={img.filename || `Event Image ${index + 1}`} 
                           width="100%"
                           height="100%"
                           style={{ objectFit: 'cover' }} 
@@ -2432,6 +2605,41 @@ export default function EventStepOne({
                           Existing File
                         </Typography>
 
+                        {/* Deletion Progress Indicator */}
+                        {isDeleting && (
+                          <Box sx={{ mb: 1, mt: 1 }}>
+                            <Box
+                              sx={{
+                                width: '100%',
+                                height: 6,
+                                bgcolor: 'grey.300',
+                                borderRadius: 3,
+                                overflow: 'hidden',
+                                position: 'relative'
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: '100%',
+                                  height: '100%',
+                                  bgcolor: 'error.main',
+                                  borderRadius: 3,
+                                  background: 'linear-gradient(90deg, #f44336 0%, #ff9800 50%, #f44336 100%)',
+                                  backgroundSize: '200% 100%',
+                                  animation: 'shimmer 1.5s ease-in-out infinite',
+                                  '@keyframes shimmer': {
+                                    '0%': { backgroundPosition: '200% 0' },
+                                    '100%': { backgroundPosition: '-200% 0' }
+                                  }
+                                }}
+                              />
+                            </Box>
+                            <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', mt: 0.5, fontWeight: 'bold' }}>
+                              🗑️ Deleting from Cloudinary...
+                            </Typography>
+                          </Box>
+                        )}
+
                         {/* Action Buttons */}
                         <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>
                           <Button 
@@ -2439,21 +2647,30 @@ export default function EventStepOne({
                             color="primary" 
                             variant="outlined"
                             onClick={() => handlePreviewExistingImage(img, index)}
-                            sx={{ minWidth: 'auto', px: 1 }}
+                            sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
                             title="Preview Image"
+                            disabled={isDeleting}
                           >
                             👁️
                           </Button>
-                          <Button 
-                            size="small" 
-                            color="error" 
-                            variant="outlined"
-                            onClick={() => onRemoveExistingImage(img)}
-                            sx={{ minWidth: 'auto', px: 1 }}
-                            title="Remove Image"
-                          >
-                            🗑️
-                          </Button>
+                      <Button 
+                        size="small" 
+                        color="error" 
+                        variant="outlined"
+                        onClick={() => onRemoveExistingImage(img)}
+                        sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                        title="Remove Image"
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <Box display="flex" alignItems="center" gap={0.5}>
+                            <CircularProgress size={12} color="inherit" />
+                            <span style={{ fontSize: '0.6rem' }}>Deleting...</span>
+                          </Box>
+                        ) : (
+                          '🗑️'
+                        )}
+                      </Button>
                         </Box>
                       </Box>
                     </Box>
@@ -2472,100 +2689,188 @@ export default function EventStepOne({
               📸 New Images ({formData.eventImages.length})
             </Typography>
             <Box display="flex" flexWrap="wrap" gap={2}>
-              {formData.eventImages.map((file, idx) => (
+              {formData.eventImages.filter(file => file && file.name).map((file, idx) => (
                 <Box 
                   key={idx} 
                   sx={{
                     position: 'relative',
                     border: '2px solid',
-                    borderColor: file.uploaded ? 'success.main' : 'warning.main',
+                    borderColor: file.uploaded ? 'success.main' : 
+                                uploadProgress && uploadProgress[file.name] !== undefined ? 'info.main' :
+                                uploadErrors && uploadErrors[file.name] ? 'error.main' : 'grey.300',
                     borderRadius: 2,
                     p: 1,
-                    minWidth: 120,
+                    width: 150,
                     backgroundColor: 'background.paper',
+                    boxShadow: 1,
                     '&:hover': {
-                      boxShadow: 2,
-                      transform: 'scale(1.02)',
+                      boxShadow: 3,
+                      transform: 'translateY(-2px)',
                       transition: 'all 0.2s ease'
                     }
                   }}
                 >
-                  {/* File Status Badge */}
+                  {/* Status Badge */}
                   <Box
                     sx={{
                       position: 'absolute',
-                      top: 4,
-                      right: 4,
+                      top: 6,
+                      right: 6,
                       px: 1,
                       py: 0.5,
                       borderRadius: 1,
                       fontSize: '0.7rem',
                       fontWeight: 'bold',
                       color: 'white',
-                      backgroundColor: file.uploaded ? 'success.main' : 'warning.main',
-                      zIndex: 1
+                      backgroundColor: file.uploaded ? 'success.main' : 
+                                      uploadProgress && uploadProgress[file.name] !== undefined ? 'info.main' :
+                                      uploadErrors && uploadErrors[file.name] ? 'error.main' : 'grey.400',
+                      zIndex: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
                     }}
                   >
-                    {file.uploaded ? '✅' : '⏳'}
+                    {file.uploaded ? '✅' : 
+                     uploadProgress && uploadProgress[file.name] !== undefined ? '⏳' :
+                     uploadErrors && uploadErrors[file.name] ? '❌' : '📁'}
                   </Box>
 
                   {/* Image Preview */}
                   <Box
                     sx={{
-                      width: 120,
+                      width: '100%',
                       height: 120,
                       borderRadius: 1,
                       overflow: 'hidden',
                       mb: 1,
                       cursor: 'pointer',
+                      position: 'relative',
+                      backgroundColor: 'grey.100',
                       '&:hover': {
-                        opacity: 0.8
+                        opacity: file.uploaded ? 0.8 : 1
                       }
                     }}
-                    onClick={() => handlePreviewImage(file, idx)}
+                    onClick={() => file.uploaded && handlePreviewImage(file, idx)}
                   >
                     <img
                       src={file.uploaded && file.cloudinaryUrl ? file.cloudinaryUrl : URL.createObjectURL(file)}
-                      alt={`Upload Preview ${idx + 1}`}
-                      width="100%"
-                      height="100%"
-                      style={{ objectFit: 'cover' }}
+                    alt={`Upload Preview ${idx + 1}`}
+                      style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        objectFit: 'cover',
+                        opacity: (!file.uploaded && uploadProgress && uploadProgress[file.name] !== undefined) ? 0.7 : 1
+                      }}
                     />
+                    
+                    {/* Upload Overlay */}
+                    {!file.uploaded && uploadProgress && uploadProgress[file.name] !== undefined && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Box sx={{ textAlign: 'center', color: 'white' }}>
+                          <Box
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: '50%',
+                              border: '3px solid rgba(255,255,255,0.3)',
+                              borderTopColor: 'white',
+                              animation: 'spin 1s linear infinite',
+                              mb: 1,
+                              '@keyframes spin': {
+                                '0%': { transform: 'rotate(0deg)' },
+                                '100%': { transform: 'rotate(360deg)' }
+                              }
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                            {uploadProgress[file.name]}%
+                  </Typography>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* Deletion Loading Overlay */}
+                    {file.isDeleting && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 3
+                        }}
+                      >
+                        <Box sx={{ textAlign: 'center', color: 'white' }}>
+                          <Box
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: '50%',
+                              border: '3px solid rgba(255,255,255,0.3)',
+                              borderTopColor: 'white',
+                              animation: 'spin 1s linear infinite',
+                              mb: 1,
+                              '@keyframes spin': {
+                                '0%': { transform: 'rotate(0deg)' },
+                                '100%': { transform: 'rotate(360deg)' }
+                              }
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                            Deleting...
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
 
                   {/* File Information */}
-                  <Box sx={{ textAlign: 'center' }}>
+                  <Box sx={{ textAlign: 'center', px: 0.5 }}>
                     <Typography 
                       variant="caption" 
-                      color="textSecondary" 
+                      color="textPrimary" 
                       sx={{ 
                         display: 'block',
                         fontWeight: 'medium',
                         wordBreak: 'break-word',
-                        lineHeight: 1.2
+                        lineHeight: 1.2,
+                        mb: 0.5
                       }}
                     >
-                      {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                      {file.name && file.name.length > 18 ? file.name.substring(0, 18) + '...' : (file.name || 'Unknown File')}
                     </Typography>
                     
-                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
-                      {getFileTypeIcon(file.type)} {formatFileSize(file.size)}
+                    <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.7rem', mb: 1, display: 'block' }}>
+                      {getFileTypeIcon(file.type || '')} {formatFileSize(file.size || 0)}
                     </Typography>
 
-                    {/* Upload Progress for Pending Files */}
-                    {!file.uploaded && uploadProgress[file.name] && (
-                      <Box sx={{ mt: 1 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                          <Typography variant="caption" color="textSecondary">
-                            {uploadProgress[file.name]}%
-                          </Typography>
-                        </Box>
+                    {/* Upload Progress Bar */}
+                    {!file.uploaded && uploadProgress && uploadProgress[file.name] !== undefined && (
+                      <Box sx={{ mb: 1 }}>
                         <Box
                           sx={{
                             width: '100%',
-                            height: 4,
+                            height: 6,
                             bgcolor: 'grey.300',
-                            borderRadius: 2,
+                            borderRadius: 3,
                             overflow: 'hidden'
                           }}
                         >
@@ -2573,36 +2878,132 @@ export default function EventStepOne({
                             sx={{
                               width: `${uploadProgress[file.name]}%`,
                               height: '100%',
-                              bgcolor: 'warning.main',
-                              transition: 'width 0.3s ease'
+                              bgcolor: 'info.main',
+                              transition: 'width 0.3s ease',
+                              borderRadius: 3
                             }}
                           />
                         </Box>
+                        <Typography variant="caption" color="info.main" sx={{ fontSize: '0.65rem', mt: 0.5 }}>
+                          Uploading... {uploadProgress[file.name]}%
+                        </Typography>
                       </Box>
                     )}
 
+                    {/* Deletion Progress Indicator */}
+                    {file.isDeleting && (
+                      <Box sx={{ mb: 1 }}>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: 6,
+                            bgcolor: 'grey.300',
+                            borderRadius: 3,
+                            overflow: 'hidden',
+                            position: 'relative'
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              bgcolor: 'error.main',
+                              borderRadius: 3,
+                              background: 'linear-gradient(90deg, #f44336 0%, #ff9800 50%, #f44336 100%)',
+                              backgroundSize: '200% 100%',
+                              animation: 'shimmer 1.5s ease-in-out infinite',
+                              '@keyframes shimmer': {
+                                '0%': { backgroundPosition: '200% 0' },
+                                '100%': { backgroundPosition: '-200% 0' }
+                              }
+                            }}
+                          />
+                        </Box>
+                        <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', mt: 0.5, fontWeight: 'bold' }}>
+                          🗑️ Deleting from Cloudinary...
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Error Message */}
+                    {uploadErrors && uploadErrors[file.name] && (
+                      <Typography variant="caption" color="error.main" sx={{ fontSize: '0.65rem', mb: 1, display: 'block' }}>
+                        Upload failed
+                      </Typography>
+                    )}
+
+                    {/* Success Message */}
+                    {file.uploaded && (
+                      <Typography variant="caption" color="success.main" sx={{ fontSize: '0.65rem', mb: 1, display: 'block' }}>
+                        ✓ Upload complete
+                      </Typography>
+                    )}
+
                     {/* Action Buttons */}
-                    <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>
-                      <Button 
-                        size="small" 
-                        color="primary" 
-                        variant="outlined"
-                        onClick={() => handlePreviewImage(file, idx)}
-                        sx={{ minWidth: 'auto', px: 1 }}
-                        title="Preview Image"
-                      >
-                        👁️
-                      </Button>
-                      <Button 
-                        size="small" 
-                        color="error" 
-                        variant="outlined"
-                        onClick={() => handleRemoveImage(idx)}
-                        sx={{ minWidth: 'auto', px: 1 }}
-                        title="Remove Image"
-                      >
-                        🗑️
-                      </Button>
+                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                      {/* Preview button - only for uploaded images */}
+                      {file.uploaded && (
+                        <Button 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined"
+                          onClick={() => handlePreviewImage(file, idx)}
+                          sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                          title="Preview Image"
+                        >
+                          👁️
+                        </Button>
+                      )}
+                      
+                      {/* Cancel button - only for uploading images */}
+                      {!file.uploaded && uploadProgress && uploadProgress[file.name] !== undefined && (
+                        <Button 
+                          size="small" 
+                          color="warning" 
+                          variant="outlined"
+                          onClick={() => handleCancelUpload(file.name, idx)}
+                          sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                          title="Cancel Upload"
+                        >
+                          ⏹️
+                        </Button>
+                      )}
+                      
+                      {/* Retry button - only for failed uploads */}
+                      {uploadErrors && uploadErrors[file.name] && (
+                        <Button 
+                          size="small" 
+                          color="info" 
+                          variant="outlined"
+                          onClick={() => handleRetryUpload(file.name, 'image')}
+                          sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                          title="Retry Upload"
+                        >
+                          🔄
+                        </Button>
+                      )}
+                      
+                      {/* Remove button - for uploaded images or failed uploads */}
+                      {(file.uploaded || (uploadErrors && uploadErrors[file.name])) && (
+                  <Button 
+                    size="small" 
+                    color="error" 
+                    variant="outlined"
+                          onClick={() => handleRemoveImage(idx)}
+                          sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
+                          title="Remove Image"
+                          disabled={file.isDeleting}
+                        >
+                          {file.isDeleting ? (
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                              <CircularProgress size={12} color="inherit" />
+                              <span style={{ fontSize: '0.6rem' }}>Deleting...</span>
+                            </Box>
+                          ) : (
+                            '🗑️'
+                          )}
+                  </Button>
+                      )}
                     </Box>
                   </Box>
                 </Box>
@@ -2611,8 +3012,8 @@ export default function EventStepOne({
           </Box>
         )}
         
-        {/* Add Another Image Button - Only show if there are already images */}
-        {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && (
+        {/* Add More Images Button - Only show if there are already images and under limit */}
+        {Array.isArray(formData.eventImages) && formData.eventImages.length > 0 && formData.eventImages.length < 5 && (
           <Button
             variant="outlined"
             component="label"
@@ -2632,18 +3033,70 @@ export default function EventStepOne({
             />
           </Button>
         )}
+        
+        {/* Image Limit Reached Message */}
+        {Array.isArray(formData.eventImages) && formData.eventImages.length >= 5 && (
+          <Box 
+            sx={{ 
+              mt: 1, 
+              p: 2, 
+              bgcolor: 'warning.light', 
+              borderRadius: 1, 
+              border: '1px solid',
+              borderColor: 'warning.main'
+            }}
+          >
+            <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Typography variant="body2" color="warning.main" sx={{ fontWeight: 'bold' }}>
+                🚫 Image Upload Limit Reached
+              </Typography>
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  backgroundColor: 'warning.main'
+                }}
+              >
+                5/5
+              </Box>
+            </Box>
+            <Typography variant="body2" color="warning.contrastText" gutterBottom>
+              You have reached the maximum limit of 5 event images. 
+              Remove some existing images to upload new ones.
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       <Box mt={2}>
         <Typography variant="subtitle1" gutterBottom>
-          Govt Approval Letter (Image/PDF)
+          Govt Approval Letter (Image/PDF) - Limit: 1
         </Typography>
         
         {/* Upload Guidance */}
         <Box mb={2} p={2} bgcolor="info.light" borderRadius={1}>
-          <Typography variant="subtitle2" color="info.contrastText" gutterBottom>
-            💡 Upload Tips & Guidelines
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+            <Typography variant="subtitle2" color="info.contrastText">
+              💡 Upload Tips & Guidelines
+            </Typography>
+            <Box
+              sx={{
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                color: 'white',
+                backgroundColor: 'info.main'
+              }}
+            >
+              MAX: 1
+            </Box>
+          </Box>
           {getUploadGuidance('letter').tips.map((tip, index) => (
             <Typography key={index} variant="caption" color="info.contrastText" display="block">
               {tip}
@@ -2654,116 +3107,67 @@ export default function EventStepOne({
           </Typography>
         </Box>
         
-        {/* Letter Status Summary */}
-        <Box mb={2} p={2} bgcolor="grey.50" borderRadius={1} border="1px solid" borderColor="grey.300">
-          <Typography variant="subtitle2" color="textPrimary" gutterBottom>
-            📋 Letter Status Overview
-          </Typography>
-          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="caption" color="textSecondary">
-                📄 Current Status: {existingLetter ? 'Existing Letter' : newLetterFile ? 'New Letter' : 'No Letter'}
-              </Typography>
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontSize: '0.7rem',
-                  fontWeight: 'bold',
-                  color: 'white',
-                  backgroundColor: existingLetter ? 'success.main' : newLetterFile ? 'warning.main' : 'error.main'
-                }}
-              >
-                {existingLetter ? 'STORED' : newLetterFile ? 'PENDING' : 'MISSING'}
-              </Box>
-            </Box>
-            
-            {newLetterFile && (
-              <Box display="flex" alignItems="center" gap={1}>
-                <Typography variant="caption" color="textSecondary">
-                  ⏳ Upload: {newLetterFile.uploaded ? 'Completed' : 'In Progress'}
-                </Typography>
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 1,
-                    fontSize: '0.7rem',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    backgroundColor: newLetterFile.uploaded ? 'success.main' : 'warning.main'
-                  }}
-                >
-                  {newLetterFile.uploaded ? '✅' : '⏳'}
-                </Box>
-              </Box>
-            )}
-            
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="caption" color="textSecondary">
-                ⚠️ Errors: {uploadErrors[newLetterFile?.name] ? 1 : 0}
-              </Typography>
-              {uploadErrors[newLetterFile?.name] && (
-                <Box
-                  sx={{
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: 1,
-                    fontSize: '0.7rem',
-                    fontWeight: 'bold',
-                    color: 'white',
-                    backgroundColor: 'error.main'
-                  }}
-                >
-                  1
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </Box>
+
         
-        {/* Letter Upload Statistics */}
-        {(() => {
-          const stats = getUploadStatistics();
-          if (newLetterFile || existingLetter) {
-            return (
-              <Box mb={2} p={2} bgcolor="success.light" borderRadius={1}>
-                <Typography variant="subtitle2" color="success.contrastText" gutterBottom>
-                  📊 Letter Upload Status
-                </Typography>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                  <Typography variant="caption" color="success.contrastText">
-                    {existingLetter ? '📄 Existing Letter: Available' : '📄 New Letter: Ready'}
-                  </Typography>
-                  {newLetterFile && (
-                    <Typography variant="caption" color="success.contrastText">
-                      {newLetterFile.uploaded ? '✅ Uploaded' : '⏳ Pending Upload'}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            );
-          }
-          return null;
-        })()}
+
         
         {/* Enhanced Existing Letter Display */}
         {existingLetter && (
           <Box 
             sx={{
               border: '2px solid',
-              borderColor: 'info.main',
+              borderColor: existingLetter.isDeleting ? 'error.main' : 'info.main',
               borderRadius: 2,
               p: 2,
               mb: 2,
-              backgroundColor: 'background.paper',
+              backgroundColor: existingLetter.isDeleting ? 'error.light' : 'background.paper',
+              opacity: existingLetter.isDeleting ? 0.7 : 1,
               '&:hover': {
                 boxShadow: 1,
                 transition: 'all 0.2s ease'
-              }
+              },
+              position: 'relative'
             }}
           >
+            {/* Deletion Progress Overlay */}
+            {existingLetter.isDeleting && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 2,
+                  borderRadius: 1
+                }}
+              >
+                <Box sx={{ textAlign: 'center', color: 'white' }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      border: '3px solid rgba(255,255,255,0.3)',
+                      borderTopColor: 'white',
+                      animation: 'spin 1s linear infinite',
+                      mb: 1,
+                      '@keyframes spin': {
+                        '0%': { transform: 'rotate(0deg)' },
+                        '100%': { transform: 'rotate(360deg)' }
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Deleting...
+                  </Typography>
+                </Box>
+              </Box>
+            )}
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box sx={{ flex: 1 }}>
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
@@ -2778,15 +3182,25 @@ export default function EventStepOne({
                       fontSize: '0.7rem',
                       fontWeight: 'bold',
                       color: 'white',
-                      backgroundColor: 'info.main'
+                      backgroundColor: existingLetter.isDeleting ? 'error.main' : 'info.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
                     }}
                   >
-                    STORED
+                    {existingLetter.isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        DELETING
+                      </>
+                    ) : (
+                      'STORED'
+                    )}
                   </Box>
                 </Box>
                 
                 <Typography variant="body2" color="textSecondary" gutterBottom>
-                  📄 {existingLetter}
+                  📄 {existingLetter?.filename || existingLetter?.name || 'Government Approval Letter'}
                 </Typography>
                 
                 <Typography variant="caption" color="textSecondary" display="block">
@@ -2800,12 +3214,15 @@ export default function EventStepOne({
                   size="small" 
                   color="primary" 
                   variant="outlined"
-                  component="a"
-                  href={`http://localhost:5000/uploads/${existingLetter}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ minWidth: 'auto', px: 1 }}
-                  title="View Letter"
+                  onClick={() => handlePreviewExistingLetter(existingLetter)}
+                  disabled={existingLetter.isDeleting}
+                  sx={{ 
+                    minWidth: 'auto', 
+                    px: 1,
+                    opacity: existingLetter.isDeleting ? 0.5 : 1,
+                    cursor: existingLetter.isDeleting ? 'not-allowed' : 'pointer'
+                  }}
+                  title={existingLetter.isDeleting ? "Deleting..." : "View Letter"}
                 >
                   👁️ View
                 </Button>
@@ -2814,42 +3231,112 @@ export default function EventStepOne({
                   color="error" 
                   variant="outlined"
                   onClick={onRemoveExistingLetter}
-                  sx={{ minWidth: 'auto', px: 1 }}
+                  sx={{ minWidth: 'auto', px: 1, fontSize: '0.7rem' }}
                   title="Remove Letter"
+                  disabled={existingLetter.isDeleting}
                 >
-                  🗑️ Remove
+                  {existingLetter.isDeleting ? (
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <CircularProgress size={12} color="inherit" />
+                      <span style={{ fontSize: '0.6rem' }}>Deleting...</span>
+                    </Box>
+                  ) : (
+                    '🗑️ Remove'
+                  )}
                 </Button>
               </Box>
             </Box>
           </Box>
         )}
         
-        {/* Enhanced New Letter Upload Status */}
-        {newLetterFile && (
+                {/* Enhanced Letter Upload Card */}
+        {(newLetterFile || (formData.govtApprovalLetter && !existingLetter)) && (
           <Box 
             sx={{
               border: '2px solid',
-              borderColor: newLetterFile.uploaded ? 'success.main' : 'warning.main',
+              borderColor: (() => {
+                const currentLetter = newLetterFile || formData.govtApprovalLetter;
+                if (currentLetter.uploaded) return 'success.main';
+                if (uploadProgress && uploadProgress[currentLetter.name] !== undefined) return 'info.main';
+                if (uploadErrors && uploadErrors[currentLetter.name]) return 'error.main';
+                return 'grey.300';
+              })(),
               borderRadius: 2,
               p: 2,
               mb: 2,
               backgroundColor: 'background.paper',
+              boxShadow: 1,
+              position: 'relative',
               '&:hover': {
-                boxShadow: 1,
+                boxShadow: 3,
+                transform: 'translateY(-1px)',
                 transition: 'all 0.2s ease'
               }
             }}
           >
+            {/* Deletion Loading Overlay */}
+            {(newLetterFile || formData.govtApprovalLetter)?.isDeleting && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 3,
+                  borderRadius: 2
+                }}
+              >
+                <Box sx={{ textAlign: 'center', color: 'error.main' }}>
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '50%',
+                      border: '3px solid rgba(244, 67, 54, 0.3)',
+                      borderTopColor: 'error.main',
+                      animation: 'spin 1s linear infinite',
+                      mb: 1,
+                      '@keyframes spin': {
+                        '0%': { transform: 'rotate(0deg)' },
+                        '100%': { transform: 'rotate(360deg)' }
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    Deleting from Cloudinary...
+            </Typography>
+                </Box>
+              </Box>
+            )}
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-              <Box sx={{ flex: 1 }}>
+              <Box sx={{ flex: 1, mr: 2 }}>
+                {/* Status Header */}
                 <Box display="flex" alignItems="center" gap={1} mb={1}>
                   <Typography 
                     variant="body2" 
-                    color={newLetterFile.uploaded ? 'success.main' : 'warning.main'} 
+                    color={(() => {
+                      const currentLetter = newLetterFile || formData.govtApprovalLetter;
+                      if (currentLetter.uploaded) return 'success.main';
+                      if (uploadProgress && uploadProgress[currentLetter.name] !== undefined) return 'info.main';
+                      if (uploadErrors && uploadErrors[currentLetter.name]) return 'error.main';
+                      return 'warning.main';
+                    })()} 
                     sx={{ fontWeight: 'bold' }}
                   >
-                    {newLetterFile.uploaded ? '✅' : '⏳'} New Letter Uploaded
+                    {(() => {
+                      const currentLetter = newLetterFile || formData.govtApprovalLetter;
+                      if (currentLetter.uploaded) return '✅ Letter Uploaded';
+                      if (uploadProgress && uploadProgress[currentLetter.name] !== undefined) return '⏳ Uploading Letter';
+                      if (uploadErrors && uploadErrors[currentLetter.name]) return '❌ Upload Failed';
+                      return '📄 Letter Ready';
+                    })()}
                   </Typography>
+                  
                   <Box
                     sx={{
                       px: 1,
@@ -2858,94 +3345,203 @@ export default function EventStepOne({
                       fontSize: '0.7rem',
                       fontWeight: 'bold',
                       color: 'white',
-                      backgroundColor: newLetterFile.uploaded ? 'success.main' : 'warning.main'
+                      backgroundColor: (() => {
+                        const currentLetter = newLetterFile || formData.govtApprovalLetter;
+                        if (currentLetter.uploaded) return 'success.main';
+                        if (uploadProgress && uploadProgress[currentLetter.name] !== undefined) return 'info.main';
+                        if (uploadErrors && uploadErrors[currentLetter.name]) return 'error.main';
+                        return 'warning.main';
+                      })()
                     }}
                   >
-                    {newLetterFile.uploaded ? 'COMPLETED' : 'PENDING'}
+                    {(() => {
+                      const currentLetter = newLetterFile || formData.govtApprovalLetter;
+                      if (currentLetter.uploaded) return 'COMPLETED';
+                      if (uploadProgress && uploadProgress[currentLetter.name] !== undefined) return 'UPLOADING';
+                      if (uploadErrors && uploadErrors[currentLetter.name]) return 'FAILED';
+                      return 'READY';
+                    })()}
                   </Box>
                 </Box>
                 
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  📄 {newLetterFile.name}
+                {/* File Information */}
+                <Typography variant="body2" color="textPrimary" gutterBottom sx={{ fontWeight: 'medium' }}>
+                  📄 {(newLetterFile || formData.govtApprovalLetter)?.name && (newLetterFile || formData.govtApprovalLetter).name.length > 30 ? (newLetterFile || formData.govtApprovalLetter).name.substring(0, 30) + '...' : ((newLetterFile || formData.govtApprovalLetter)?.name || 'Unknown File')}
                 </Typography>
                 
-                <Typography variant="caption" color="textSecondary" display="block">
-                  📏 Size: {formatFileSize(newLetterFile.size)}
-                </Typography>
-                
-                <Typography variant="caption" color="textSecondary" display="block">
-                  📋 Type: {getFileTypeIcon(newLetterFile.type)} {newLetterFile.type}
-                </Typography>
+                <Box display="flex" gap={2} mb={1}>
+                  <Typography variant="caption" color="textSecondary">
+                    📏 {formatFileSize((newLetterFile || formData.govtApprovalLetter)?.size || 0)}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    📋 {getFileTypeIcon((newLetterFile || formData.govtApprovalLetter)?.type || '')} {(newLetterFile || formData.govtApprovalLetter)?.type || 'Unknown'}
+                  </Typography>
+                </Box>
 
-                {/* Upload Progress for Pending Files */}
-                {!newLetterFile.uploaded && uploadProgress[newLetterFile.name] && (
+                {/* Upload Progress */}
+                {!(newLetterFile || formData.govtApprovalLetter)?.uploaded && uploadProgress && uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name] !== undefined && (
                   <Box sx={{ mt: 1 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                      <Typography variant="caption" color="textSecondary">
-                        Upload Progress: {uploadProgress[newLetterFile.name]}%
+                      <Typography variant="caption" color="info.main" sx={{ fontWeight: 'medium' }}>
+                        Uploading... {uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name]}%
                       </Typography>
                     </Box>
                     <Box
                       sx={{
                         width: '100%',
-                        height: 6,
+                        height: 8,
                         bgcolor: 'grey.300',
-                        borderRadius: 3,
+                        borderRadius: 4,
                         overflow: 'hidden'
                       }}
                     >
                       <Box
                         sx={{
-                          width: `${uploadProgress[newLetterFile.name]}%`,
+                          width: `${uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name]}%`,
                           height: '100%',
-                          bgcolor: 'warning.main',
-                          transition: 'width 0.3s ease'
+                          bgcolor: 'info.main',
+                          transition: 'width 0.3s ease',
+                          borderRadius: 4
                         }}
                       />
                     </Box>
                   </Box>
                 )}
+
+                {/* Deletion Progress Indicator */}
+                {(newLetterFile || formData.govtApprovalLetter)?.isDeleting && (
+                  <Box sx={{ mt: 1 }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                      <Typography variant="caption" color="error.main" sx={{ fontWeight: 'bold' }}>
+                        🗑️ Deleting from Cloudinary...
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: 8,
+                        bgcolor: 'grey.300',
+                        borderRadius: 4,
+                        overflow: 'hidden',
+                        position: 'relative'
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          bgcolor: 'error.main',
+                          borderRadius: 4,
+                          background: 'linear-gradient(90deg, #f44336 0%, #ff9800 50%, #f44336 100%)',
+                          backgroundSize: '200% 100%',
+                          animation: 'shimmer 1.5s ease-in-out infinite',
+                          '@keyframes shimmer': {
+                            '0%': { backgroundPosition: '200% 0' },
+                            '100%': { backgroundPosition: '-200% 0' }
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                )}
+
+                {/* Error Message */}
+                {uploadErrors && uploadErrors[(newLetterFile || formData.govtApprovalLetter)?.name] && (
+                  <Typography variant="caption" color="error.main" sx={{ fontWeight: 'medium', mt: 1, display: 'block' }}>
+                    ❌ {uploadErrors[(newLetterFile || formData.govtApprovalLetter)?.name] || 'Upload failed'}
+                  </Typography>
+                )}
+
+                {/* Success Message */}
+                {(newLetterFile || formData.govtApprovalLetter)?.uploaded && (
+                  <Typography variant="caption" color="success.main" sx={{ fontWeight: 'medium', mt: 1, display: 'block' }}>
+                    ✓ Upload completed successfully
+                  </Typography>
+                )}
               </Box>
 
               {/* Action Buttons */}
-              <Box display="flex" flexDirection="column" gap={1}>
-                <Button 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined"
-                  onClick={() => handlePreviewLetter(newLetterFile)}
-                  sx={{ minWidth: 'auto', px: 1 }}
-                  title="Preview Letter"
-                >
-                  👁️ Preview
-                </Button>
-                <Button 
-                  size="small" 
-                  color="error" 
-                  variant="outlined"
-                  onClick={handleRemoveNewLetter}
-                  sx={{ minWidth: 'auto', px: 1 }}
-                  title="Remove Letter"
-                >
-                  🗑️ Remove
-                </Button>
+              <Box display="flex" flexDirection="column" gap={1} alignItems="end">
+                {/* Preview button - only for uploaded letters */}
+                {(newLetterFile || formData.govtApprovalLetter)?.uploaded && (
+                  <Button 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                    onClick={() => handlePreviewLetter(newLetterFile || formData.govtApprovalLetter)}
+                    sx={{ minWidth: 'auto', px: 1, fontSize: '0.75rem' }}
+                    title="Preview Letter"
+                  >
+                    👁️ Preview
+                  </Button>
+                )}
+                
+                {/* Cancel button - only for uploading letters */}
+                {!(newLetterFile || formData.govtApprovalLetter)?.uploaded && uploadProgress && uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name] !== undefined && (
+                  <Button 
+                    size="small" 
+                    color="warning" 
+                    variant="outlined"
+                    onClick={() => handleCancelLetterUpload((newLetterFile || formData.govtApprovalLetter)?.name)}
+                    sx={{ minWidth: 'auto', px: 1, fontSize: '0.75rem' }}
+                    title="Cancel Upload"
+                  >
+                    ⏹️ Cancel
+                  </Button>
+                )}
+                
+                {/* Retry button - only for failed uploads */}
+                {uploadErrors && uploadErrors[(newLetterFile || formData.govtApprovalLetter)?.name] && (
+                  <Button 
+                    size="small" 
+                    color="info" 
+                    variant="outlined"
+                    onClick={() => handleRetryUpload((newLetterFile || formData.govtApprovalLetter)?.name, 'letter')}
+                    sx={{ minWidth: 'auto', px: 1, fontSize: '0.75rem' }}
+                    title="Retry Upload"
+                  >
+                    🔄 Retry
+                  </Button>
+                )}
+                
+                {/* Remove button - for uploaded letters or failed uploads */}
+                {((newLetterFile || formData.govtApprovalLetter)?.uploaded || (uploadErrors && uploadErrors[(newLetterFile || formData.govtApprovalLetter)?.name])) && (
+            <Button 
+              size="small" 
+              color="error" 
+              variant="outlined"
+              onClick={handleRemoveNewLetter}
+                    sx={{ minWidth: 'auto', px: 1, fontSize: '0.75rem' }}
+                    title="Remove Letter"
+                    disabled={(newLetterFile || formData.govtApprovalLetter)?.isDeleting}
+                  >
+                    {(newLetterFile || formData.govtApprovalLetter)?.isDeleting ? (
+                      <Box display="flex" alignItems="center" gap={0.5}>
+                        <CircularProgress size={14} color="inherit" />
+                        <span style={{ fontSize: '0.7rem' }}>Deleting...</span>
+                      </Box>
+                    ) : (
+                      '🗑️ Remove'
+                    )}
+            </Button>
+                )}
               </Box>
             </Box>
           </Box>
         )}
 
         {/* Letter Upload Progress */}
-        {isUploading && uploadProgress[newLetterFile?.name] && (
+        {isUploading && uploadProgress && typeof uploadProgress === 'object' && (newLetterFile || formData.govtApprovalLetter)?.name && uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name] && (
           <Box mb={2} p={2} bgcolor="info.light" borderRadius={1}>
             <Typography variant="body2" color="info.contrastText" gutterBottom>
-              📤 Uploading letter: {newLetterFile?.name}
+              📤 Uploading letter: {(newLetterFile || formData.govtApprovalLetter)?.name}
             </Typography>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
               <Typography variant="caption" color="info.contrastText">
                 Progress
               </Typography>
               <Typography variant="caption" color="info.contrastText">
-                {uploadProgress[newLetterFile?.name]}%
+                {uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name]}%
               </Typography>
             </Box>
             <Box 
@@ -2959,7 +3555,7 @@ export default function EventStepOne({
             >
               <Box 
                 sx={{ 
-                  width: `${uploadProgress[newLetterFile?.name]}%`, 
+                  width: `${uploadProgress[(newLetterFile || formData.govtApprovalLetter)?.name]}%`, 
                   height: '100%', 
                   bgcolor: 'white',
                   transition: 'width 0.3s ease'
@@ -2970,15 +3566,15 @@ export default function EventStepOne({
         )}
 
         {/* Enhanced Letter Upload Errors with Recovery Options */}
-        {uploadErrors[newLetterFile?.name] && (
+        {uploadErrors && typeof uploadErrors === 'object' && (newLetterFile || formData.govtApprovalLetter)?.name && uploadErrors[(newLetterFile || formData.govtApprovalLetter)?.name] && (
           <Box mb={2} p={2} bgcolor="error.light" borderRadius={1}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
               <Box sx={{ flex: 1 }}>
                 <Typography variant="body2" color="error.contrastText" gutterBottom>
-                  ❌ Upload error: {uploadErrors[newLetterFile?.name]}
+                  ❌ Upload error: {uploadErrors[(newLetterFile || formData.govtApprovalLetter)?.name]}
                 </Typography>
                 <Typography variant="caption" color="error.contrastText" display="block">
-                  📄 File: {newLetterFile?.name}
+                  📄 File: {(newLetterFile || formData.govtApprovalLetter)?.name}
                 </Typography>
               </Box>
               
@@ -2988,7 +3584,7 @@ export default function EventStepOne({
                   size="small"
                   color="primary"
                   variant="contained"
-                  onClick={() => handleRetryUpload(newLetterFile?.name, 'letter')}
+                  onClick={() => handleRetryUpload((newLetterFile || formData.govtApprovalLetter)?.name, 'letter')}
                   sx={{ 
                     minWidth: 'auto', 
                     px: 1,
@@ -3006,7 +3602,7 @@ export default function EventStepOne({
                   size="small"
                   color="secondary"
                   variant="contained"
-                  onClick={() => handleFileOptimization(newLetterFile?.name, 'letter')}
+                  onClick={() => handleFileOptimization((newLetterFile || formData.govtApprovalLetter)?.name, 'letter')}
                   sx={{ 
                     minWidth: 'auto', 
                     px: 1,
@@ -3024,7 +3620,7 @@ export default function EventStepOne({
                   size="small"
                   color="error"
                   variant="contained"
-                  onClick={() => clearUploadError(newLetterFile?.name)}
+                  onClick={() => clearUploadError((newLetterFile || formData.govtApprovalLetter)?.name)}
                   sx={{ 
                     minWidth: 'auto', 
                     px: 1,
@@ -3047,7 +3643,7 @@ export default function EventStepOne({
                 💡 Recovery Steps:
               </Typography>
               <Box component="ul" sx={{ margin: 0, paddingLeft: 2, color: 'error.contrastText' }}>
-                {getErrorRecoverySteps('unknown', newLetterFile?.name).slice(0, 2).map((step, index) => (
+                {getErrorRecoverySteps('unknown', (newLetterFile || formData.govtApprovalLetter)?.name).slice(0, 2).map((step, index) => (
                   <Box component="li" key={index} sx={{ fontSize: '0.75rem', marginBottom: 0.5 }}>
                     {step}
                   </Box>
@@ -3061,6 +3657,45 @@ export default function EventStepOne({
         )}
         
         {/* File Upload Input */}
+        {newLetterFile || existingLetter || formData.govtApprovalLetter ? (
+          <Box 
+            sx={{ 
+              mt: 2, 
+              p: 2, 
+              bgcolor: 'warning.light', 
+              borderRadius: 1, 
+              border: '1px solid',
+              borderColor: 'warning.main'
+            }}
+          >
+            <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Typography variant="body2" color="warning.contrastText" sx={{ fontWeight: 'bold' }}>
+                📋 Letter Upload Limit Reached
+              </Typography>
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  backgroundColor: 'warning.main'
+                }}
+              >
+                MAX: 1
+              </Box>
+            </Box>
+            <Typography variant="body2" color="warning.contrastText" gutterBottom>
+              You have already uploaded a government approval letter. 
+              {(newLetterFile || formData.govtApprovalLetter) ? ' You can remove it to upload a different one.' : ' This letter is already stored in the system.'}
+            </Typography>
+            <Typography variant="caption" color="warning.contrastText" sx={{ fontStyle: 'italic' }}>
+              💡 To upload a new letter, first remove the current one using the "Remove" button above.
+            </Typography>
+          </Box>
+        ) : (
+          <>
         <input 
           type="file" 
           name="govtApprovalLetter"
@@ -3069,8 +3704,10 @@ export default function EventStepOne({
           style={{ marginTop: '8px' }}
         />
         <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-          Upload a new government approval letter. You can remove it before proceeding if needed.
+              Upload a government approval letter (Images or PDF, max 10MB). Limit: 1 letter per event.
         </Typography>
+          </>
+        )}
       </Box>
 
       <TimeSlotBuilder
@@ -3095,7 +3732,7 @@ export default function EventStepOne({
         disabled={
           (formData.timeSlotsEnabled && !formData.unlimitedVolunteers && remainingVolunteers < 0) ||
           isUploading ||
-          Object.keys(uploadErrors).length > 0
+          (uploadErrors && typeof uploadErrors === 'object' && Object.keys(uploadErrors).length > 0)
         }
       >
         {isUploading ? '⏳ Uploading files...' : 'Proceed to Questionnaire →'}
@@ -3116,7 +3753,7 @@ export default function EventStepOne({
         </Typography>
       )}
 
-      {Object.keys(uploadErrors).length > 0 && (
+      {uploadErrors && typeof uploadErrors === 'object' && Object.keys(uploadErrors).length > 0 && (
         <Typography variant="body2" color="error" sx={{ mt: 1, textAlign: 'center' }}>
           ❌ Please resolve file upload errors before proceeding
         </Typography>

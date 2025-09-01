@@ -821,10 +821,15 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   // File utility functions
   const getFileTypeInfo = (fileUrl, fileType) => {
-    if (fileType === 'image') {
+    // Handle both string and object fileUrl formats
+    const url = typeof fileUrl === 'string' ? fileUrl : fileUrl?.url || '';
+    const filename = typeof fileUrl === 'string' ? '' : fileUrl?.filename || '';
+    
+    if (fileType && fileType.startsWith('image/')) {
       return { icon: '🖼️', label: 'Image', category: 'media' };
-    } else if (fileType === 'document') {
-      const extension = fileUrl.split('.').pop()?.toLowerCase();
+    } else if (fileType && fileType.startsWith('application/')) {
+      // Extract extension from filename or URL
+      const extension = (filename || url).split('.').pop()?.toLowerCase();
       if (extension === 'pdf') return { icon: '📄', label: 'PDF Document', category: 'document' };
       if (['doc', 'docx'].includes(extension)) return { icon: '📝', label: 'Word Document', category: 'document' };
       if (['xls', 'xlsx'].includes(extension)) return { icon: '📊', label: 'Excel Spreadsheet', category: 'document' };
@@ -848,12 +853,12 @@ export default function EventChatbox({ eventId, currentUser }) {
 
   const isImageFile = (fileType, filename) => {
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    return fileType === 'image' || imageExtensions.includes(getFileExtension(filename));
+    return fileType && fileType.startsWith('image/') || imageExtensions.includes(getFileExtension(filename));
   };
 
   const isDocumentFile = (fileType, filename) => {
     const docExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt'];
-    return fileType === 'document' || docExtensions.includes(getFileExtension(filename));
+    return fileType && fileType.startsWith('application/') || docExtensions.includes(getFileExtension(filename));
   };
 
   // File search and filtering utilities
@@ -934,7 +939,6 @@ export default function EventChatbox({ eventId, currentUser }) {
   const getFileStatistics = () => {
     const files = getAllFilesFromMessages();
     const totalFiles = files.length;
-    const totalSize = files.reduce((sum, file) => sum + (file.fileSize || 0), 0);
     
     const byType = {
       images: files.filter(f => isImageFile(f.fileType, f.fileName)).length,
@@ -947,7 +951,7 @@ export default function EventChatbox({ eventId, currentUser }) {
       others: files.filter(f => f.sender._id !== currentUser._id).length
     };
 
-    return { totalFiles, totalSize, byType, bySender };
+    return { totalFiles, byType, bySender };
   };
 
   const sortFiles = (files, sortBy = 'date', sortOrder = 'desc') => {
@@ -1001,51 +1005,53 @@ export default function EventChatbox({ eventId, currentUser }) {
     try {
       showAlert.info(`Starting download of "${fileName}"...`);
 
+      // For Cloudinary URLs, add download parameters to force download
+      let downloadUrl = fileUrl;
+      if (fileUrl.includes('cloudinary.com')) {
+        const separator = fileUrl.includes('?') ? '&' : '?';
+        downloadUrl = `${fileUrl}${separator}fl_attachment`;
+      }
+
       // Create a temporary link element for download
       const link = document.createElement('a');
-      link.href = fileUrl;
+      link.href = downloadUrl;
       link.download = fileName;
       link.style.display = 'none';
       
-      // Track download progress using fetch with progress
-      const response = await fetch(fileUrl);
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      
-      const contentLength = response.headers.get('content-length');
-      const total = parseInt(contentLength, 10) || 0;
-      
-      if (total > 0) {
-        // Stream the response to track progress
-        const reader = response.body.getReader();
-        let receivedLength = 0;
-        
-        while (true) {
-          const { done, value } = await reader.read();
+      // For images, use blob to force download
+      if (fileType && fileType.startsWith('image/')) {
+        try {
+          const response = await fetch(downloadUrl);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
           
-          if (done) break;
+          link.href = blobUrl;
+          link.download = fileName;
           
-          receivedLength += value.length;
-          const progress = Math.round((receivedLength / total) * 100);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
           
-          setDownloadProgress(prev => ({ ...prev, [fileId]: progress }));
-          setDownloadStatus(prev => ({ ...prev, [fileId]: 'downloading' }));
+          // Clean up blob URL
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (blobError) {
+          // Fallback to direct download
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         }
       } else {
-        // If content-length is not available, simulate progress
-        setDownloadProgress(prev => ({ ...prev, [fileId]: 100 }));
-        setDownloadStatus(prev => ({ ...prev, [fileId]: 'downloading' }));
+        // For documents, use direct download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
-
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
 
       // Mark as completed
       setDownloadStatus(prev => ({ ...prev, [fileId]: 'completed' }));
       setDownloadProgress(prev => ({ ...prev, [fileId]: 100 }));
       
-      showAlert.success(`"${fileName}" downloaded successfully!`);
+      showAlert.success(`"${fileName}" download started!`);
 
       // Clean up after success
       setTimeout(() => {
@@ -1324,11 +1330,15 @@ export default function EventChatbox({ eventId, currentUser }) {
               <h3 className="font-semibold text-lg">Event Chat</h3>
               <button
                 onClick={() => setShowFileManager(!showFileManager)}
-                className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-400 transition-colors"
+                className={`px-2 py-1 text-white text-xs rounded transition-colors ${
+                  showFileManager 
+                    ? 'bg-green-600 hover:bg-green-500' 
+                    : 'bg-blue-500 hover:bg-blue-400'
+                }`}
                 onMouseDown={(e) => e.stopPropagation()}
-                title="File Manager"
+                title={showFileManager ? "Close File Manager" : "Open File Manager"}
               >
-                📁 Files
+                {showFileManager ? '📁 Files ✓' : '📁 Files'}
               </button>
             </div>
             <button 
@@ -1347,20 +1357,20 @@ export default function EventChatbox({ eventId, currentUser }) {
 
           {/* File Manager Panel */}
           {showFileManager && (
-            <div className="bg-gray-50 border-b border-gray-200 p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-gray-800">📁 File Manager</h4>
-                <div className="flex items-center gap-2">
+            <div className="bg-gray-50 border-b border-gray-200 flex flex-col flex-1 overflow-hidden transition-all duration-300 ease-in-out">
+              <div className="flex items-center justify-between p-3 border-b border-gray-200">
+                <h4 className="font-semibold text-gray-800 text-sm">📁 File Manager</h4>
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => setFileManagerView(fileManagerView === 'grid' ? 'list' : 'grid')}
-                    className="px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 transition-colors"
+                    className="px-1.5 py-0.5 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 transition-colors"
                     title={`Switch to ${fileManagerView === 'grid' ? 'list' : 'grid'} view`}
                   >
                     {fileManagerView === 'grid' ? '📋 List' : '🔲 Grid'}
                   </button>
                   <button
                     onClick={() => setShowFileManager(false)}
-                    className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 transition-colors"
+                    className="px-1.5 py-0.5 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 transition-colors"
                     title="Close File Manager"
                   >
                     ✕
@@ -1369,26 +1379,22 @@ export default function EventChatbox({ eventId, currentUser }) {
               </div>
 
               {/* File Statistics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-3 gap-2 p-3 border-b border-gray-200">
                 {(() => {
                   const stats = getFileStatistics();
                   return (
                     <>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-blue-600">{stats.totalFiles}</div>
-                        <div className="text-xs text-gray-600">Total Files</div>
+                      <div className="bg-white p-2 rounded border border-gray-200 text-center">
+                        <div className="text-lg font-bold text-blue-600">{stats.totalFiles}</div>
+                        <div className="text-xs text-gray-600">Files</div>
                       </div>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-green-600">{stats.byType.images}</div>
+                      <div className="bg-white p-2 rounded border border-gray-200 text-center">
+                        <div className="text-lg font-bold text-green-600">{stats.byType.images}</div>
                         <div className="text-xs text-gray-600">Images</div>
                       </div>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-purple-600">{stats.byType.documents}</div>
-                        <div className="text-xs text-gray-600">Documents</div>
-                      </div>
-                      <div className="bg-white p-3 rounded-lg border border-gray-200 text-center">
-                        <div className="text-2xl font-bold text-orange-600">{formatFileSize(stats.totalSize)}</div>
-                        <div className="text-xs text-gray-600">Total Size</div>
+                      <div className="bg-white p-2 rounded border border-gray-200 text-center">
+                        <div className="text-lg font-bold text-purple-600">{stats.byType.documents}</div>
+                        <div className="text-xs text-gray-600">Docs</div>
                       </div>
                     </>
                   );
@@ -1396,50 +1402,52 @@ export default function EventChatbox({ eventId, currentUser }) {
               </div>
 
               {/* Search and Filters */}
-              <div className="space-y-3 mb-4">
-                <div className="flex gap-2">
+              <div className="space-y-2 p-3 border-b border-gray-200">
+                <div className="flex flex-col gap-2">
                   <input
                     type="text"
                     placeholder="Search files..."
                     value={fileSearchQuery}
                     onChange={(e) => setFileSearchQuery(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
-                  <select
-                    value={fileFilterType}
-                    onChange={(e) => setFileFilterType(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="images">Images</option>
-                    <option value="documents">Documents</option>
-                    <option value="other">Other</option>
-                  </select>
-                  <select
-                    value={fileFilterDate}
-                    onChange={(e) => setFileFilterDate(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                  </select>
-                  <select
-                    value={fileFilterSender}
-                    onChange={(e) => setFileFilterSender(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Senders</option>
-                    <option value="me">My Files</option>
-                    <option value="others">Others' Files</option>
-                  </select>
+                  <div className="flex gap-1 min-w-0">
+                    <select
+                      value={fileFilterType}
+                      onChange={(e) => setFileFilterType(e.target.value)}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="images">Images</option>
+                      <option value="documents">Documents</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <select
+                      value={fileFilterDate}
+                      onChange={(e) => setFileFilterDate(e.target.value)}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
+                    >
+                      <option value="all">All Time</option>
+                      <option value="today">Today</option>
+                      <option value="week">This Week</option>
+                      <option value="month">This Month</option>
+                    </select>
+                    <select
+                      value={fileFilterSender}
+                      onChange={(e) => setFileFilterSender(e.target.value)}
+                      className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
+                    >
+                      <option value="all">All Senders</option>
+                      <option value="me">My Files</option>
+                      <option value="others">Others' Files</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Bulk Actions */}
                 {selectedFiles.length > 0 && (
-                  <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                    <span className="text-sm text-blue-800">
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded mx-3 mb-3">
+                    <span className="text-xs text-blue-800">
                       {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
                     </span>
                     <button
@@ -1447,7 +1455,7 @@ export default function EventChatbox({ eventId, currentUser }) {
                         const files = getAllFilesFromMessages().filter(f => selectedFiles.includes(f.id));
                         handleBulkDownload(files);
                       }}
-                      className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                      className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
                     >
                       📥 Download All
                     </button>
@@ -1462,7 +1470,7 @@ export default function EventChatbox({ eventId, currentUser }) {
               </div>
 
               {/* File List */}
-              <div className="max-h-64 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 p-3">
                 {(() => {
                   const allFiles = getAllFilesFromMessages();
                   const filteredFiles = filterFiles(allFiles, fileSearchQuery, fileFilterType, fileFilterDate, fileFilterSender);
@@ -1481,61 +1489,118 @@ export default function EventChatbox({ eventId, currentUser }) {
                   return (
                     <div className="space-y-2">
                       {/* Select All */}
-                      <div className="flex items-center gap-2 p-2 bg-gray-100 rounded-lg">
+                      <div className="flex items-center gap-2 p-1.5 bg-gray-100 rounded">
                         <input
                           type="checkbox"
                           checked={selectedFiles.length === sortedFiles.length}
                           onChange={() => handleSelectAllFiles(sortedFiles)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-sm text-gray-700">
+                        <span className="text-xs text-gray-700">
                           Select All ({sortedFiles.length} files)
                         </span>
                       </div>
 
-                      {/* Files */}
-                      {sortedFiles.map((file) => (
-                        <div key={file.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={selectedFiles.includes(file.id)}
-                            onChange={() => handleSelectFile(file.id)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          
-                          <div className="flex-shrink-0">
-                            <span className="text-2xl">
-                              {getFileTypeInfo(file.fileUrl, file.fileType).icon}
-                            </span>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 truncate">{file.fileName}</div>
-                            <div className="text-xs text-gray-500">
-                              {getFileTypeInfo(file.fileUrl, file.fileType).label} • {file.senderName} • {format(new Date(file.timestamp), 'MMM dd, yyyy')}
+                      {/* Files - Conditional Rendering for Grid vs List View */}
+                      {fileManagerView === 'grid' ? (
+                        // Grid View
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {sortedFiles.map((file) => (
+                            <div key={file.id} className="bg-white rounded border border-gray-200 hover:bg-gray-50 p-2">
+                              <div className="flex items-start gap-2 mb-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedFiles.includes(file.id)}
+                                  onChange={() => handleSelectFile(file.id)}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900 truncate text-sm">{file.fileName}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {getFileTypeInfo(file.fileUrl, file.fileType).label} • {file.senderName}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {format(new Date(file.timestamp), 'MMM dd, yyyy')}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <div className="flex-shrink-0">
+                                  <span className="text-2xl">
+                                    {getFileTypeInfo(file.fileUrl, file.fileType).icon}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <button
+                                    onClick={() => handleFileDownload(file.fileUrl, file.fileName, file.fileType)}
+                                    className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors flex items-center justify-center min-w-[32px]"
+                                    title="Download file"
+                                  >
+                                    📥
+                                  </button>
+                                  <a
+                                    href={file.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center justify-center min-w-[32px]"
+                                    title="Open file"
+                                  >
+                                    🔗
+                                  </a>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleFileDownload(file.fileUrl, file.fileName, file.fileType)}
-                              className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                              title="Download file"
-                            >
-                              📥
-                            </button>
-                            <a
-                              href={file.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                              title="Open file"
-                            >
-                              🔗
-                            </a>
-                          </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : (
+                        // List View
+                        <div className="space-y-1.5">
+                          {sortedFiles.map((file) => (
+                            <div key={file.id} className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200 hover:bg-gray-50">
+                              <input
+                                type="checkbox"
+                                checked={selectedFiles.includes(file.id)}
+                                onChange={() => handleSelectFile(file.id)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              
+                              <div className="flex-shrink-0">
+                                <span className="text-2xl">
+                                  {getFileTypeInfo(file.fileUrl, file.fileType).icon}
+                                </span>
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 truncate">{file.fileName}</div>
+                                <div className="text-xs text-gray-500">
+                                  {getFileTypeInfo(file.fileUrl, file.fileType).label} • {file.senderName} • {format(new Date(file.timestamp), 'MMM dd, yyyy')}
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => handleFileDownload(file.fileUrl, file.fileName, file.fileType)}
+                                  className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors flex items-center justify-center min-w-[32px]"
+                                  title="Download file"
+                                >
+                                  📥
+                                </button>
+                                <a
+                                  href={file.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center justify-center min-w-[32px]"
+                                  title="Open file"
+                                >
+                                  🔗
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -1580,51 +1645,56 @@ export default function EventChatbox({ eventId, currentUser }) {
                         }}
                         title="Click to view full size"
                       />
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                          <span>📷 Pinned Image</span>
-                          <span>{format(new Date(pinnedMessage.createdAt), 'MMM dd, yyyy HH:mm')}</span>
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleFileDownload(
+                              pinnedMessage.fileUrl.url || pinnedMessage.fileUrl,
+                              pinnedMessage.fileUrl.filename || pinnedMessage.message || 'pinned-image.jpg',
+                              'image'
+                            )}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center min-w-[80px]"
+                            title="Download pinned image"
+                          >
+                            <span>📥 Download</span>
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleFileDownload(
-                            pinnedMessage.fileUrl.url || pinnedMessage.fileUrl,
-                            pinnedMessage.fileUrl.filename || pinnedMessage.message || 'pinned-image.jpg',
-                            'image'
-                          )}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition-colors"
-                          title="Download pinned image"
-                        >
-                          <span>📥 Download</span>
-                        </button>
+                        <div className="text-xs text-gray-600 text-right">
+                          📷 Pinned Image • {format(new Date(pinnedMessage.createdAt), 'MMM dd, yyyy HH:mm')}
+                        </div>
                       </div>
                     </div>
                   ) : (
                     // Enhanced Pinned Document Display
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">
-                          {pinnedMessage.fileType === 'application/pdf' ? '📄' : 
-                           pinnedMessage.fileType.startsWith('application/msword') || pinnedMessage.fileType.includes('wordprocessingml') ? '📝' :
-                           pinnedMessage.fileType.startsWith('application/vnd.ms-excel') || pinnedMessage.fileType.includes('spreadsheetml') ? '📊' :
-                           pinnedMessage.fileType === 'text/plain' ? '📄' : '📎'}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900 text-sm truncate">
-                            {pinnedMessage.fileUrl.filename || pinnedMessage.message}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {pinnedMessage.fileType === 'application/pdf' ? 'PDF Document' :
-                             pinnedMessage.fileType.startsWith('application/msword') || pinnedMessage.fileType.includes('wordprocessingml') ? 'Word Document' :
-                             pinnedMessage.fileType.startsWith('application/vnd.ms-excel') || pinnedMessage.fileType.includes('spreadsheetml') ? 'Excel Spreadsheet' :
-                             pinnedMessage.fileType === 'text/plain' ? 'Text File' : 'Document'}
+                      <div className="mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {pinnedMessage.fileType === 'application/pdf' ? '📄' : 
+                             pinnedMessage.fileType.startsWith('application/msword') || pinnedMessage.fileType.includes('wordprocessingml') ? '📝' :
+                             pinnedMessage.fileType.startsWith('application/vnd.ms-excel') || pinnedMessage.fileType.includes('spreadsheetml') ? '📊' :
+                             pinnedMessage.fileType === 'text/plain' ? '📄' : '📎'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900 text-sm truncate">
+                              {pinnedMessage.fileUrl.filename || pinnedMessage.message}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {pinnedMessage.fileType === 'application/pdf' ? 'PDF Document' :
+                               pinnedMessage.fileType.startsWith('application/msword') || pinnedMessage.fileType.includes('wordprocessingml') ? 'Word Document' :
+                               pinnedMessage.fileType.startsWith('application/vnd.ms-excel') || pinnedMessage.fileType.includes('spreadsheetml') ? 'Excel Spreadsheet' :
+                               pinnedMessage.fileType === 'text/plain' ? 'Text File' : 'Document'}
+                            </div>
                           </div>
                         </div>
+                      </div>
+                      <div className="space-y-2">
                         <div className="flex gap-1">
                           <a
                             href={pinnedMessage.fileUrl.url || pinnedMessage.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center min-w-[60px]"
                             title="Open file"
                           >
                             <span>Open</span>
@@ -1638,27 +1708,28 @@ export default function EventChatbox({ eventId, currentUser }) {
                               pinnedMessage.fileUrl.filename || pinnedMessage.message || 'pinned-document',
                               'document'
                             )}
-                            className="inline-flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center min-w-[80px]"
                             title="Download pinned file"
                           >
                             <span>📥 Download</span>
                           </button>
                         </div>
+                        <div className="text-xs text-gray-600 text-right">
+                          📎 Pinned Document • {format(new Date(pinnedMessage.createdAt), 'MMM dd, yyyy HH:mm')}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-gray-600">
-                        <span>📎 Pinned Document</span>
-                        <span>{format(new Date(pinnedMessage.createdAt), 'MMM dd, yyyy HH:mm')}</span>
-                      </div>
+                      
                     </div>
                   )}
                 </div>
               )}
               <div className="text-xs text-right mt-1 opacity-70">
-                {format(new Date(pinnedMessage.createdAt), 'p')}
+                {format(new Date(pinnedMessage.createdAt), 'MMM dd, yyyy HH:mm')}
               </div>
             </div>
           )}
-          <div className="flex-1 p-4 overflow-y-auto" ref={chatContainerRef}>
+          {!showFileManager && (
+            <div className="flex-1 p-4 overflow-y-auto" ref={chatContainerRef}>
             {hasMore && (
               <div className="flex justify-center mb-2">
                 <button
@@ -1850,76 +1921,80 @@ export default function EventChatbox({ eventId, currentUser }) {
                                 }}
                                 title="Click to view full size"
                               />
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-xs text-gray-600">
-                                  <span>📷 Image</span>
-                                  <span>{format(new Date(msg.createdAt), 'MMM dd, yyyy HH:mm')}</span>
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleFileDownload(
+                                      msg.fileUrl.url || msg.fileUrl,
+                                      msg.fileUrl.filename || msg.message || 'image.jpg',
+                                      'image'
+                                    )}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center min-w-[80px]"
+                                    title="Download image"
+                                  >
+                                    <span>📥 Download</span>
+                                  </button>
                                 </div>
-                                <button
-                                  onClick={() => handleFileDownload(
-                                    msg.fileUrl.url || msg.fileUrl,
-                                    msg.fileUrl.filename || msg.message || 'image.jpg',
-                                    'image'
-                                  )}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded hover:bg-green-200 transition-colors"
-                                  title="Download image"
-                                >
-                                  <span>📥 Download</span>
-                                </button>
+                                <div className="text-xs text-gray-600 text-right">
+                                  📷 Image • {format(new Date(msg.createdAt), 'MMM dd, yyyy HH:mm')}
+                                </div>
                               </div>
                             </div>
                           ) : (
                             // Enhanced Document Display with Download
                             <div className="space-y-2">
-                              <div className="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-200">
-                                <div className="flex-shrink-0">
-                                  <span className="text-2xl">
-                                    {msg.fileType === 'application/pdf' ? '📄' : 
-                                     msg.fileType.startsWith('application/msword') || msg.fileType.includes('wordprocessingml') ? '📝' :
-                                     msg.fileType.startsWith('application/vnd.ms-excel') || msg.fileType.includes('spreadsheetml') ? '📊' :
-                                     msg.fileType === 'text/plain' ? '📄' : '📎'}
-                                  </span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-gray-900 truncate">
-                                    {msg.fileUrl.filename || msg.message}
+                              <div className="p-2 bg-white rounded-lg border border-gray-200">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="flex-shrink-0">
+                                    <span className="text-2xl">
+                                      {msg.fileType === 'application/pdf' ? '📄' : 
+                                       msg.fileType.startsWith('application/msword') || msg.fileType.includes('wordprocessingml') ? '📝' :
+                                       msg.fileType.startsWith('application/vnd.ms-excel') || msg.fileType.includes('spreadsheetml') ? '📊' :
+                                       msg.fileType === 'text/plain' ? '📄' : '📎'}
+                                    </span>
                                   </div>
-                                  <div className="text-xs text-gray-500">
-                                    {msg.fileType === 'application/pdf' ? 'PDF Document' :
-                                     msg.fileType.startsWith('application/msword') || msg.fileType.includes('wordprocessingml') ? 'Word Document' :
-                                     msg.fileType.startsWith('application/vnd.ms-excel') || msg.fileType.includes('spreadsheetml') ? 'Excel Spreadsheet' :
-                                     msg.fileType === 'text/plain' ? 'Text File' : 'Document'}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-gray-900 truncate">
+                                      {msg.fileUrl.filename || msg.message}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {msg.fileType === 'application/pdf' ? 'PDF Document' :
+                                       msg.fileType.startsWith('application/msword') || msg.fileType.includes('wordprocessingml') ? 'Word Document' :
+                                       msg.fileType.startsWith('application/vnd.ms-excel') || msg.fileType.includes('spreadsheetml') ? 'Excel Spreadsheet' :
+                                       msg.fileType === 'text/plain' ? 'Text File' : 'Document'}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex-shrink-0 flex gap-2">
-                                  <a
-                                    href={msg.fileUrl.url || msg.fileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                                    title="Open file"
-                                  >
-                                    <span>Open</span>
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                    </svg>
-                                  </a>
-                                  <button
-                                    onClick={() => handleFileDownload(
-                                      msg.fileUrl.url || msg.fileUrl,
-                                      msg.fileUrl.filename || msg.message || 'document',
-                                      'document'
-                                    )}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
-                                    title="Download file"
-                                  >
-                                    <span>📥 Download</span>
-                                  </button>
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <a
+                                      href={msg.fileUrl.url || msg.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center min-w-[60px]"
+                                      title="Open file"
+                                    >
+                                      <span>Open</span>
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    </a>
+                                    <button
+                                      onClick={() => handleFileDownload(
+                                        msg.fileUrl.url || msg.fileUrl,
+                                        msg.fileUrl.filename || msg.message || 'document',
+                                        'document'
+                                      )}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center min-w-[80px]"
+                                      title="Download file"
+                                    >
+                                      <span>📥 Download</span>
+                                    </button>
+                                  </div>
+                                  <div className="text-xs text-gray-600 text-right">
+                                    {format(new Date(msg.createdAt), 'MMM dd, yyyy HH:mm')}
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-gray-600">
-                                <span>📎 Document</span>
-                                <span>{format(new Date(msg.createdAt), 'MMM dd, yyyy HH:mm')}</span>
                               </div>
                             </div>
                           )}
@@ -1929,7 +2004,7 @@ export default function EventChatbox({ eventId, currentUser }) {
                         <div className="text-xs text-gray-400 mt-1">edited</div>
                       )}
                       <div className="text-xs text-right mt-1 opacity-70">
-                        {format(new Date(msg.createdAt), 'p')}
+                        {format(new Date(msg.createdAt), 'MMM dd, yyyy HH:mm')}
                         {msg.fileUrl && (
                           <span className="ml-2 text-blue-600">
                             📎 {msg.fileType && msg.fileType.startsWith('image/') ? 'Image' : 'File'}
@@ -1956,6 +2031,7 @@ export default function EventChatbox({ eventId, currentUser }) {
               <div ref={chatEndRef} />
             </>}
           </div>
+          )}
           <div className="h-6 px-4 text-sm text-gray-500 italic">
             {typingDisplay && `${typingDisplay} is typing...`}
             {isUploading && Object.keys(uploadProgress).length > 0 && (

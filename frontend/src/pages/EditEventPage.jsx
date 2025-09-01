@@ -18,11 +18,16 @@ export default function EditEventPage() {
   const [removedLetter, setRemovedLetter] = useState(false);
   const [event, setEvent] = useState(null);
 
+  // Upload state management - exactly like in EventCreationWrapper
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [uploadStatus, setUploadStatus] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const [uploadErrors, setUploadErrors] = useState({});
+
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        
-
         const res = await axiosInstance.get(`/api/events/${id}`);
         const e = res.data;
         setEvent(e);
@@ -74,7 +79,7 @@ export default function EditEventPage() {
           contactPerson: e.contactPerson || "",
         });
 
-                 setLoading(false);
+        setLoading(false);
       } catch (err) {
         console.error("❌ Failed to load event:", err);
         
@@ -105,7 +110,7 @@ export default function EditEventPage() {
       }));
       setRemovedImages((prev) => [...prev, image.publicId]);
       
-              showAlert.success(`🖼️ Image "${image.filename || 'Event Image'}" marked for removal`);
+      showAlert.success(`🖼️ Image "${image.filename || 'Event Image'}" marked for removal`);
     }
   };
 
@@ -119,8 +124,24 @@ export default function EditEventPage() {
     setExistingLetter(null);
     setRemovedLetter(true);
     
-          showAlert.warning("📄 Government approval letter marked for removal");
+    showAlert.warning("📄 Government approval letter marked for removal");
   };
+
+  // Reset upload states - exactly like in EventCreationWrapper
+  const resetUploadStates = () => {
+    setUploadProgress({});
+    setUploadStatus({});
+    setIsUploading(false);
+    setUploadQueue([]);
+    setUploadErrors({});
+  };
+
+  // Cleanup upload states when component unmounts
+  useEffect(() => {
+    return () => {
+      resetUploadStates();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -164,8 +185,8 @@ export default function EditEventPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Navbar />
       
-      {/* Main Content Area - Adjusted padding for fixed action bar */}
-      <div className="pt-32 lg:pt-36 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      {/* Main Content Area */}
+      <div className="pt-20 lg:pt-24 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Event Information Header */}
         <div className="mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -229,101 +250,90 @@ export default function EditEventPage() {
 
         {/* Edit Form */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-blue-800 flex items-center">
-              <span className="w-3 h-3 bg-blue-500 rounded-full mr-3"></span>
-              Event Configuration
-            </h3>
-            <p className="text-blue-700 text-sm mt-1">
-              Modify your event details, requirements, and settings below. Use the "Submit Event" button at the end of the form to save your changes.
-            </p>
-            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center gap-2 text-amber-700">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <span className="text-sm font-medium">Important:</span>
-                <span className="text-sm">Only use the "Submit Event" button at the end of the form to save changes. Other save buttons may cause errors.</span>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-6 border-b border-gray-200">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 text-blue-700 mb-4">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="font-semibold text-xl">How to Save Changes</span>
               </div>
-            </div>
-          </div>
-          
-          {/* Progress Indicator */}
-          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-            <div className="flex items-center justify-center space-x-8">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-medium">1</div>
-                <span className="text-sm text-gray-600">Basic Details</span>
-              </div>
-              <div className="w-8 h-0.5 bg-gray-300"></div>
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-xs font-medium">2</div>
-                <span className="text-sm text-gray-500">Questionnaire</span>
-              </div>
-              <div className="w-8 h-0.5 bg-gray-300"></div>
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-gray-300 text-gray-500 rounded-full flex items-center justify-center text-xs font-medium">3</div>
-                <span className="text-sm text-gray-500">Preview & Submit</span>
+              
+              <div className="max-w-2.1xl mx-auto space-y-4">
+                <p className="text-base text-blue-600 leading-relaxed">
+                  Navigate through the form steps using the navigation buttons at the bottom of each step.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">1</span>
+                    </div>
+                    <span className="font-medium">Basic Details</span>
+                  </div>
+                  <div className="hidden sm:block text-blue-400">→</div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">2</span>
+                    </div>
+                    <span className="font-medium">Questionnaire</span>
+                  </div>
+                  <div className="hidden sm:block text-blue-400">→</div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">3</span>
+                    </div>
+                    <span className="font-medium">Preview & Submit</span>
+                  </div>
+                </div>
+                
+                <div className="bg-blue-100 border border-blue-200 rounded-lg p-4 mt-4">
+                  <p className="text-base font-medium text-blue-700 text-center">
+                    When you reach the final preview step, click the 
+                    <span className="bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-bold mx-2">Submit Event</span> 
+                    button to save all your changes.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
           
           <div className="p-6">
-                         <EventCreationWrapper
-               selectedOrgId={formData.organization}
-               organizationOptions={[]}
-                               onClose={() => {
-                  // This will be called after successful submission
-                                     showAlert.success("✅ Event editing completed successfully!");
-                }}
-               isEdit={true}
-               eventId={id}
-               initialFormData={{
-                 ...formData,
-                 removedImages: removedImages,
-                 removedLetter: removedLetter
-               }}
-               initialQuestionnaireData={questionnaireData}
-               readOnly={false}
-             />
+            <EventCreationWrapper
+              selectedOrgId={formData.organization}
+              organizationOptions={[]}
+              onClose={() => {
+                // This will be called after successful submission
+                navigate(`/events/${id}`);
+              }}
+              isEdit={true}
+              eventId={id}
+              initialFormData={{
+                ...formData,
+                existingLetter: existingLetter,
+                removedImages: removedImages,
+                removedLetter: removedLetter
+              }}
+              initialQuestionnaireData={questionnaireData}
+              readOnly={false}
+              // Pass upload states and handlers - exactly like in creation
+              uploadProgress={uploadProgress}
+              setUploadProgress={setUploadProgress}
+              uploadStatus={uploadStatus}
+              setUploadStatus={setUploadStatus}
+              isUploading={isUploading}
+              setIsUploading={setIsUploading}
+              uploadQueue={uploadQueue}
+              setUploadQueue={setUploadQueue}
+              uploadErrors={uploadErrors}
+              setUploadErrors={setUploadErrors}
+            />
           </div>
         </div>
 
-        {/* Help Text */}
-        <div className="mt-8 text-center">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 max-w-3xl mx-auto shadow-sm">
-            <div className="flex items-center justify-center gap-3 text-blue-700 mb-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <span className="font-semibold text-lg">How to Save Changes</span>
-            </div>
-            <div className="space-y-3 text-blue-600">
-              <p className="text-base">
-                Navigate through the form steps using the navigation buttons at the bottom of each step.
-              </p>
-              <div className="flex items-center justify-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span>Step 1: Basic Details</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span>Step 2: Questionnaire</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                  <span>Step 3: Preview & Submit</span>
-                </div>
-              </div>
-              <p className="text-base font-medium">
-                When you reach the final preview step, click the <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm">Submit Event</span> button to save all your changes.
-              </p>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
   );

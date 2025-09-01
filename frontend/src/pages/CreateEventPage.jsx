@@ -189,6 +189,11 @@ export default function CreateEventPage() {
               selectedOrgId={selectedOrgId}
               organizationOptions={organizations}
               onClose={handleClose}
+              onEventCreated={(eventData) => {
+                showAlert.success("🎉 Event created successfully!");
+                // Navigate to the organizer dashboard to see the new event
+                navigate('/organizer/dashboard');
+              }}
             />
           </div>
         )}

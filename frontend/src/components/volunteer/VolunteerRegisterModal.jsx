@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
 import { getSafeUserData, getSafeUserName } from "../../utils/safeUserUtils";
 import { showAlert, showConfirm } from "../../utils/notifications";
+import { ButtonLoader } from "../../components/common/LoaderComponents";
 import {
   XMarkIcon,
   UserIcon,
@@ -23,7 +24,7 @@ import {
 } from "@heroicons/react/24/outline";
 import TimeSlotSelector from './TimeSlotSelector';
 
-const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) => {
+const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event, isRegistering = false }) => {
   const [step, setStep] = useState(1);
   const [isGroup, setIsGroup] = useState(false);
   const [groupMembers, setGroupMembers] = useState([]);
@@ -221,9 +222,21 @@ const VolunteerRegisterModal = ({ open, onClose, volunteer, onSubmit, event }) =
               </button>
               <button
                 onClick={handleRegister}
-                className="px-4 py-2 rounded bg-green-600 text-white hover:bg-green-700"
+                disabled={isRegistering}
+                className={`px-4 py-2 rounded flex items-center justify-center gap-2 ${
+                  isRegistering 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
               >
-                Register
+                {isRegistering ? (
+                  <>
+                    <ButtonLoader size="sm" color="white" />
+                    Generating QR Code...
+                  </>
+                ) : (
+                  'Register'
+                )}
               </button>
             </div>
           </div>

@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/eventController');
 const { eventMultiUpload, eventSingleUpload, completedEventUpload } = require('../middlewares/upload');
-const { uploadToCloudinary } = require('../utils/cloudinaryUtils');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../utils/cloudinaryUtils');
 
 const Event = require("../models/event");
 
@@ -93,6 +93,9 @@ router.post('/:id/add-creator-certificate', protect, requireOrganizer, eventCont
 
 // Handle event completion and create next recurring instance if needed
 router.post('/:eventId/complete', protect, eventController.handleEventCompletion);
+
+// Delete file from Cloudinary (for event creation process)
+router.post('/delete-cloudinary-file', protect, eventController.deleteCloudinaryFile);
 
 // @route   GET /api/events/organization/:orgId
 router.get('/organization/:orgId', eventController.getEventsByOrganization);
@@ -307,5 +310,7 @@ router.post('/upload-letter', protect, eventSingleUpload.single('file'), async (
     });
   }
 });
+
+
 
 module.exports = router;

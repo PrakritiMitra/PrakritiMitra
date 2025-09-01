@@ -50,6 +50,70 @@ showAlert.loading = (message) => {
   return 'loading-' + Date.now();
 };
 
+// QR Code specific loading notifications
+showAlert.qrGenerating = (message = 'Generating QR code...') => {
+  toastNotification.show(message, 'info');
+  return 'qr-generating-' + Date.now();
+};
+
+showAlert.qrDeleting = (message = 'Deleting QR code...') => {
+  toastNotification.show(message, 'info');
+  return 'qr-deleting-' + Date.now();
+};
+
+showAlert.qrUploading = (message = 'Uploading QR code to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'qr-uploading-' + Date.now();
+};
+
+// Profile Update specific loading notifications
+showAlert.profileUpdating = (message = 'Updating profile...') => {
+  toastNotification.show(message, 'info');
+  return 'profile-updating-' + Date.now();
+};
+
+showAlert.profileImageUploading = (message = 'Uploading profile image to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'profile-image-uploading-' + Date.now();
+};
+
+showAlert.profileImageDeleting = (message = 'Deleting profile image from Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'profile-image-deleting-' + Date.now();
+};
+
+showAlert.documentUploading = (message = 'Uploading document to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'document-uploading-' + Date.now();
+};
+
+showAlert.documentDeleting = (message = 'Deleting document from Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'document-deleting-' + Date.now();
+};
+
+// Organization document upload notifications
+showAlert.organizationLogoUploading = (message = 'Uploading organization logo to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'org-logo-uploading-' + Date.now();
+};
+
+showAlert.organizationDocumentUploading = (message = 'Uploading organization document to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'org-doc-uploading-' + Date.now();
+};
+
+// Sponsor document upload notifications
+showAlert.sponsorLogoUploading = (message = 'Uploading sponsor logo to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'sponsor-logo-uploading-' + Date.now();
+};
+
+showAlert.sponsorDocumentUploading = (message = 'Uploading sponsor document to Cloudinary...') => {
+  toastNotification.show(message, 'info');
+  return 'sponsor-doc-uploading-' + Date.now();
+};
+
 // Dismiss functionality (simplified - just logs for now)
 showAlert.dismiss = (toastId) => {
   console.log('Dismissing toast:', toastId);
@@ -58,20 +122,34 @@ showAlert.dismiss = (toastId) => {
 
 // Replace confirm() calls with confirmation modals
 export const showConfirm = {
-  // Default confirmation
-  action: (message, onConfirm, options = {}) => {
+  // Default confirmation - backward compatible
+  action: (message, onConfirm, onCancelOrOptions, options = {}) => {
+    // Handle backward compatibility
+    let onCancel = null;
+    let finalOptions = options;
+    
+    // If third parameter is a function, it's onCancel
+    // If third parameter is an object, it's options (old API)
+    if (typeof onCancelOrOptions === 'function') {
+      onCancel = onCancelOrOptions;
+      finalOptions = options;
+    } else if (typeof onCancelOrOptions === 'object') {
+      finalOptions = onCancelOrOptions;
+    }
+    
     const {
       title = "Confirm Action",
       confirmText = "Confirm",
       cancelText = "Cancel",
       type = "default",
       icon = null
-    } = options;
+    } = finalOptions;
     
     // Create a custom confirmation modal
     createConfirmationModal({
       message,
       onConfirm,
+      onCancel,
       title,
       confirmText,
       cancelText,
@@ -80,27 +158,27 @@ export const showConfirm = {
     });
   },
   
-  // Dangerous action confirmation
-  danger: (message, onConfirm, options = {}) => {
-    showConfirm.action(message, onConfirm, {
+  // Dangerous action confirmation - backward compatible
+  danger: (message, onConfirm, onCancelOrOptions, options = {}) => {
+    showConfirm.action(message, onConfirm, onCancelOrOptions, {
       ...options,
       title: options.title || "Confirm Dangerous Action",
       type: "danger"
     });
   },
   
-  // Warning confirmation
-  warning: (message, onConfirm, options = {}) => {
-    showConfirm.action(message, onConfirm, {
+  // Warning confirmation - backward compatible
+  warning: (message, onConfirm, onCancelOrOptions, options = {}) => {
+    showConfirm.action(message, onConfirm, onCancelOrOptions, {
       ...options,
       title: options.title || "Confirm Action",
       type: "warning"
     });
   },
   
-  // Info confirmation
-  info: (message, onConfirm, options = {}) => {
-    showConfirm.action(message, onConfirm, {
+  // Info confirmation - backward compatible
+  info: (message, onConfirm, onCancelOrOptions, options = {}) => {
+    showConfirm.action(message, onConfirm, onCancelOrOptions, {
       ...options,
       title: options.title || "Confirm Action",
       type: "info"
@@ -112,6 +190,7 @@ export const showConfirm = {
 function createConfirmationModal({
   message,
   onConfirm,
+  onCancel,
   title = "Confirm Action",
   confirmText = "Confirm",
   cancelText = "Cancel",
@@ -132,25 +211,25 @@ function createConfirmationModal({
     // Create modal HTML with unique IDs
     const uniqueId = Date.now();
     const modalHTML = `
-      <div class="fixed inset-0 z-[9999] overflow-y-auto">
-        <div class="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
+      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; overflow-y: auto;">
+        <div style="display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: 1rem; text-align: center;">
           <!-- Backdrop -->
-          <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" id="confirmation-backdrop-${uniqueId}"></div>
+          <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(107, 114, 128, 0.75); z-index: 9998;" id="confirmation-backdrop-${uniqueId}"></div>
           
           <!-- Modal -->
-          <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+          <div style="position: relative; transform: none; overflow: hidden; border-radius: 0.5rem; background-color: white; text-align: left; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); z-index: 9999; max-width: 32rem; width: 100%; margin: 2rem auto;">
             <!-- Header -->
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-              <div class="sm:flex sm:items-start">
-                <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 sm:mx-0 sm:h-10 sm:w-10">
+            <div style="background-color: white; padding: 1rem 1rem 1rem 1rem;">
+              <div style="display: flex; align-items: flex-start;">
+                <div style="margin: 0 auto; display: flex; height: 3rem; width: 3rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; background-color: rgb(243, 244, 246);">
                   ${getIconHTML(type, icon)}
                 </div>
-                <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                  <h3 class="text-lg font-medium leading-6 text-gray-900">
+                <div style="margin-top: 0.75rem; text-align: center;">
+                  <h3 style="font-size: 1.125rem; font-weight: 500; line-height: 1.5; color: rgb(17, 24, 39);">
                     ${title}
                   </h3>
-                  <div class="mt-2">
-                    <p class="text-sm text-gray-500">
+                  <div style="margin-top: 0.5rem;">
+                    <p style="font-size: 0.875rem; color: rgb(107, 114, 128);">
                       ${message}
                     </p>
                   </div>
@@ -183,6 +262,8 @@ function createConfirmationModal({
     // Insert modal into body
     modalContainer.innerHTML = modalHTML;
     document.body.appendChild(modalContainer);
+    
+
 
     // Wait for DOM to be ready, then add event listeners
     setTimeout(() => {
@@ -197,7 +278,6 @@ function createConfirmationModal({
       };
 
       const handleConfirm = () => {
-        console.log('Confirm button clicked');
         try {
           onConfirm();
         } catch (error) {
@@ -207,7 +287,13 @@ function createConfirmationModal({
       };
 
       const handleCancel = () => {
-        console.log('Cancel button clicked');
+        if (onCancel) {
+          try {
+            onCancel();
+          } catch (error) {
+            console.error('Error in cancel callback:', error);
+          }
+        }
         closeModal();
       };
 
@@ -238,21 +324,18 @@ function createConfirmationModal({
       // Add event listeners with wrapped handlers
       if (confirmBtn) {
         confirmBtn.addEventListener('click', wrappedHandleConfirm, { once: true });
-        console.log('Confirm button listener added');
       } else {
         console.error('Confirm button not found');
       }
-
+      
       if (cancelBtn) {
         cancelBtn.addEventListener('click', wrappedHandleCancel, { once: true });
-        console.log('Cancel button listener added');
       } else {
         console.error('Cancel button not found');
       }
-
+      
       if (backdrop) {
         backdrop.addEventListener('click', wrappedHandleCancel, { once: true });
-        console.log('Backdrop listener added');
       } else {
         console.error('Backdrop not found');
       }
@@ -296,13 +379,27 @@ function getIconHTML(type, customIcon) {
   }
 }
 
-// Helper function to get confirm button class
+// Helper function to get confirm button style
+function getConfirmButtonStyle(type) {
+  switch (type) {
+    case 'danger':
+      return 'background-color: rgb(220, 38, 38);';
+    case 'warning':
+      return 'background-color: rgb(202, 138, 4);';
+    case 'info':
+      return 'background-color: rgb(37, 99, 235);';
+    default:
+      return 'background-color: rgb(37, 99, 235);';
+  }
+}
+
+// Helper function to get confirm button class (legacy)
 function getConfirmButtonClass(type) {
   switch (type) {
     case 'danger':
       return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
     case 'warning':
-      return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+      return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-blue-500';
     case 'info':
       return 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500';
     default:

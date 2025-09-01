@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { sponsorshipIntentAPI } from '../api';
 import Navbar from '../components/layout/Navbar';
 import { showAlert } from '../utils/notifications';
+import { FullScreenLoader } from '../components/common/LoaderComponents';
 
 export default function EditApplicationPage() {
   const { applicationId } = useParams();
@@ -1061,6 +1062,13 @@ export default function EditApplicationPage() {
             </div>
           </div>
         </div>
+
+        {/* Page Loader for Form Submission */}
+        <FullScreenLoader
+          isVisible={saving}
+          message="Updating Application..."
+          showProgress={false}
+        />
       </div>
     </div>
   );

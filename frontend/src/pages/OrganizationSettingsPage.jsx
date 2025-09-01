@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { showAlert } from '../utils/notifications';
 import { getOrganizationById, updateOrganization } from '../api';
 import Navbar from '../components/layout/Navbar';
+import { FullScreenLoader } from '../components/common/LoaderComponents';
 
 export default function OrganizationSettingsPage() {
   const { organizationId } = useParams();
@@ -629,6 +630,13 @@ export default function OrganizationSettingsPage() {
             </button>
           </div>
         </form>
+
+        {/* Page Loader for Form Submission */}
+        <FullScreenLoader
+          isVisible={saving}
+          message="Updating Organization Settings..."
+          showProgress={false}
+        />
       </div>
     </div>
   );

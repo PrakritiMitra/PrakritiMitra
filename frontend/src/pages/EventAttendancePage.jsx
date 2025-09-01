@@ -219,7 +219,7 @@ export default function EventAttendancePage() {
                 onClick={() => document.getElementById('reportDropdown').classList.toggle('hidden')}
                 disabled={downloadingReport}
               >
-                {downloadingReport ? 'Downloading...' : '📊 Download Report'}
+                {downloadingReport ? 'Downloading...' : '📊 Download Attendance'}
               </button>
               <div id="reportDropdown" className="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50">
                 <div className="py-1">
@@ -364,7 +364,7 @@ export default function EventAttendancePage() {
                               />
                             ) : (
                               <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 shadow-sm ${getRoleColors(attendanceVolunteer.role)}`}>
-                                <span className="text-xs sm:text-sm font-bold bg-clip-text text-transparent">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
+                                <span className="text-xs sm:text-sm font-bold text-current">{getAttendanceAvatarInitial(attendanceVolunteer)}</span>
                               </div>
                             )}
                           </td>
@@ -545,7 +545,7 @@ export default function EventAttendancePage() {
                                         />
                                       ) : (
                                         <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 shadow-sm ${getRoleColors(attendanceUser.role)}`}>
-                                          <span className="text-xs sm:text-sm font-bold bg-clip-text text-transparent">{getAttendanceAvatarInitial(attendanceUser)}</span>
+                                          <span className="text-xs sm:text-sm font-bold text-current">{getAttendanceAvatarInitial(attendanceUser)}</span>
                                         </div>
                                       )}
                                     </td>

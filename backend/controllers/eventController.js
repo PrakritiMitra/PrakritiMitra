@@ -1108,6 +1108,26 @@ exports.completeQuestionnaire = async (req, res) => {
 
     // Handle media files (optional, only for creator)
     let media = [];
+    
+    // Check for Cloudinary media URLs in request body
+    if (req.body.media) {
+      try {
+        const mediaData = typeof req.body.media === 'string' ? JSON.parse(req.body.media) : req.body.media;
+        if (Array.isArray(mediaData)) {
+          media = mediaData.map(item => ({
+            url: item.url,
+            publicId: item.id || item.publicId,
+            filename: item.filename,
+            format: item.format,
+            size: item.size
+          }));
+        }
+      } catch (error) {
+        console.error('Error parsing media data:', error);
+      }
+    }
+    
+    // Fallback: Handle file uploads if they exist (for backward compatibility)
     if (req.files && req.files.length > 0) {
       // Upload media files to Cloudinary
       for (const file of req.files) {
@@ -1959,5 +1979,37 @@ exports.unbanOrganizer = async (req, res) => {
   } catch (err) {
     console.error('Error in unbanOrganizer:', err);
     res.status(500).json({ message: 'Failed to unban organizer', error: err.message });
+  }
+};
+
+// Delete file from Cloudinary (for event creation process)
+exports.deleteCloudinaryFile = async (req, res) => {
+  try {
+    const { publicId, fileName } = req.body;
+    const userId = req.user._id;
+
+    if (!publicId) {
+      return res.status(400).json({ message: 'Public ID is required' });
+    }
+
+    console.log(`🗑️ Deleting file from Cloudinary: ${fileName} (${publicId})`);
+
+    // Use the existing deleteFromCloudinary utility
+    await deleteFromCloudinary(publicId);
+
+    console.log(`✅ Successfully deleted file from Cloudinary: ${fileName}`);
+
+    res.status(200).json({ 
+      message: 'File deleted successfully',
+      fileName: fileName,
+      publicId: publicId
+    });
+
+  } catch (err) {
+    console.error('Error deleting file from Cloudinary:', err);
+    res.status(500).json({ 
+      message: 'Failed to delete file from Cloudinary', 
+      error: err.message 
+    });
   }
 };

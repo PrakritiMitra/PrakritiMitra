@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
 import EventQuestionnaireModal from "../components/event/EventQuestionnaireModal";
 import ImageCarousel from "../components/event/ImageCarousel";
+import { FullScreenLoader, ButtonLoader } from "../components/common/LoaderComponents";
 import { checkReportEligibility, generateEventReport } from "../utils/reportUtils";
 import { addEventToCalendar, downloadCalendarFile, addToWebsiteCalendar, removeFromWebsiteCalendar, checkWebsiteCalendarStatus } from "../utils/calendarUtils";
 import { FaCalendarPlus, FaCalendarMinus } from "react-icons/fa";
@@ -79,8 +80,10 @@ export default function EventDetailsPage() {
   const [joinSuccess, setJoinSuccess] = useState("");
   const [showOrganizerTeamDrawer, setShowOrganizerTeamDrawer] = useState(false);
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  const [questionnaireSubmitting, setQuestionnaireSubmitting] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
+  const [isDownloadingCertificate, setIsDownloadingCertificate] = useState(false);
   const [activeTab, setActiveTab] = useState('organizers'); // Default to organizers tab
   const [organizerSearchTerm, setOrganizerSearchTerm] = useState('');
   
@@ -505,28 +508,39 @@ export default function EventDetailsPage() {
 
   // Check if event is in the past
   const isPastEvent = event && event.endDateTime ? new Date(event.endDateTime) < new Date() : false;
-  // Updated handler to support media files
+  // Updated handler to support Cloudinary media files
   const handleQuestionnaireSubmit = async (answers, mediaFiles, awards) => {
+    setQuestionnaireSubmitting(true);
     try {
       const formData = new FormData();
       formData.append('answers', JSON.stringify(answers));
       // Always send awards, even if it's empty
       formData.append('awards', JSON.stringify(awards || {}));
+      
+      // Handle Cloudinary media files - they are already uploaded, so we send the URLs
       if (mediaFiles && mediaFiles.length > 0) {
-        mediaFiles.forEach((file, idx) => {
-          formData.append('media', file);
-        });
+        // Filter out files that are already uploaded to Cloudinary
+        const cloudinaryMedia = mediaFiles.filter(file => file.uploaded && file.url);
+        if (cloudinaryMedia.length > 0) {
+          formData.append('media', JSON.stringify(cloudinaryMedia));
+        }
       }
+      
       await axiosInstance.post(`/api/events/${event._id}/complete-questionnaire`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      
       // Wait 1 second before refetching to ensure certificates are saved
       setTimeout(async () => {
         await fetchAndSetEvent();
         setShowQuestionnaireModal(false);
       }, 1000);
+      showAlert("✅ Questionnaire submitted successfully!", "success");
     } catch (err) {
+      console.error('Questionnaire submission error:', err);
       showAlert("❌ Failed to submit questionnaire.", "error");
+    } finally {
+      setQuestionnaireSubmitting(false);
     }
   };
 
@@ -554,22 +568,29 @@ export default function EventDetailsPage() {
   // Check if certificate is already generated
   const certificateGenerated = myCertificateAssignment && myCertificateAssignment.filePath?.url;
   
-  // Certificate generation handler
+  // Certificate generation handler with enhanced loading states
   const handleGenerateCertificate = async () => {
     if (!canGenerateCertificate) {
-              showAlert.warning('⚠️ You are not eligible to generate a certificate at this time.');
+      showAlert.warning('⚠️ You are not eligible to generate a certificate at this time.');
       return;
     }
     
     setIsGeneratingCertificate(true);
     try {
-      // Show loading state
+      // Step 1: Initiate certificate generation
+      showAlert.info('🔄 Starting certificate generation...');
       const response = await axiosInstance.post(`/api/events/${event._id}/generate-certificate`);
       
-      // Wait longer for the backend to save the data and generate the file
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Step 2: Wait for backend processing with progress feedback
+      showAlert.info('📄 Generating PDF certificate...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Refresh the event to get the updated certificate data
+      // Step 3: Uploading to Cloudinary
+      showAlert.info('☁️ Uploading certificate to Cloudinary...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Step 4: Refresh the event to get the updated certificate data
+      showAlert.info('🔄 Updating certificate data...');
       const updatedEvent = await axiosInstance.get(`/api/events/${id}`);
       setEvent(updatedEvent.data);
       setOrganizerTeam(updatedEvent.data.organizerTeam || []);
@@ -577,13 +598,49 @@ export default function EventDetailsPage() {
       // Force a re-render by updating state
       setForceRefresh(prev => prev + 1);
       
-              showAlert.success('🎉 Certificate generated successfully! You can now download it.');
+      showAlert.success('🎉 Certificate generated successfully! You can now download it.');
     } catch (err) {
       console.error('Certificate generation error:', err);
       const errorMessage = err.response?.data?.message || 'Failed to generate certificate. Please try again.';
       showAlert(`❌ ${errorMessage}`, "error");
     } finally {
       setIsGeneratingCertificate(false);
+    }
+  };
+
+  // Enhanced certificate download handler with loading state
+  const handleDownloadCertificate = async (certificateUrl, certificateName) => {
+    setIsDownloadingCertificate(true);
+    try {
+      showAlert.info('📥 Starting certificate download...');
+      
+      // For Cloudinary URLs, add download parameters to force download
+      let downloadUrl = certificateUrl;
+      if (certificateUrl.includes('cloudinary.com')) {
+        const separator = certificateUrl.includes('?') ? '&' : '?';
+        downloadUrl = `${certificateUrl}${separator}fl_attachment`;
+      }
+
+      // Create a temporary link element for download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = certificateName || 'certificate.pdf';
+      link.style.display = 'none';
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Small delay to ensure download starts
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      showAlert.success('✅ Certificate download started!');
+    } catch (error) {
+      console.error('Certificate download error:', error);
+      showAlert.error('❌ Failed to download certificate. Please try again.');
+    } finally {
+      setIsDownloadingCertificate(false);
     }
   };
 
@@ -1412,7 +1469,7 @@ export default function EventDetailsPage() {
           </div>
         </div>
       )}
-              <style jsx>{`
+              <style>{`
           .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
           }
@@ -1568,14 +1625,23 @@ export default function EventDetailsPage() {
                       <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-2 rounded-lg text-sm mb-3">
                         🎉 <strong>Certificate ready!</strong> You can now download your certificate.
                       </div>
-                      <a
-                        href={myCertificateAssignment.filePath.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      <button
+                        onClick={() => handleDownloadCertificate(
+                          myCertificateAssignment.filePath.url,
+                          `${event.title}_${myCertificateAssignment.award}_certificate.pdf`
+                        )}
+                        disabled={isDownloadingCertificate}
+                        className="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        📄 Download Certificate
-                      </a>
+                        {isDownloadingCertificate ? (
+                          <>
+                            <ButtonLoader size="sm" className="mr-2" />
+                            Downloading...
+                          </>
+                        ) : (
+                          '📄 Download Certificate'
+                        )}
+                      </button>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1592,7 +1658,14 @@ export default function EventDetailsPage() {
                         disabled={!canGenerateCertificate || isGeneratingCertificate}
                         className="w-full bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isGeneratingCertificate ? "🔄 Generating..." : "🎨 Generate Certificate"}
+                        {isGeneratingCertificate ? (
+                          <>
+                            <ButtonLoader size="sm" className="mr-2" />
+                            Generating Certificate...
+                          </>
+                        ) : (
+                          "🎨 Generate Certificate"
+                        )}
                       </button>
                     </div>
                   )}
@@ -1945,8 +2018,7 @@ export default function EventDetailsPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.286c-.836 1.372.734 2.942 2.106 2.106.886-.54 2.042.061 2.287.947.379 1.561 2.6 1.561 2.978a1.532 1.532 0 01-2.286.947c1.372.836-2.942.734-2.106-2.106.54-.886-.061-2.042.947-2.287 1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-2.286-.947c.836-1.372-.734-2.942-2.106-2.106-.886.54-2.042-.061-2.287-.947-.379-1.561-2.6-1.561-2.978a1.532 1.532 0 01.947-2.286c-.836-1.372.734-2.942 2.106-2.106.886.54 2.042.061 2.287-.947z" clipRule="evenodd" />
-                    <path d="M10 13a3 3 0 100-6 3 3 0 000 6z" />
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                   </svg>
                   Event Actions
                 </h3>
@@ -3212,6 +3284,22 @@ export default function EventDetailsPage() {
         isCreator={organizerTeam.length > 0 && organizerTeam[0].user._id === currentUser?._id}
         volunteerParticipants={volunteerParticipants}
         organizerParticipants={organizerParticipants}
+      />
+
+      {/* Page Loader for Questionnaire Submission */}
+      <FullScreenLoader
+        isVisible={questionnaireSubmitting}
+        message="Submitting Questionnaire..."
+        subMessage="Please wait while we save your responses and media files..."
+        showProgress={false}
+      />
+
+      {/* Full Screen Loader for Certificate Generation */}
+      <FullScreenLoader
+        isVisible={isGeneratingCertificate}
+        message="Generating Certificate..."
+        subMessage="Creating your personalized certificate with award details..."
+        showProgress={false}
       />
 
       {/* Remove Volunteer Confirmation Modal */}

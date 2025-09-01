@@ -16,9 +16,7 @@ const uploadToCloudinary = async (file, folder = 'general') => {
     // Convert buffer to base64 string
     const b64 = Buffer.from(file.buffer).toString('base64');
     const dataURI = `data:${file.mimetype};base64,${b64}`;
-    
-    console.log(`📤 Starting Cloudinary upload for ${file.originalname} to folder: ${folder}`);
-    
+        
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(dataURI, {
       folder: folder,
@@ -29,9 +27,7 @@ const uploadToCloudinary = async (file, folder = 'general') => {
         { fetch_format: 'auto' }  // Auto-format for web
       ]
     });
-    
-    console.log(`✅ Cloudinary upload successful: ${result.public_id} (${result.bytes} bytes)`);
-    
+        
     return {
       success: true,
       url: result.secure_url,
@@ -56,11 +52,9 @@ const deleteFromCloudinary = async (publicId) => {
       throw new Error('No public ID provided for deletion');
     }
     
-    console.log(`🗑️ Deleting file from Cloudinary: ${publicId}`);
     const result = await cloudinary.uploader.destroy(publicId);
     
     if (result.result === 'ok') {
-      console.log(`✅ Successfully deleted file from Cloudinary: ${publicId}`);
       return {
         success: true,
         message: result.result

@@ -19,6 +19,7 @@ import {
   StepContent
 } from '@mui/material';
 import { ChevronRightIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
+import { FullScreenLoader } from '../../components/common/LoaderComponents';
 
 const FOCUS_AREAS = [
   'Environment',
@@ -70,6 +71,13 @@ export default function OrganizationForm() {
     focusArea: 'Environment', // Set default value
     focusAreaOther: '',
   });
+  
+  // Document upload loading states
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
+  const [isGstUploading, setIsGstUploading] = useState(false);
+  const [isPanUploading, setIsPanUploading] = useState(false);
+  const [isNgoUploading, setIsNgoUploading] = useState(false);
+  const [isLetterUploading, setIsLetterUploading] = useState(false);
   const [files, setFiles] = useState({
     logo: null,
     gstCertificate: null,
@@ -144,6 +152,34 @@ export default function OrganizationForm() {
     setIsSubmitting(true);
     
     try {
+      // Show loading notifications for document uploads
+      let loadingNotifications = [];
+      
+      if (files.logo) {
+        setIsLogoUploading(true);
+        loadingNotifications.push(showAlert.organizationLogoUploading('Uploading organization logo to Cloudinary...'));
+      }
+      
+      if (files.gstCertificate) {
+        setIsGstUploading(true);
+        loadingNotifications.push(showAlert.organizationDocumentUploading('Uploading GST certificate to Cloudinary...'));
+      }
+      
+      if (files.panCard) {
+        setIsPanUploading(true);
+        loadingNotifications.push(showAlert.organizationDocumentUploading('Uploading PAN card to Cloudinary...'));
+      }
+      
+      if (files.ngoRegistration) {
+        setIsNgoUploading(true);
+        loadingNotifications.push(showAlert.organizationDocumentUploading('Uploading NGO registration to Cloudinary...'));
+      }
+      
+      if (files.letterOfIntent) {
+        setIsLetterUploading(true);
+        loadingNotifications.push(showAlert.organizationDocumentUploading('Uploading letter of intent to Cloudinary...'));
+      }
+      
       const token = localStorage.getItem('token');
       const data = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
@@ -165,7 +201,7 @@ export default function OrganizationForm() {
         withCredentials: true
       });
       
-              showAlert.success('Organization created successfully! Redirecting...');
+      showAlert.success('Organization created successfully! All documents uploaded to Cloudinary.');
       
       // Organization created successfully, redirect to your-organizations
       setTimeout(() => {
@@ -181,6 +217,12 @@ export default function OrganizationForm() {
       console.error(err);
     } finally {
       setIsSubmitting(false);
+      // Reset all document upload loading states
+      setIsLogoUploading(false);
+      setIsGstUploading(false);
+      setIsPanUploading(false);
+      setIsNgoUploading(false);
+      setIsLetterUploading(false);
     }
   };
 
@@ -960,8 +1002,15 @@ export default function OrganizationForm() {
               Please fill all required fields to submit
             </Typography>
           )}
-        </Box>
-      </Box>
-    </Box>
-  );
-}
+                 </Box>
+       </Box>
+
+       {/* Page Loader for Form Submission */}
+       <FullScreenLoader
+         isVisible={isSubmitting}
+         message="Creating Organization..."
+         showProgress={false}
+       />
+     </Box>
+   );
+ }

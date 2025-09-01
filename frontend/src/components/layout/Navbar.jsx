@@ -6,7 +6,7 @@ import axiosInstance from "../../api/axiosInstance";
 import { getMyOrganization } from "../../api/organization";
 import { ChevronDown, LogOut, User, Menu, X } from "react-feather";
 import { motion, AnimatePresence } from "framer-motion";
-import { getProfileImageUrl, getAvatarInitial, getRoleColors } from "../../utils/avatarUtils";
+import { getProfileImageUrl, getAvatarInitial, getRoleColors, handleImageError, getFallbackAvatar } from "../../utils/avatarUtils";
 import { 
   getSafeUserData, 
   getDisplayName, 
@@ -697,11 +697,24 @@ export default function Navbar() {
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
                     {getProfileImageUrl(user) ? (
-                      <img
-                        src={getProfileImageUrl(user)}
-                        alt="Profile"
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
+                      <>
+                        <img
+                          src={getProfileImageUrl(user)}
+                          alt="Profile"
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={(e) => handleImageError(e, user)}
+                        />
+                        {(() => {
+                          const fallbackData = getFallbackAvatar(user, 'w-8 h-8', 'hidden');
+                          return (
+                            <div className={`fallback-avatar ${fallbackData.sizeClasses} rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-sm ${fallbackData.displayClass}`}>
+                              <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">
+                                {fallbackData.initial}
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </>
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-emerald-100 flex items-center justify-center border-2 border-blue-200 shadow-sm">
                         <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent">{getAvatarInitial(user)}</span>

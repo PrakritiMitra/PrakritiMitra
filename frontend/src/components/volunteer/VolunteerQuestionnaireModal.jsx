@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Modal, Box, Typography, Button, TextField, Checkbox, FormControlLabel, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Modal, Box, Typography, Button, TextField, Checkbox, FormControlLabel, ToggleButton, ToggleButtonGroup, IconButton, CircularProgress } from "@mui/material";
+import MediaUploadComponent from '../common/MediaUploadComponent';
 
 // Helper: Emoji/Face rating
 const EmojiRating = ({ value, onChange, options }) => (
@@ -612,9 +613,25 @@ export default function VolunteerQuestionnaireModal({ open, onClose, eventType, 
   const eventQuestions = VOLUNTEER_QUESTION_SETS[eventType?.toLowerCase()] || [];
   const allQuestions = [...eventQuestions, ...COMMON_QUESTIONS];
   const [answers, setAnswers] = useState({});
+  const [mediaFiles, setMediaFiles] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    onSubmit(answers);
+  const handleMediaChange = (media) => {
+    setMediaFiles(media);
+  };
+
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Pass both answers and media files
+      await onSubmit(answers, mediaFiles);
+    } catch (error) {
+      console.error('Questionnaire submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -638,55 +655,80 @@ export default function VolunteerQuestionnaireModal({ open, onClose, eventType, 
         <Typography variant="body2" color="text.secondary" gutterBottom>
           Help us improve future events by sharing your experience!
         </Typography>
+        
         {allQuestions.length === 0 ? (
           <Typography>No questionnaire available for this event type.</Typography>
         ) : (
           allQuestions.map(q => renderQuestion(q, answers, setAnswers))
         )}
-                 <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
-           <Button 
-             onClick={onClose} 
-             variant="outlined"
-             sx={{
-               fontSize: '14px',
-               fontWeight: 500,
-               padding: '10px 20px',
-               borderRadius: '8px',
-               textTransform: 'none',
-               minHeight: '44px',
-               borderColor: '#6b7280',
-               color: '#6b7280',
-               '&:hover': {
-                 borderColor: '#374151',
-                 backgroundColor: '#f9fafb',
-               },
-             }}
-           >
-             Cancel
-           </Button>
-           <Button 
-             onClick={handleSubmit} 
-             variant="contained" 
-             disabled={allQuestions.length === 0}
-             sx={{
-               fontSize: '14px',
-               fontWeight: 500,
-               padding: '10px 20px',
-               borderRadius: '8px',
-               textTransform: 'none',
-               minHeight: '44px',
-               backgroundColor: '#3b82f6',
-               '&:hover': {
-                 backgroundColor: '#2563eb',
-               },
-               '&:disabled': {
-                 backgroundColor: '#9ca3af',
-               },
-             }}
-           >
-             Submit
-           </Button>
-         </Box>
+
+        {/* Media Upload Section */}
+        <Box mt={3} mb={3}>
+          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: '#374151' }}>
+            📸 Upload Images (Optional)
+          </Typography>
+          
+          <MediaUploadComponent
+            onMediaChange={handleMediaChange}
+            maxFiles={5}
+            acceptedTypes="image/*"
+            maxFileSize={10 * 1024 * 1024} // 10MB
+            folder="events/questionnaire-media"
+            disabled={isSubmitting}
+            existingMedia={mediaFiles}
+          />
+        </Box>
+
+        <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
+          <Button 
+            onClick={onClose} 
+            variant="outlined"
+            disabled={isSubmitting}
+            sx={{
+              fontSize: '14px',
+              fontWeight: 500,
+              padding: '10px 20px',
+              borderRadius: '8px',
+              textTransform: 'none',
+              minHeight: '44px',
+              borderColor: '#6b7280',
+              color: '#6b7280',
+              '&:hover': {
+                borderColor: '#374151',
+                backgroundColor: '#f9fafb',
+              },
+              '&:disabled': {
+                borderColor: '#9ca3af',
+                color: '#9ca3af',
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            disabled={allQuestions.length === 0 || isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : null}
+            sx={{
+              fontSize: '14px',
+              fontWeight: 500,
+              padding: '10px 20px',
+              borderRadius: '8px',
+              textTransform: 'none',
+              minHeight: '44px',
+              backgroundColor: '#3b82f6',
+              '&:hover': {
+                backgroundColor: '#2563eb',
+              },
+              '&:disabled': {
+                backgroundColor: '#9ca3af',
+              },
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit'}
+          </Button>
+        </Box>
       </Box>
     </Modal>
   );

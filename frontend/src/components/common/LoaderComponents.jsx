@@ -22,7 +22,8 @@ export const FullScreenLoader = ({
   message = 'Processing...', 
   showProgress = false, 
   progress = 0,
-  onCancel = null 
+  onCancel = null,
+  subMessage = null
 }) => {
   if (!isVisible) return null;
 
@@ -36,6 +37,11 @@ export const FullScreenLoader = ({
         
         {/* Message */}
         <h3 className="text-lg font-semibold text-gray-900 mb-2">{message}</h3>
+        
+        {/* Sub Message */}
+        {subMessage && (
+          <p className="text-sm text-gray-600 mb-4">{subMessage}</p>
+        )}
         
         {/* Progress Bar (if enabled) */}
         {showProgress && (

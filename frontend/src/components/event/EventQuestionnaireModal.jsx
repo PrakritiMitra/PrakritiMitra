@@ -4,6 +4,7 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import CircularProgress from '@mui/material/CircularProgress';
 import { getProfileImageUrl, getAvatarInitial, getRoleColors } from '../../utils/avatarUtils';
+import MediaUploadComponent from '../common/MediaUploadComponent';
 
 // Enhanced styling constants
 const QUESTIONNAIRE_STYLES = {
@@ -558,6 +559,7 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
     : FEEDBACK_QUESTIONS;
   const [answers, setAnswers] = useState({});
   const [mediaFiles, setMediaFiles] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Volunteer awards state
   const [bestVolunteers, setBestVolunteers] = useState([]);
@@ -575,8 +577,8 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
   const [newOrganizerAwardTitle, setNewOrganizerAwardTitle] = useState("");
   const [newOrganizerAwardUsers, setNewOrganizerAwardUsers] = useState([]);
 
-  const handleMediaChange = (e) => {
-    setMediaFiles(Array.from(e.target.files));
+  const handleMediaChange = (media) => {
+    setMediaFiles(media);
   };
 
   const handleAddCustomVolunteerAward = () => {
@@ -598,21 +600,30 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
     setCustomOrganizerAwards(customOrganizerAwards.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = () => {
-    // Pass answers, mediaFiles, and awards
-    const awards = isCreator ? {
-      volunteers: {
-        bestVolunteers,
-        mostPunctual,
-        customAwards: customVolunteerAwards
-      },
-      organizers: {
-        bestOrganizers,
-        mostDedicated,
-        customAwards: customOrganizerAwards
-      }
-    } : undefined;
-    onSubmit(answers, mediaFiles, awards);
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Pass answers, mediaFiles, and awards
+      const awards = isCreator ? {
+        volunteers: {
+          bestVolunteers,
+          mostPunctual,
+          customAwards: customVolunteerAwards
+        },
+        organizers: {
+          bestOrganizers,
+          mostDedicated,
+          customAwards: customOrganizerAwards
+        }
+      } : undefined;
+      await onSubmit(answers, mediaFiles, awards);
+    } catch (error) {
+      console.error('Questionnaire submission error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -679,6 +690,7 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
             {questions.map(q => renderQuestion(q, answers, setAnswers))}
           </Box>
         )}
+        
         {/* Award selection for creator only */}
         {isCreator && (
           <>
@@ -995,6 +1007,7 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
             </Box>
           </>
         )}
+        
         {/* Media upload section */}
         <Box sx={QUESTIONNAIRE_STYLES.section}>
           <Box sx={QUESTIONNAIRE_STYLES.sectionHeader}>
@@ -1003,60 +1016,15 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
               Upload Images & Videos
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            component="label"
-            sx={{ 
-              mb: 2,
-              borderColor: '#3b82f6',
-              color: '#3b82f6',
-              '&:hover': {
-                borderColor: '#2563eb',
-                backgroundColor: '#eff6ff',
-              },
-            }}
-          >
-            📁 Select Files
-            <input
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              hidden
-              onChange={handleMediaChange}
-            />
-          </Button>
-          <Box display="flex" flexWrap="wrap" gap={2}>
-            {mediaFiles.map((file, idx) => (
-              file.type.startsWith('image/') ? (
-                <img
-                  key={idx}
-                  src={URL.createObjectURL(file)}
-                  alt={file.name}
-                  style={{ 
-                    width: 80, 
-                    height: 80, 
-                    objectFit: 'cover', 
-                    borderRadius: '12px', 
-                    border: '2px solid #e2e8f0',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                />
-              ) : file.type.startsWith('video/') ? (
-                <video
-                  key={idx}
-                  src={URL.createObjectURL(file)}
-                  style={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '12px', 
-                    border: '2px solid #e2e8f0',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                  controls
-                />
-              ) : null
-            ))}
-          </Box>
+          <MediaUploadComponent
+            onMediaChange={handleMediaChange}
+            maxFiles={10}
+            acceptedTypes="image/*,video/*"
+            maxFileSize={10 * 1024 * 1024} // 10MB
+            folder="events/questionnaire-media"
+            disabled={isSubmitting}
+            existingMedia={mediaFiles}
+          />
         </Box>
 
         {/* Submit Buttons */}
@@ -1068,38 +1036,44 @@ export default function EventQuestionnaireModal({ open, onClose, eventType, onSu
           paddingTop: '20px',
           borderTop: '2px solid #e2e8f0',
         }}>
-                     <Button 
-             onClick={onClose} 
-             variant="outlined"
-             sx={{
-               ...QUESTIONNAIRE_STYLES.button,
-               borderColor: '#6b7280',
-               color: '#6b7280',
-               '&:hover': {
-                 borderColor: '#374151',
-                 backgroundColor: '#f9fafb',
-               },
-             }}
-           >
-             Cancel
-           </Button>
-           <Button 
-             onClick={handleSubmit} 
-             variant="contained" 
-             disabled={questions.length === 0}
-             sx={{
-               ...QUESTIONNAIRE_STYLES.button,
-               backgroundColor: '#3b82f6',
-               '&:hover': {
-                 backgroundColor: '#2563eb',
-               },
-               '&:disabled': {
-                 backgroundColor: '#9ca3af',
-               },
-             }}
-           >
-             Submit Questionnaire
-           </Button>
+          <Button 
+            onClick={onClose} 
+            variant="outlined"
+            disabled={isSubmitting}
+            sx={{
+              ...QUESTIONNAIRE_STYLES.button,
+              borderColor: '#6b7280',
+              color: '#6b7280',
+              '&:hover': {
+                borderColor: '#374151',
+                backgroundColor: '#f9fafb',
+              },
+              '&:disabled': {
+                borderColor: '#9ca3af',
+                color: '#9ca3af',
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            disabled={questions.length === 0 || isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : null}
+            sx={{
+              ...QUESTIONNAIRE_STYLES.button,
+              backgroundColor: '#3b82f6',
+              '&:hover': {
+                backgroundColor: '#2563eb',
+              },
+              '&:disabled': {
+                backgroundColor: '#9ca3af',
+              },
+            }}
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Questionnaire'}
+          </Button>
         </Box>
       </Box>
     </Modal>

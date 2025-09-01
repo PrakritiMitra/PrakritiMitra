@@ -1,11 +1,12 @@
 // src/pages/OrganizerDashboard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/layout/Navbar";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
 import SimpleEventCalendar from "../components/calendar/SimpleEventCalendar";
+import OrganizationSelectionModal from "../components/event/OrganizationSelectionModal";
 import Footer from "../components/layout/Footer";
 import { 
   PlusIcon, 
@@ -32,6 +33,9 @@ export default function OrganizerDashboard() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
+  const [showOrgSelectionModal, setShowOrgSelectionModal] = useState(false);
+  const [selectedOrgForEvent, setSelectedOrgForEvent] = useState(null);
+  const calendarRef = useRef(null);
 
   useEffect(() => {
     // Animation on mount
@@ -107,6 +111,29 @@ export default function OrganizerDashboard() {
     
     // If we have more than 1 complete row, show 1 complete row
     return oneRow;
+  };
+
+  // Handle organization selection for event creation
+  const handleOrganizationSelected = (orgId) => {
+    setSelectedOrgForEvent(orgId);
+    setShowEventModal(true);
+  };
+
+  // Handle event creation success
+  const handleEventCreated = (eventData) => {
+    // Add the new event to the events list
+    setEvents(prevEvents => {
+      // Add the new event at the beginning of the list
+      return [eventData, ...prevEvents];
+    });
+    
+    // Refresh the calendar to show the new event
+    if (calendarRef.current && calendarRef.current.fetchEvents) {
+      calendarRef.current.fetchEvents(true);
+    }
+    
+    // Show success message
+    showAlert.success("🎉 Event created successfully and added to your dashboard!");
   };
 
   // Smart show more/less functions
@@ -315,7 +342,7 @@ export default function OrganizerDashboard() {
                           showAlert.warning('You need to be a member of an organization to create events. Please join an organization first.');
                           return;
                         }
-                        setShowEventModal(true);
+                        setShowOrgSelectionModal(true);
                       }}
                       className={`px-6 py-2 rounded-xl transition-all duration-300 font-medium ${
                         organizations.length === 0 
@@ -492,6 +519,7 @@ export default function OrganizerDashboard() {
                       </h3>
                     </div>
                     <SimpleEventCalendar 
+                      ref={calendarRef}
                       role="organizer" 
                       userId={user._id}
                       organizations={organizations}
@@ -500,7 +528,7 @@ export default function OrganizerDashboard() {
                           showAlert.warning('You need to be a member of an organization to create events. Please join an organization first.');
                           return;
                         }
-                        setShowEventModal(true);
+                        setShowOrgSelectionModal(true);
                       }}
                       onExpand={setIsCalendarExpanded}
                       isExpanded={isCalendarExpanded}
@@ -528,6 +556,7 @@ export default function OrganizerDashboard() {
                   </button>
                 </div>
                 <SimpleEventCalendar 
+                  ref={calendarRef}
                   role="organizer" 
                   userId={user._id}
                   organizations={organizations}
@@ -536,7 +565,7 @@ export default function OrganizerDashboard() {
                       showAlert.warning('You need to be a member of an organization first.');
                       return;
                     }
-                    setShowEventModal(true);
+                    setShowOrgSelectionModal(true);
                   }}
                   onExpand={setIsCalendarExpanded}
                   isExpanded={isCalendarExpanded}
@@ -550,8 +579,8 @@ export default function OrganizerDashboard() {
       {/* Event Form Modal */}
       {showEventModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
-            <div className="sticky top-0 bg-white rounded-t-2xl px-6 py-4 border-b border-slate-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden relative flex flex-col">
+            <div className="sticky top-0 bg-white rounded-t-2xl px-6 py-4 border-b border-slate-200 z-[100] shadow-sm">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900">Create New Event</h2>
                 <button
@@ -564,16 +593,27 @@ export default function OrganizerDashboard() {
                 </button>
               </div>
             </div>
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               <EventCreationWrapper
-                selectedOrgId={organizations.length > 0 ? organizations[0]._id : null}
+                selectedOrgId={selectedOrgForEvent}
                 organizationOptions={organizations}
-                onClose={() => setShowEventModal(false)}
+                onClose={() => {
+                  setShowEventModal(false);
+                  setSelectedOrgForEvent(null);
+                }}
+                onEventCreated={handleEventCreated}
               />
             </div>
           </div>
         </div>
       )}
+
+      {/* Organization Selection Modal */}
+      <OrganizationSelectionModal
+        isOpen={showOrgSelectionModal}
+        onClose={() => setShowOrgSelectionModal(false)}
+        onOrganizationSelected={handleOrganizationSelected}
+      />
       
       <Footer />
     </div>
