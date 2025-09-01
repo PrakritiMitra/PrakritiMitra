@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import RecentlyDeletedAccountModal from './RecentlyDeletedAccountModal';
@@ -24,6 +24,8 @@ import {
   Alert
 } from '@mui/material';
 import { showAlert } from '../../utils/notifications';
+import ProfileImageUpload from '../common/ProfileImageUpload';
+import { FullScreenLoader } from '../common/LoaderComponents';
 
 export default function VolunteerForm() {
   const initialFormState = {
@@ -80,6 +82,7 @@ export default function VolunteerForm() {
   const [usernameError, setUsernameError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
@@ -520,8 +523,26 @@ export default function VolunteerForm() {
     }
   };
 
+  // Handle profile image change from ProfileImageUpload component
+  const handleProfileImageChange = useCallback((imageData) => {
+    setFormData((prev) => ({ ...prev, profileImage: imageData }));
+  }, []);
+
+  // Check if any upload is in progress
+  const isUploading = formData.profileImage && formData.profileImage.uploading;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🎯 Form submitted!');
+    console.log('Form data:', formData);
+    console.log('Validation states:', {
+      passwordErrors: passwordErrors.length,
+      confirmPasswordError: !!confirmPasswordError,
+      passwordStrength,
+      usernameStatus,
+      usernameError: !!usernameError,
+      isUploading
+    });
     setError(null);
 
     // Validate date of birth
@@ -599,7 +620,11 @@ export default function VolunteerForm() {
     }
 
     setLoading(true);
+    setIsSigningUp(true);
+    setError(null);
+    
     try {
+      console.log('🚀 Starting volunteer signup process...');
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
         if (key === 'interests') {
@@ -607,20 +632,29 @@ export default function VolunteerForm() {
             formDataToSend.append('interests', interest);
           });
         } else if (key === 'profileImage' && formData[key]) {
-          formDataToSend.append('profileImage', formData[key]);
+          // Handle both file objects and Cloudinary image data
+          if (formData[key] instanceof File) {
+            formDataToSend.append('profileImage', formData[key]);
+          } else if (formData[key] && formData[key].url) {
+            // If it's Cloudinary data, we need to send the URL
+            formDataToSend.append('profileImageUrl', formData[key].url);
+          }
         } else if (key !== 'profileImage') {
           formDataToSend.append(key, formData[key]);
         }
       });
 
+      console.log('📡 Sending signup request to server...');
       const response = await axios.post('http://localhost:5000/api/auth/signup-volunteer', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
+      console.log('✅ Signup successful:', response.data);
+      
       // Show success message
-              showAlert.success('🎉 Volunteer account created successfully! Please login to continue.');
+      showAlert.success('🎉 Volunteer account created successfully! Please login to continue.');
       
       // Redirect to login page instead of auto-login
       setTimeout(() => {
@@ -628,7 +662,12 @@ export default function VolunteerForm() {
       }, 1500);
 
     } catch (err) {
-      console.error('Volunteer signup error:', err);
+      console.error('❌ Volunteer signup error:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
       
       // Check if it's a recently deleted account error
       if (err.response?.data?.errorType === 'RECENTLY_DELETED_ACCOUNT') {
@@ -674,9 +713,10 @@ export default function VolunteerForm() {
       }
       
               showAlert.error('❌ Signup failed. Please check the errors below.');
-    } finally {
-      setLoading(false);
-    }
+          } finally {
+        setLoading(false);
+        setIsSigningUp(false);
+      }
   };
 
   return (
@@ -1021,27 +1061,56 @@ export default function VolunteerForm() {
       </Box>
 
       <Box mt={2}>
-        <Typography variant="subtitle1">Upload Profile Image</Typography>
-        <input
-          type="file"
-          accept="image/*"
-          name="profileImage"
-          onChange={handleChange}
+        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: '#374151' }}>
+          📸 Profile Image
+        </Typography>
+        <ProfileImageUpload
+          onImageChange={handleProfileImageChange}
+          disabled={loading}
+          folder="profiles"
         />
       </Box>
 
 
 
-      <Button 
-        variant="contained" 
-        color="success" 
-        type="submit" 
-        fullWidth 
-        sx={{ mt: 2 }}
-        disabled={loading || passwordErrors.length > 0 || confirmPasswordError || passwordStrength < 4}
-      >
-        {loading ? 'Signing up...' : 'Sign Up'}
-      </Button>
+                    <Button 
+          variant="contained" 
+          color="success" 
+          type="submit" 
+          fullWidth 
+          sx={{ 
+            mt: 2,
+            py: 1.5,
+            fontSize: '1.1rem',
+            fontWeight: 600,
+            textTransform: 'none',
+            position: 'relative',
+            '&:disabled': {
+              opacity: 0.7,
+              cursor: 'not-allowed'
+            }
+          }}
+          disabled={loading || isSigningUp || passwordErrors.length > 0 || confirmPasswordError || passwordStrength < 4 || isUploading}
+        >
+          {isSigningUp ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              Creating Account...
+            </>
+          ) : loading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              Processing...
+            </>
+          ) : isUploading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+              Uploading Files...
+            </>
+          ) : (
+            '🚀 Sign Up as Volunteer'
+          )}
+        </Button>
 
       <Box sx={{ textAlign: 'center', mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
@@ -1113,8 +1182,16 @@ export default function VolunteerForm() {
           oauthData={oauthData}
           onLink={handleLinkAccount}
           onClose={() => setShowLinkingModal(false)}
-        />
-      )}
-    </Box>
-  );
-};
+                 />
+       )}
+
+       {/* Full Screen Loader for Signup Process */}
+       <FullScreenLoader
+         isVisible={isSigningUp}
+         message="Creating Your Account..."
+         subMessage="Setting up your volunteer profile and uploading files..."
+         showProgress={false}
+       />
+     </Box>
+   );
+ };
