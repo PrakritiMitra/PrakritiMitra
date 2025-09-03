@@ -343,10 +343,28 @@ router.put('/profile', protect, profileUpdateUpload, async (req, res) => {
       updateData.username = updateData.username.toLowerCase();
     }
 
+    // Handle email change
+    if (updateData.email && updateData.email !== currentUser.email) {
+      // Check if new email is available
+      const existingUser = await User.findOne({ 
+        email: updateData.email.toLowerCase(),
+        _id: { $ne: userId } // Exclude current user
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+      
+      // Convert email to lowercase
+      updateData.email = updateData.email.toLowerCase();
+    }
+
     // Remove uneditable fields
     delete updateData.organization; // Don't allow changing organization here
     delete updateData.role; // Don't allow changing role
-    delete updateData.email; // (optional) if you don't want email to be changed
 
     // Handle profile image upload
     if (req.files?.profileImage?.[0]) {
