@@ -159,20 +159,63 @@ export default function ProfilePage() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        showAlert.error(`Profile image is too large! File size: ${fileSizeMB}MB. Maximum allowed size is 5MB. Please choose a smaller image.`);
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        showAlert.error('Please select a valid image file (JPG, PNG, GIF, etc.) for your profile picture.');
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
       setFormData(prev => ({ ...prev, profileImage: file }));
       // Store the file object with type information for proper preview
       setProfileImagePreview(file);
       setRemoveProfileImage(false); // Reset remove flag when new file is selected
+      
+      // Show success message with file info
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      showAlert.success(`Profile image selected successfully! File size: ${fileSizeMB}MB`);
     }
   };
 
   const handleGovtIdChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        showAlert.error(`Government ID document is too large! File size: ${fileSizeMB}MB. Maximum allowed size is 5MB. Please choose a smaller file.`);
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
+      // Validate file type (images and PDFs allowed)
+      const allowedTypes = ['image/', 'application/pdf'];
+      const isValidType = allowedTypes.some(type => file.type.startsWith(type));
+      
+      if (!isValidType) {
+        showAlert.error('Please select a valid document file (JPG, PNG, PDF, etc.) for your government ID proof.');
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
       setFormData(prev => ({ ...prev, govtIdProof: file }));
       // Store the file object with type information for proper preview
       setGovtIdPreview(file);
       setRemoveGovtIdProof(false); // Reset remove flag when new file is selected
+      
+      // Show success message with file info
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      showAlert.success(`Government ID document selected successfully! File size: ${fileSizeMB}MB`);
     }
   };
 
@@ -345,7 +388,30 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Profile update error:', error);
-      showAlert.error('Failed to update profile. Please try again.');
+      
+      // Provide specific error messages based on error type
+      if (error.response?.data?.message) {
+        const errorMessage = error.response.data.message;
+        
+        // Handle file size errors
+        if (errorMessage.includes('File too large') || errorMessage.includes('fileSize')) {
+          showAlert.error('File is too large! Please ensure your files are under 5MB and try again.');
+        }
+        // Handle file type errors
+        else if (errorMessage.includes('Only image files') || errorMessage.includes('Only image files and PDFs')) {
+          showAlert.error('Invalid file type! Please select a valid image or PDF file.');
+        }
+        // Handle username/email conflicts
+        else if (errorMessage.includes('already exists')) {
+          showAlert.error(errorMessage);
+        }
+        // Handle other specific errors
+        else {
+          showAlert.error(errorMessage);
+        }
+      } else {
+        showAlert.error('Failed to update profile. Please try again.');
+      }
     } finally {
       setSaving(false);
       // Reset all loading states
@@ -523,7 +589,9 @@ export default function ProfilePage() {
                     disabled={isProfileImageUploading || isProfileImageDeleting}
                     className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Recommended: Square image, max 2MB</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Recommended: Square image, max 5MB. Supported formats: JPG, PNG, GIF, WebP
+                  </p>
                   
                   {/* Loading indicator for profile image operations */}
                   {(isProfileImageUploading || isProfileImageDeleting) && (
