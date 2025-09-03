@@ -78,7 +78,14 @@ export default function UserProfilePage() {
       .then((res) => {
         // Handle the response format - it might be wrapped in a data property
         const orgs = res.data.data || res.data;
-        setOrganizations(Array.isArray(orgs) ? orgs : []);
+        
+        // Add membership status to each organization
+        const orgsWithStatus = (Array.isArray(orgs) ? orgs : []).map(org => ({
+          ...org,
+          status: org.createdBy === id ? "creator" : "member"
+        }));
+        
+        setOrganizations(orgsWithStatus);
       })
       .catch((err) => {
         console.error('Error fetching organizations:', err);
@@ -597,6 +604,7 @@ export default function UserProfilePage() {
                             variant="default"
                             showStats={true}
                             autoSize={true}
+                            membershipStatus={org.status}
                           />
                         </div>
                       ))}

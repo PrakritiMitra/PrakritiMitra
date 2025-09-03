@@ -283,8 +283,6 @@ export default function SponsorshipApplicationsReviewPage() {
     <div className="min-h-screen mt-10 bg-gray-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Sponsorship Applications Review</h1>
-        
         {/* Success Message */}
         {showSuccessMessage && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">

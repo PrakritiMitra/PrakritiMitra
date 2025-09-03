@@ -76,7 +76,7 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
   // This allows organizations to start receiving sponsorships
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-5 mb-6">
+    <div className="bg-white/60 backdrop-blur-sm rounded-xl p-5 mb-6">
       <div className="mb-4">
         <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
           <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
@@ -128,47 +128,99 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
       ) : (sponsorships && Array.isArray(sponsorships) && sponsorships.length > 0 || stats.totalSponsors > 0) ? (
         <div>
           {sponsorships && Array.isArray(sponsorships) && sponsorships.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sponsorships.slice(0, 3).map((sponsorship) => (
-                <div key={sponsorship._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-center mb-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                      {sponsorship.sponsor?.business?.logo?.url ? (
-                        <img
-                          src={sponsorship.sponsor.business.logo.url}
-                          alt={sponsorship.sponsor.business.name}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
-                      ) : (
-                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">
-                        {sponsorship.sponsor?.sponsorType === 'business' 
-                          ? sponsorship.sponsor.business?.name 
-                          : sponsorship.sponsor?.contactPerson || 'Sponsor'}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {sponsorship.sponsor?.sponsorType === 'business' 
-                          ? sponsorship.sponsor.business?.industry 
-                          : sponsorship.sponsor.individual?.profession || 'Individual Sponsor'}
-                      </p>
+            <div>
+              {/* Top 3 Sponsors */}
+              <div className="space-y-3 mb-6">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">🏆 Top Contributors</h4>
+                {sponsorships
+                  .sort((a, b) => (b.contribution?.value || 0) - (a.contribution?.value || 0)) // Sort by donation value (highest first)
+                  .slice(0, 3) // Show only top 3 sponsors
+                  .map((sponsorship, index) => (
+                  <div key={sponsorship._id} className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div className="flex items-center gap-4">
+                      {/* Rank indicator */}
+                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-bold">#{index + 1}</span>
+                      </div>
+                      
+                      {/* Sponsor info - More space allocated */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-gray-900 text-base mb-1">
+                          {sponsorship.sponsor?.sponsorType === 'business' 
+                            ? sponsorship.sponsor.business?.name 
+                            : sponsorship.sponsor?.contactPerson || 'Sponsor'}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {sponsorship.sponsor?.sponsorType === 'business' 
+                            ? sponsorship.sponsor.business?.industry 
+                            : sponsorship.sponsor.individual?.profession || 'Individual Sponsor'}
+                        </p>
+                      </div>
+                      
+                      {/* Tier and amount - Right aligned */}
+                      <div className="flex-shrink-0 flex flex-col items-end gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTierColor(sponsorship.tier?.name)}`}>
+                          {getTierLabel(sponsorship.tier?.name)}
+                        </span>
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-gray-900">
+                            ₹{sponsorship.contribution?.value?.toLocaleString() || 0}
+                          </div>
+                          <div className="text-xs text-gray-500">contribution</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(sponsorship.tier?.name)}`}>
-                      {getTierLabel(sponsorship.tier?.name)}
-                    </span>
-                    <span className="text-sm text-gray-600">
-                      ₹{sponsorship.contribution?.value?.toLocaleString() || 0}
-                    </span>
+                ))}
+              </div>
+
+              {/* All Other Sponsors - Scrollable */}
+              {sponsorships.length > 3 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">📋 All Sponsors</h4>
+                  <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {sponsorships
+                      .sort((a, b) => (b.contribution?.value || 0) - (a.contribution?.value || 0)) // Sort by donation value (highest first)
+                      .slice(3) // Show remaining sponsors (skip top 3)
+                      .map((sponsorship, index) => (
+                      <div key={sponsorship._id} className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors duration-200">
+                        <div className="flex items-center gap-3">
+                          {/* Rank indicator */}
+                          <div className="flex-shrink-0 w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">#{index + 4}</span>
+                          </div>
+                          
+                          {/* Sponsor info */}
+                          <div className="flex-1 min-w-0">
+                            <h5 className="font-medium text-gray-900 text-sm">
+                              {sponsorship.sponsor?.sponsorType === 'business' 
+                                ? sponsorship.sponsor.business?.name 
+                                : sponsorship.sponsor?.contactPerson || 'Sponsor'}
+                            </h5>
+                            <p className="text-xs text-gray-600">
+                              {sponsorship.sponsor?.sponsorType === 'business' 
+                                ? sponsorship.sponsor.business?.industry 
+                                : sponsorship.sponsor.individual?.profession || 'Individual Sponsor'}
+                            </p>
+                          </div>
+                          
+                          {/* Tier and amount */}
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(sponsorship.tier?.name)}`}>
+                              {getTierLabel(sponsorship.tier?.name)}
+                            </span>
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-gray-900">
+                                ₹{sponsorship.contribution?.value?.toLocaleString() || 0}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           ) : (
             <div className="text-center py-4">
@@ -178,11 +230,11 @@ export default function OrganizationSponsorshipSection({ organizationId, organiz
             </div>
           )}
           
-          {sponsorships && Array.isArray(sponsorships) && sponsorships.length > 3 && (
-            <div className="text-center mt-2">
+          {sponsorships && Array.isArray(sponsorships) && sponsorships.length > 10 && (
+            <div className="text-center mt-4">
               <button
                 onClick={() => navigate(`/organization/${organizationId}/sponsors`)}
-                className="text-blue-600 hover:text-blue-700 font-medium text-xs"
+                className="text-blue-600 hover:text-blue-700 font-medium text-sm bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors duration-200"
               >
                 View all {sponsorships.length} sponsors →
               </button>

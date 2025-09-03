@@ -311,6 +311,7 @@ exports.getAllOrganizations = async (req, res) => {
           pastEvents: 1,
           volunteerImpact: 1,
           sponsorshipImpact: 1,
+          createdBy: 1,
           createdAt: 1
         }
       }
@@ -443,6 +444,7 @@ exports.getApprovedOrganizations = async (req, res) => {
           pastEvents: 1,
           volunteerImpact: 1,
           sponsorshipImpact: 1,
+          createdBy: 1,
           createdAt: 1
         }
       }
@@ -577,14 +579,19 @@ exports.getOrganizationsByUserId = async (req, res) => {
       });
     }
     
-    // Find orgs where user is an approved team member (exclude pending applications)
+    // Find orgs where user is either the creator OR an approved team member
     const orgs = await Organization.find({
-      'team': {
-        $elemMatch: {
-          'userId': userId,
-          'status': 'approved'
+      $or: [
+        { createdBy: userId }, // Organizations created by the user
+        {
+          'team': {
+            $elemMatch: {
+              'userId': userId,
+              'status': 'approved'
+            }
+          }
         }
-      }
+      ]
     }).select('name _id description logo logoUrl website city state headOfficeLocation yearOfEstablishment focusArea focusAreaOther verifiedStatus team events memberCount totalEvents upcomingEvents pastEvents volunteerImpact sponsorshipImpact createdBy createdAt');
     
     if (!orgs || orgs.length === 0) {

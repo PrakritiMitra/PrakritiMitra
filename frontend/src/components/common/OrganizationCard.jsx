@@ -22,6 +22,7 @@ const OrganizationCard = ({
   showActions = false,
   actionButtons = null, // New prop for action buttons
   autoSize = false, // New prop to automatically determine size
+  membershipStatus = null, // New prop for membership status: 'creator', 'approved', 'pending', 'rejected', 'none'
   className = ''
 }) => {
   // Variant Guide:
@@ -313,6 +314,36 @@ const OrganizationCard = ({
                   <span className={`text-xs font-medium ${verificationInfo.color}`}>
                     {verificationInfo.text}
                   </span>
+                </div>
+              )}
+              
+              {/* Membership Status */}
+              {membershipStatus && membershipStatus !== 'none' && (
+                <div className="flex items-center gap-1 mt-1">
+                  {membershipStatus === 'creator' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-300">
+                      <TrophyIcon className="w-3 h-3 mr-1" />
+                      Creator
+                    </span>
+                  )}
+                  {membershipStatus === 'member' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-300">
+                      <ShieldCheckIcon className="w-3 h-3 mr-1" />
+                      Member
+                    </span>
+                  )}
+                  {membershipStatus === 'requested' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-300">
+                      <ClockIcon className="w-3 h-3 mr-1" />
+                      Requested to Join
+                    </span>
+                  )}
+                  {membershipStatus === 'not_member' && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300">
+                      <UsersIcon className="w-3 h-3 mr-1" />
+                      Not a Member
+                    </span>
+                  )}
                 </div>
               )}
             </div>

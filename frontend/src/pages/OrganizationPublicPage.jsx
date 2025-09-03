@@ -330,7 +330,17 @@ export default function OrganizationPublicPage() {
                     Join Organization
                   </h3>
                   
-                  {isAdmin ? (
+                  {isCreator ? (
+                    <div className="flex items-center gap-2 text-purple-700">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      <div>
+                        <p className="font-semibold text-sm">Creator</p>
+                        {org?.createdAt && (
+                          <p className="text-xs text-slate-500">Created {formatDate(org.createdAt)}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : isAdmin ? (
                     <div className="flex items-center gap-2 text-emerald-700">
                       <CheckCircleIcon className="w-4 h-4" />
                       <div>
