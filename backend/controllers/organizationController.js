@@ -577,10 +577,15 @@ exports.getOrganizationsByUserId = async (req, res) => {
       });
     }
     
-    // Find orgs where user is in team (approved or pending)
+    // Find orgs where user is an approved team member (exclude pending applications)
     const orgs = await Organization.find({
-      'team.userId': userId
-    }).select('name _id description');
+      'team': {
+        $elemMatch: {
+          'userId': userId,
+          'status': 'approved'
+        }
+      }
+    }).select('name _id description logo logoUrl website city state headOfficeLocation yearOfEstablishment focusArea focusAreaOther verifiedStatus team events memberCount totalEvents upcomingEvents pastEvents volunteerImpact sponsorshipImpact createdBy createdAt');
     
     if (!orgs || orgs.length === 0) {
       return res.json({
@@ -620,8 +625,9 @@ exports.updateOrganization = async (req, res) => {
       return res.status(403).json({ message: 'You are not authorized to update this organization' });
     }
 
-    // Handle file uploads if any
+    // Handle logo updates - can come as file upload or URL string
     if (files.logo && files.logo[0]) {
+      // Logo uploaded as file
       try {
         // Delete old logo from Cloudinary if it exists
         if (org.logo && org.logo.startsWith('http')) {
@@ -642,12 +648,27 @@ exports.updateOrganization = async (req, res) => {
         console.error('Logo update error:', error);
         return res.status(500).json({ message: 'Failed to update logo' });
       }
+    } else if (updateData.logo !== undefined) {
+      // Logo provided as URL string (from frontend document upload)
+      // If logo is being removed (null), delete old logo from Cloudinary
+      if (updateData.logo === null && org.logo && org.logo.startsWith('http')) {
+        try {
+          const fileInfo = getFileInfoFromUrl(org.logo);
+          if (fileInfo.publicId) {
+            await deleteFromCloudinary(fileInfo.publicId);
+          }
+        } catch (error) {
+          console.error('Error deleting old logo:', error);
+        }
+      }
+      // updateData.logo already contains the URL, so we can use it directly
     }
 
-    // Handle document updates
+    // Handle document updates - can come as file uploads or URL strings
     const documentFields = ['gstCertificate', 'panCard', 'ngoRegistration', 'letterOfIntent'];
     for (const field of documentFields) {
       if (files[field] && files[field][0]) {
+        // Document uploaded as file
         try {
           // Delete old document from Cloudinary if it exists
           if (org.documents && org.documents[field] && org.documents[field].startsWith('http')) {
@@ -669,6 +690,20 @@ exports.updateOrganization = async (req, res) => {
           console.error(`${field} update error:`, error);
           return res.status(500).json({ message: `Failed to update ${field}` });
         }
+      } else if (updateData.documents && updateData.documents[field] !== undefined) {
+        // Document provided as URL string (from frontend document upload)
+        // If document is being removed (null), delete old document from Cloudinary
+        if (updateData.documents[field] === null && org.documents && org.documents[field] && org.documents[field].startsWith('http')) {
+          try {
+            const fileInfo = getFileInfoFromUrl(org.documents[field]);
+            if (fileInfo.publicId) {
+              await deleteFromCloudinary(fileInfo.publicId);
+            }
+          } catch (error) {
+            console.error(`Error deleting old ${field}:`, error);
+          }
+        }
+        // updateData.documents[field] already contains the URL, so we can use it directly
       }
     }
 
