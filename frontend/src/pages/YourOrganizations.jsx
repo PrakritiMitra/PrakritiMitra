@@ -23,14 +23,24 @@ export default function YourOrganizations() {
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const token = localStorage.getItem("token");
+        
         const res = await axios.get("/api/organizations/approved", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
         // Handle new API response format
         const orgs = res.data.data || res.data;
-        setOrgs(orgs);
+        
+        // Add membership status to each organization
+        const orgsWithStatus = orgs.map(org => ({
+          ...org,
+          status: org.createdBy === user._id ? "creator" : "member"
+        }));
+        
+        setOrgs(orgsWithStatus);
       } catch (err) {
         console.error("Failed to fetch your organizations:", err);
         // Handle 404 or other errors gracefully
@@ -167,6 +177,7 @@ export default function YourOrganizations() {
                     variant="default"
                     showStats={true}
                     autoSize={true}
+                    membershipStatus={org.status}
                   />
                 </div>
               ))}

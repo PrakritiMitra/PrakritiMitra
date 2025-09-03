@@ -41,10 +41,14 @@ export default function JoinOrganizationPage() {
       const rejected = new Set();
       const createdByMe = new Set();
       for (const org of allOrgs) {
+        // Check if user is the creator first
         if (org.createdBy === user._id) {
           createdByMe.add(org._id);
+          // Skip team status check for creators
           continue;
         }
+        
+        // Only check team status for non-creators
         try {
           const teamRes = await axios.get(
             `/api/organizations/${org._id}/team`,
@@ -53,33 +57,40 @@ export default function JoinOrganizationPage() {
             }
           );
           const member = teamRes.data.find((m) => m.userId._id === user._id);
-          if (member?.status === "approved") {
-            approved.add(org._id);
-          } else if (member?.status === "pending") {
-            pending.add(org._id);
-          } else if (member?.status === "rejected") {
-            rejected.add(org._id);
+          if (member) {
+            if (member.status === "approved") {
+              approved.add(org._id);
+            } else if (member.status === "pending") {
+              pending.add(org._id);
+            } else if (member.status === "rejected") {
+              rejected.add(org._id);
+            }
           }
         } catch (err) {
           // ignore
         }
       }
-      const visible = allOrgs.map((org) => ({
-        ...org,
-        status: approved.has(org._id)
-          ? "approved"
-          : pending.has(org._id)
-          ? "pending"
-          : rejected.has(org._id)
-          ? "rejected"
-          : createdByMe.has(org._id)
-          ? "creator"
-          : "none",
-      }));
-      const filtered = visible.filter(
-        (org) => org.status !== "approved" && org.status !== "creator"
-      );
-      setOrganizations(filtered);
+      const visible = allOrgs.map((org) => {
+        let status;
+        if (createdByMe.has(org._id)) {
+          status = "creator";
+        } else if (approved.has(org._id)) {
+          status = "member";
+        } else if (pending.has(org._id)) {
+          status = "requested";
+        } else if (rejected.has(org._id)) {
+          status = "not_member";
+        } else {
+          status = "not_member";
+        }
+        
+        return {
+          ...org,
+          status
+        };
+      });
+      // Show all organizations instead of filtering out user's organizations
+      setOrganizations(visible);
     } catch (err) {
       console.error("❌ Failed to load organizations:", err);
       // Handle 404 or other errors gracefully
@@ -150,21 +161,7 @@ export default function JoinOrganizationPage() {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
-    }
-  };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending': return <ClockIcon className="w-4 h-4" />;
-      case 'rejected': return <XCircleIcon className="w-4 h-4" />;
-      default: return <BuildingOfficeIcon className="w-4 h-4" />;
-    }
-  };
 
   const handleOrganizationClick = (organization) => {
     navigate(`/organizations/${organization._id}`);
@@ -202,19 +199,34 @@ export default function JoinOrganizationPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          {/* Total Organizations - First */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+              <div className="p-3 bg-gradient-to-r from-slate-500 to-slate-600 rounded-xl">
                 <BuildingOfficeIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-600">Available Organizations</p>
+                <p className="text-sm font-medium text-slate-600">Total Organizations</p>
                 <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.length : 0}</p>
               </div>
             </div>
           </div>
 
+          {/* My Organizations */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl">
+                <UsersIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-600">My Organizations</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.status === 'creator' || org.status === 'member').length : 0}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Requests */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl">
@@ -222,19 +234,20 @@ export default function JoinOrganizationPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-600">Pending Requests</p>
-                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.status === 'pending').length : 0}</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.status === 'requested').length : 0}</p>
               </div>
             </div>
           </div>
 
+          {/* Available to Join */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl">
-                <ShieldCheckIcon className="w-6 h-6 text-white" />
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                <BuildingOfficeIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-600">Verified Orgs</p>
-                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.verifiedStatus === 'verified').length : 0}</p>
+                <p className="text-sm font-medium text-slate-600">Available to Join</p>
+                <p className="text-2xl font-bold text-slate-900">{organizations && Array.isArray(organizations) ? organizations.filter(org => org.status === 'not_member').length : 0}</p>
               </div>
             </div>
           </div>
@@ -272,55 +285,42 @@ export default function JoinOrganizationPage() {
                       variant="default"
                       showStats={true}
                       autoSize={false}
+                      membershipStatus={org.status}
                       actionButtons={
-                        <div className="space-y-3">
-                          {org.status === "pending" ? (
-                            <div className="flex items-center justify-between">
-                              <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('pending')}`}>
-                                {getStatusIcon('pending')}
-                                Approval Pending
-                              </span>
+                        // Only show action buttons if user is not already a creator or member
+                        org.status !== "creator" && org.status !== "member" ? (
+                          <div className="space-y-3">
+                            {org.status === "requested" ? (
+                              <div className="flex items-center justify-between">
+                                <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-blue-200 bg-blue-50 text-blue-800">
+                                  <ClockIcon className="w-4 h-4" />
+                                  Requested to Join
+                                </span>
+                                <button
+                                  className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleWithdrawRequest(org._id);
+                                  }}
+                                >
+                                  <XCircleIcon className="w-4 h-4" />
+                                  Withdraw
+                                </button>
+                              </div>
+                            ) : org.status === "not_member" ? (
                               <button
-                                className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleWithdrawRequest(org._id);
-                                }}
-                              >
-                                <XCircleIcon className="w-4 h-4" />
-                                Withdraw
-                              </button>
-                            </div>
-                          ) : org.status === "rejected" ? (
-                            <div className="flex items-center justify-between">
-                              <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${getStatusColor('rejected')}`}>
-                                {getStatusIcon('rejected')}
-                                Request Rejected
-                              </span>
-                              <button
-                                className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-medium"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleJoinRequest(org._id);
                                 }}
                               >
-                                <CheckCircleIcon className="w-4 h-4" />
-                                Reapply
+                                <UsersIcon className="w-4 h-4" />
+                                Request to Join
                               </button>
-                            </div>
-                          ) : (
-                            <button
-                              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg font-medium"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleJoinRequest(org._id);
-                              }}
-                            >
-                              <UsersIcon className="w-4 h-4" />
-                              Request to Join
-                            </button>
-                          )}
-                        </div>
+                            ) : null}
+                          </div>
+                        ) : null
                       }
                     />
                   </div>
