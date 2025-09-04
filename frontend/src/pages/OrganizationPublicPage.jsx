@@ -448,7 +448,7 @@ export default function OrganizationPublicPage() {
                             onClick={() => navigate(`/organization/${id}/settings`)}
                           >
                             <Cog6ToothIcon className="w-4 h-4" />
-                            Settings
+                            Manage Organization
                           </button>
                           <button
                             className="w-full flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 text-sm"
@@ -708,7 +708,7 @@ export default function OrganizationPublicPage() {
                             onClick={() => navigate(`/organization/${id}/settings`)}
                           >
                             <Cog6ToothIcon className="w-4 h-4" />
-                            Settings
+                            Manage Organization
                           </button>
                           <button
                             className="inline-flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-sm"
