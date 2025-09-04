@@ -56,6 +56,9 @@ const io = socketIo(server, {
 // Attach io to app for controller access
 app.set('io', io);
 
+// ✅ Parse incoming JSON requests
+app.use(express.json());
+
 // ✅ Enable CORS for all origins (for dev)
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -70,10 +73,16 @@ app.use(cors({
   exposedHeaders: ['Authorization'],
 }));
 
-app.use('/api/users', require('./routes/userRoutes'));
-
-// ✅ Parse incoming JSON requests
-app.use(express.json());
+// Debug CORS
+app.use((req, res, next) => {
+  console.log('🔍 CORS Debug:', {
+    origin: req.headers.origin,
+    method: req.method,
+    url: req.url,
+    allowedOrigins: allowedOrigins
+  });
+  next();
+});
 
 // Note: All file serving is now handled by Cloudinary
 // The uploads folder is no longer used for static file serving
@@ -82,6 +91,7 @@ app.use(express.json());
 // ✅ Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);

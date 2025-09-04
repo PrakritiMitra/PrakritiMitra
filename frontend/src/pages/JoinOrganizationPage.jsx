@@ -110,7 +110,7 @@ export default function JoinOrganizationPage() {
   const handleJoinRequest = async (orgId) => {
     try {
       await axios.post(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/organizations/${orgId}/join`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/organizations/${orgId}/join`,
         {},
         {
           headers: {
@@ -138,7 +138,7 @@ export default function JoinOrganizationPage() {
 
   const handleWithdrawRequest = async (orgId) => {
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/organizations/${orgId}/withdraw`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/organizations/${orgId}/withdraw`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
