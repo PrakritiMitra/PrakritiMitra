@@ -12,7 +12,7 @@ export default function MyRequests() {
     const fetchRequests = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:5000/api/organizations/my-requests", {
+        const res = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/organizations/my-requests`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

@@ -107,7 +107,7 @@ const ImageCarousel = ({ images, autoPlay = true, interval = 5000 }) => {
     if (!val) return '';
     const raw = String(val).trim().replace(/\\/g, '/');
     if (/^https?:\/\//i.test(raw)) return raw;
-    if (raw.startsWith('/')) return `http://localhost:5000${raw}`;
+    if (raw.startsWith('/')) return `${import.meta.env.VITE_API_URL?.replace('/api', '') || "http://localhost:5000"}${raw}`;
     return `${imageBaseUrl}${raw}`;
   };
   const resolveImageUrl = (img) => encodeURI(toUrl(typeof img === 'string' ? img : pickFromObject(img)));
