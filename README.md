@@ -374,4 +374,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <div align="center">
   <p>Made with ❤️ for social impact</p>
   <p>Join us in empowering NGOs to create positive change across all causes!</p>
-</div>
+</div>#   F o r c e   V e r c e l   r e d e p l o y  
+ 
