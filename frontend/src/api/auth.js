@@ -79,7 +79,7 @@ export const deleteAccount = async () => {
 // Get user counts for statistics
 export const getUserCounts = async () => {
   try {
-    const response = await axiosInstance.get('/api/users/counts');
+    const response = await axiosInstance.get('/users/counts');
     return response.data;
   } catch (error) {
     console.error('❌ Frontend: Error fetching user counts:', error);
