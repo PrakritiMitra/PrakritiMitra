@@ -60,6 +60,7 @@ app.set('io', io);
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'https://prakriti-mitra.vercel.app',
+  /^https:\/\/prakriti-mitra.*\.vercel\.app$/, // Allow all Vercel deployment URLs
   'http://localhost:5173'
 ].filter(Boolean);
 
