@@ -49,7 +49,7 @@ export const updateOrganization = (id, data) => {
 // Get organization count for statistics
 export const getOrganizationCount = async () => {
   try {
-    const response = await axios.get('/api/organizations/count');
+    const response = await axios.get('/organizations/count');
     return response.data;
   } catch (error) {
     console.error('Error fetching organization count:', error);

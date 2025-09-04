@@ -32,7 +32,7 @@ export const getEventsByOrganization = async (orgId) => {
 // Get event count for statistics
 export const getEventCount = async () => {
   try {
-    const response = await axiosInstance.get('/api/events/count');
+    const response = await axiosInstance.get('/events/count');
     return response.data;
   } catch (error) {
     console.error('Error fetching event count:', error);
