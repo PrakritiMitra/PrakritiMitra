@@ -58,7 +58,7 @@ app.set('io', io);
 
 // ✅ Enable CORS for all origins (for dev)
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
   exposedHeaders: ['Authorization'],
 }));

@@ -16,7 +16,7 @@ export default function VolunteerEvents() {
   useEffect(() => {
     // Fetch upcoming events
     axios
-      .get("http://localhost:5000/api/events/upcoming")
+      .get(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/events/upcoming`)
       .then((res) => {
         setEvents(res.data);
         setLoading(false);
@@ -28,7 +28,7 @@ export default function VolunteerEvents() {
 
     // Fetch logged-in user info from profile
     axios
-      .get("http://localhost:5000/api/user/profile", {
+      .get(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/user/profile`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -212,7 +212,7 @@ export default function VolunteerEvents() {
                     onClick={async () => {
                       try {
                         const res = await axios.post(
-                          `http://localhost:5000/api/events/${selectedEvent._id}/register`,
+                          `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/events/${selectedEvent._id}/register`,
                           {},
                           {
                             headers: {

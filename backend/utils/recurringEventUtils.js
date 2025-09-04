@@ -206,7 +206,7 @@ const generateMissingSummaries = async (seriesId) => {
     for (const instance of instances) {
       try {
         const summaryPrompt = `Write a detailed, engaging, 150-word summary for this recurring event instance, including what the event is about, its importance, and interesting facts about the location or event type if possible.\n\nEvent: ${instance.title}\nDescription: ${instance.description}\nType: ${instance.eventType}\nLocation: ${instance.location}\nDate: ${instance.startDateTime}\nOrganizer: ${instance.organization}\nPrecautions: ${instance.precautions}\nInstructions: ${instance.instructions}\nRecurring Instance: #${instance.recurringInstanceNumber}`;
-        const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
+        const res = await axios.post(`${process.env.API_URL || 'http://localhost:5000'}/api/ai-summary`, { prompt: summaryPrompt });
         const summary = res.data.summary;
         await Event.findByIdAndUpdate(instance._id, { summary });
         
