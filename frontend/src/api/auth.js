@@ -2,8 +2,8 @@
 import axios from 'axios';
 import axiosInstance from './axiosInstance';
 
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth`;
-const USER_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/users`;
+const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/auth`;
+const USER_API = `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/users`;
 
 export const signupVolunteer = (data) => axios.post(`${API_BASE}/signup-volunteer`, data);
 export const signupOrganizer = (data) => axios.post(`${API_BASE}/signup-organizer`, data);
@@ -28,7 +28,7 @@ export const updateProfile = (data) => {
  */
 export const requestAccountRecovery = async (data) => {
   try {
-    const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/account/recovery/request`, data);
+    const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/account/recovery/request`, data);
     return response.data;
   } catch (error) {
     console.error('Error requesting account recovery:', error);
@@ -43,7 +43,7 @@ export const requestAccountRecovery = async (data) => {
  */
 export const verifyRecoveryToken = async (data) => {
   try {
-    const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/account/recovery/verify`, data);
+    const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/account/recovery/verify`, data);
     return response.data;
   } catch (error) {
     console.error('Error verifying recovery token:', error);
@@ -63,7 +63,7 @@ export const deleteAccount = async () => {
   }
   
   try {
-    const response = await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/account`, {
+    const response = await axios.delete(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/account`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
