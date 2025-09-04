@@ -508,7 +508,7 @@ export default function VolunteerForm() {
     setUsernameStatus({ checking: true, available: null, message: '' });
     
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/user/check-username/${username}`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/user/check-username/${username}`);
       setUsernameStatus({
         checking: false,
         available: response.data.available,
@@ -645,7 +645,7 @@ export default function VolunteerForm() {
       });
 
       console.log('📡 Sending signup request to server...');
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/signup-volunteer`, formDataToSend, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/auth/signup-volunteer`, formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

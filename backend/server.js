@@ -57,8 +57,14 @@ const io = socketIo(server, {
 app.set('io', io);
 
 // ✅ Enable CORS for all origins (for dev)
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'https://prakriti-mitra.vercel.app',
+  'http://localhost:5173'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: allowedOrigins,
   credentials: true,
   exposedHeaders: ['Authorization'],
 }));
