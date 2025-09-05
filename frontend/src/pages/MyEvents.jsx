@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import EventCard from "../components/event/EventCard";
 import { 
@@ -80,12 +81,8 @@ export default function MyEvents() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    axios
-      .get("/api/events/my-events", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+    axiosInstance
+      .get("/api/events/my-events")
       .then((res) => {
         setEvents(res.data);
         setLoading(false);

@@ -15,8 +15,8 @@ export default function VolunteerEvents() {
 
   useEffect(() => {
     // Fetch upcoming events
-    axios
-      .get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/events/upcoming`)
+    axiosInstance
+      .get("/api/events/upcoming")
       .then((res) => {
         setEvents(res.data);
         setLoading(false);
@@ -27,13 +27,8 @@ export default function VolunteerEvents() {
       });
 
     // Fetch logged-in user info from profile
-    axios
-      .get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/user/profile`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        withCredentials: true,
-      })
+    axiosInstance
+      .get("/api/user/profile")
       .then((res) => setUser(res.data.user))
       .catch((err) => console.error("User fetch failed", err));
   }, []);
