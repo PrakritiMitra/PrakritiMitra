@@ -64,11 +64,47 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'https://prakriti-mitra.vercel.app',
   /^https:\/\/prakriti-mitra.*\.vercel\.app$/, // Allow all Vercel deployment URLs
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'https://prakriti-mitra-git-main-amrut00s-projects.vercel.app', // Vercel preview URLs
+  /^https:\/\/prakriti-mitra.*\.vercel\.app$/ // Catch all Vercel URLs
 ].filter(Boolean);
 
+// Add CORS debugging
+app.use((req, res, next) => {
+  console.log('CORS Debug - Origin:', req.headers.origin);
+  console.log('CORS Debug - Allowed Origins:', allowedOrigins);
+  next();
+});
+
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      console.log('CORS Success - Origin allowed:', origin);
+      callback(null, true);
+    } else {
+      console.log('CORS Error - Origin not allowed:', origin);
+      // For debugging, temporarily allow all origins in production
+      if (process.env.NODE_ENV === 'production') {
+        console.log('CORS Debug - Allowing origin in production mode:', origin);
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
   exposedHeaders: ['Authorization'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -114,10 +150,30 @@ app.use('/api/account', accountRoutes);
 // Initialize Socket.IO
 initializeSocket(io);
 
-// ✅ Sample home route
-app.get("/", (req, res) => {
-  res.send("Home Page!");
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin 
+  });
 });
+
+// Serve static files from the React app build directory
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  });
+} else {
+  // Development mode - just send a simple response
+  app.get("/", (req, res) => {
+    res.send("Home Page!");
+  });
+}
 
 // Error handler middleware (must be after all routes)
 app.use(errorHandler);
