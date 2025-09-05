@@ -11,6 +11,8 @@ A comprehensive NGO management platform that empowers non-governmental organizat
 
 ## 🧪 Test Accounts
 
+You can create a new account or login using any of these dummy accounts. 
+
 | **Role**  | **Email**                                                   | **Password** |
 | --------- | ----------------------------------------------------------- | ------------ |
 | Organizer | [rohansharma@gmail.com](mailto:rohansharma@gmail.com)       | Admin@123    |
@@ -132,7 +134,6 @@ Visit our live application at: [https://prakritimitra.me](https://prakritimitra.
 
 ### 📱 User Experience
 - **Responsive Design** - Mobile-first approach with modern UI/UX
-- **Dark/Light Theme** - Theme switching capability
 - **Toast Notifications** - Beautiful notification system
 - **Confirmation Modals** - Enhanced confirmation dialogs
 - **Loading States** - Smooth loading animations
