@@ -9,6 +9,10 @@ A comprehensive NGO management platform that empowers non-governmental organizat
 - **Sidhik Udaysing Thorat** - Full Stack Developer
 - **Amrut Avinash Pathane** - Full Stack Developer
 
+## 🌐 Live Demo
+
+Visit our live application at: [https://prakritimitra.me](https://prakritimitra.me)
+
 ## 🧪 Test Accounts
 
 You can create a new account or login using any of these dummy accounts. 
@@ -32,9 +36,6 @@ You can create a new account or login using any of these dummy accounts.
 | Volunteer | [yashverma@gmail.com](mailto:yashverma@gmail.com)           | Admin@123    |
 | Volunteer | [ananyadas@gmail.com](mailto:ananyadas@gmail.com)           | Admin@123    |
 
-## 🌐 Live Demo
-
-Visit our live application at: [https://prakritimitra.me](https://prakritimitra.me)
 ## 🛠️ Technology Stack
 
 ### Frontend
