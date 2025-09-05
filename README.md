@@ -7,7 +7,12 @@ A comprehensive NGO management platform that empowers non-governmental organizat
 ## 👥 Creators
 
 - **Amrut Avinash Pathane** - Full Stack Developer
+  - [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/amrut-pathane/)
+  - [![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/Amrut00)
+
 - **Sidhik Udaysing Thorat** - Full Stack Developer
+  - [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sidhik-thorat-546549258/)
+  - [![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/SidhikThorat)
 
 ## 🌐 Live Demo
 
