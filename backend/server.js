@@ -69,12 +69,7 @@ const allowedOrigins = [
   /^https:\/\/prakriti-mitra.*\.vercel\.app$/ // Catch all Vercel URLs
 ].filter(Boolean);
 
-// Add CORS debugging
-app.use((req, res, next) => {
-  console.log('CORS Debug - Origin:', req.headers.origin);
-  console.log('CORS Debug - Allowed Origins:', allowedOrigins);
-  next();
-});
+// CORS debugging removed to clean up logs
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -92,13 +87,10 @@ app.use(cors({
     });
     
     if (isAllowed) {
-      console.log('CORS Success - Origin allowed:', origin);
       callback(null, true);
     } else {
-      console.log('CORS Error - Origin not allowed:', origin);
       // For debugging, temporarily allow all origins in production
       if (process.env.NODE_ENV === 'production') {
-        console.log('CORS Debug - Allowing origin in production mode:', origin);
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
