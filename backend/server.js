@@ -161,13 +161,27 @@ app.get("/health", (req, res) => {
 
 // Serve static files from the React app build directory
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder
-  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  // Check if frontend build exists (for full-stack deployments)
+  const frontendPath = path.join(__dirname, '../frontend/dist');
+  const indexPath = path.join(frontendPath, 'index.html');
   
-  // Handle React routing, return all requests to React app
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
-  });
+  if (require('fs').existsSync(indexPath)) {
+    // Set static folder
+    app.use(express.static(frontendPath));
+    
+    // Handle React routing, return all requests to React app
+    app.get('*', (req, res) => {
+      res.sendFile(indexPath);
+    });
+  } else {
+    // Frontend is deployed separately (Vercel), just serve API
+    app.get('*', (req, res) => {
+      res.status(404).json({ 
+        message: 'API endpoint not found. Frontend is served separately.',
+        availableEndpoints: ['/api/auth', '/api/user', '/api/events', '/api/organizations']
+      });
+    });
+  }
 } else {
   // Development mode - just send a simple response
   app.get("/", (req, res) => {
