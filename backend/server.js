@@ -188,15 +188,35 @@ app.use(errorHandler);
 
 // ✅ Start server
 const PORT = process.env.PORT || 5000;
-const serverInstance = server.listen(PORT, () => {
+
+// Render-specific configuration
+const serverInstance = server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Health check available at: http://0.0.0.0:${PORT}/health`);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
-  console.error(`Error: ${err.message}`);
+  console.error(`Unhandled Rejection at: ${promise}, reason: ${err.message}`);
+  console.error(err.stack);
   // Close server & exit process
   serverInstance.close(() => process.exit(1));
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error(`Uncaught Exception: ${err.message}`);
+  console.error(err.stack);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  serverInstance.close(() => {
+    console.log('Process terminated');
+    process.exit(0);
+  });
 });
 
 // No need to export io anymore from here
