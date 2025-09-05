@@ -324,7 +324,7 @@ exports.createEvent = async (req, res) => {
     setImmediate(async () => {
       try {
         const summaryPrompt = `Write a detailed, engaging, 150-word summary for this event, including what the event is about, its importance, and interesting facts about the location or event type if possible.\n\nEvent: ${event.title}\nDescription: ${event.description}\nType: ${event.eventType}\nLocation: ${event.location}\nDate: ${event.startDateTime}\nOrganizer: ${event.organization}\nPrecautions: ${event.precautions}\nInstructions: ${event.instructions}`;
-        const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
+        const res = await axios.post(`${process.env.API_URL || 'http://localhost:5000'}/api/ai-summary`, { prompt: summaryPrompt });
         const summary = res.data.summary;
         await Event.findByIdAndUpdate(event._id, { summary });
       } catch (err) {
@@ -680,7 +680,7 @@ exports.updateEvent = async (req, res) => {
     setImmediate(async () => {
       try {
         const summaryPrompt = `Write a detailed, engaging, 150-word summary for this event, including what the event is about, its importance, and interesting facts about the location or event type if possible.\n\nEvent: ${event.title}\nDescription: ${event.description}\nType: ${event.eventType}\nLocation: ${event.location}\nDate: ${event.startDateTime}\nOrganizer: ${event.organization}\nPrecautions: ${event.precautions}\nInstructions: ${event.instructions}`;
-        const res = await axios.post('http://localhost:5000/api/ai-summary', { prompt: summaryPrompt });
+        const res = await axios.post(`${process.env.API_URL || 'http://localhost:5000'}/api/ai-summary`, { prompt: summaryPrompt });
         const summary = res.data.summary;
         await Event.findByIdAndUpdate(event._id, { summary });
       } catch (err) {

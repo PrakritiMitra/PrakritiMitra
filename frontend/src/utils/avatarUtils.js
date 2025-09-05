@@ -98,7 +98,7 @@ export const isCloudinaryUrl = (url) => {
 
 // Check if URL is legacy local uploads
 export const isLegacyUrl = (url) => {
-  return url && url.includes('localhost:5000/uploads');
+  return url && (url.includes('localhost:5000/uploads') || url.includes('/uploads/'));
 };
 
 // Get organization logo URL

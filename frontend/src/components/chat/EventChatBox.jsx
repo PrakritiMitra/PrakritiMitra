@@ -19,7 +19,7 @@ import { showAlert } from '../../utils/notifications';
 // const getDisplayName = (user) => { ... }
 
 
-const socket = io('http://localhost:5000', {
+const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
   autoConnect: false,
   auth: {
     token: localStorage.getItem('token')

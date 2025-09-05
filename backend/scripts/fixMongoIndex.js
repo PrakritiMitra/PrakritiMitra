@@ -5,7 +5,7 @@ require('dotenv').config();
 async function fixIndex() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/mumbaimitra', {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/mumbaimitra', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

@@ -56,17 +56,24 @@ const io = socketIo(server, {
 // Attach io to app for controller access
 app.set('io', io);
 
-// ✅ Enable CORS for all origins (for dev)
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true,
-  exposedHeaders: ['Authorization'],
-}));
-
-app.use('/api/users', require('./routes/userRoutes'));
-
 // ✅ Parse incoming JSON requests
 app.use(express.json());
+
+// ✅ Enable CORS for production
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'https://prakriti-mitra.vercel.app',
+  /^https:\/\/prakriti-mitra.*\.vercel\.app$/, // Allow all Vercel deployment URLs
+  'http://localhost:5173'
+].filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  exposedHeaders: ['Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
 // Note: All file serving is now handled by Cloudinary
 // The uploads folder is no longer used for static file serving
@@ -75,6 +82,7 @@ app.use(express.json());
 // ✅ Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/events', eventRoutes);
 app.use("/api/registrations", registrationRoutes);

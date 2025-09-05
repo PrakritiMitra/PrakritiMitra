@@ -1,6 +1,6 @@
 import axiosInstance from './axiosInstance';
 
-const OAUTH_API = 'http://localhost:5000/api/oauth';
+const OAUTH_API = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/oauth`;
 
 // Google OAuth callback
 export const googleOAuthCallback = async (token) => {

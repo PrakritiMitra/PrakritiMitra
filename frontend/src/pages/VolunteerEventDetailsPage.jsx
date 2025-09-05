@@ -19,7 +19,7 @@ import useEventSlots from '../hooks/useEventSlots';
 import Navbar from "../components/layout/Navbar";
 import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterModal";
 import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuestionnaireModal';
-import EventChatbox from '../components/chat/EventChatbox';
+import EventChatBox from '../components/chat/EventChatBox';
 import StaticMap from '../components/event/StaticMap';
 import ImageCarousel from '../components/event/ImageCarousel';
 import Avatar from "../components/common/Avatar";
@@ -333,7 +333,7 @@ export default function VolunteerEventDetailsPage() {
 
   // Socket connection for real-time updates (slots, etc.)
   useEffect(() => {
-    const socket = io('http://localhost:5000', {
+    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
       auth: { token: localStorage.getItem('token') }
     });
     
@@ -1860,7 +1860,7 @@ export default function VolunteerEventDetailsPage() {
       
       {/* --- MODALS & OVERLAYS --- */}
       
-      {event && <EventChatbox eventId={event._id} currentUser={user} />}
+      {event && <EventChatBox eventId={event._id} currentUser={user} />}
 
               <VolunteerRegisterModal 
           open={showRegisterModal} 
