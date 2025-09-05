@@ -17,7 +17,7 @@ import { joinAsOrganizer, getOrganizerTeam, getFullOrganizerTeam } from "../api/
 import { getVolunteersForEvent } from "../api/registration";
 import { io } from "socket.io-client";
 
-import EventChatbox from '../components/chat/EventChatbox';
+import EventChatBox from '../components/chat/EventChatBox';
 import StaticMap from '../components/event/StaticMap'; // Import the new component
 import { format } from "date-fns";
 import useEventSlots from '../hooks/useEventSlots';
@@ -3260,7 +3260,7 @@ export default function EventDetailsPage() {
 
       
       {event && (
-        <EventChatbox eventId={event._id} currentUser={currentUser} />
+        <EventChatBox eventId={event._id} currentUser={currentUser} />
       )}
 
 
