@@ -1,6 +1,6 @@
 // src/pages/MyRequests.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 
 export default function MyRequests() {
@@ -12,9 +12,7 @@ export default function MyRequests() {
     const fetchRequests = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/organizations/my-requests`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axiosInstance.get(`/api/organizations/my-requests`);
 
         setPending(res.data.pending);
         setApproved(res.data.approved);

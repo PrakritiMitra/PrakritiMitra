@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { showAlert } from '../utils/notifications';
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 import { 
   BuildingOfficeIcon,
   ClockIcon,
@@ -30,9 +30,7 @@ export default function JoinOrganizationPage() {
   const fetchOrganizations = async () => {
     try {
       const token = localStorage.getItem("token");
-      const allOrgsRes = await axios.get("/api/organizations", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const allOrgsRes = await axiosInstance.get("/api/organizations");
       // Handle new API response format
       const allOrgs = allOrgsRes.data.data || allOrgsRes.data;
       const teamStatuses = {};
@@ -50,11 +48,8 @@ export default function JoinOrganizationPage() {
         
         // Only check team status for non-creators
         try {
-          const teamRes = await axios.get(
-            `/api/organizations/${org._id}/team`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
+          const teamRes = await axiosInstance.get(
+            `/api/organizations/${org._id}/team`
           );
           const member = teamRes.data.find((m) => m.userId._id === user._id);
           if (member) {
@@ -109,14 +104,9 @@ export default function JoinOrganizationPage() {
 
   const handleJoinRequest = async (orgId) => {
     try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/organizations/${orgId}/join`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+      await axiosInstance.post(
+        `/api/organizations/${orgId}/join`,
+        {}
       );
       
       // Show success toast
@@ -138,11 +128,7 @@ export default function JoinOrganizationPage() {
 
   const handleWithdrawRequest = async (orgId) => {
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/organizations/${orgId}/withdraw`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      await axiosInstance.delete(`/api/organizations/${orgId}/withdraw`);
       
       // Show success toast
               showAlert.success("Join request withdrawn successfully!");

@@ -42,7 +42,7 @@ import PaymentStatusPage from "./pages/PaymentStatusPage";
 import IntentPaymentPage from "./pages/IntentPaymentPage";
 import ReceiptPage from "./pages/ReceiptPage";
 import React, { useState, useEffect } from "react";
-import axios from "./api/axiosInstance";
+import axiosInstance from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
 import FAQSection from "./pages/FAQSection";
@@ -242,7 +242,7 @@ function AppContent() {
     ]);
     setLoading(true);
     try {
-      const res = await axios.post("/api/chat", { message: msg });
+      const res = await axiosInstance.post("/api/chat", { message: msg });
       setMessages((prev) => [
         ...prev,
         { sender: "bot", text: res.data.response },

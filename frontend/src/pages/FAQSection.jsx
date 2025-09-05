@@ -32,7 +32,7 @@ const FAQSection = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await axios.get("/api/faqs");
+        const res = await axiosInstance.get("/api/faqs");
         setFaqs(res.data);
       } catch (err) {
         setError("Failed to load FAQs. Please try again later.");

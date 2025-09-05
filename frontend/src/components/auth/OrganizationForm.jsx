@@ -1,7 +1,7 @@
 // components/auth/OrganizationForm.jsx 
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import axiosInstance from '../../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import { showAlert } from '../../utils/notifications';
 import {
@@ -193,12 +193,10 @@ export default function OrganizationForm() {
         if (file) data.append(key, file);
       });
       
-      const response = await axios.post('/api/organizations/register', data, {
+      const response = await axiosInstance.post('/api/organizations/register', data, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
-        },
-        withCredentials: true
+        }
       });
       
       showAlert.success('Organization created successfully! All documents uploaded to Cloudinary.');

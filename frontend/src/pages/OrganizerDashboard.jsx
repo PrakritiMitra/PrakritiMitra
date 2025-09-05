@@ -1,7 +1,7 @@
 // src/pages/OrganizerDashboard.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import EventCreationWrapper from "../components/event/EventCreationWrapper";
 import EventCard from "../components/event/EventCard";
@@ -45,13 +45,8 @@ export default function OrganizerDashboard() {
 
   useEffect(() => {
     // Fetch user profile
-    axios
-      .get("/api/user/profile", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        withCredentials: true,
-      })
+    axiosInstance
+      .get("/api/user/profile")
       .then((res) => setUser(res.data.user))
       .catch((err) => console.error(err));
   }, []);
@@ -59,12 +54,8 @@ export default function OrganizerDashboard() {
   useEffect(() => {
     if (!user) return;
     setLoadingEvents(true);
-    axios
-      .get("/api/events/all-events", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+    axiosInstance
+      .get("/api/events/all-events")
       .then((res) => {
         setEvents(res.data);
         setLoadingEvents(false);
@@ -79,12 +70,8 @@ export default function OrganizerDashboard() {
     if (!user) return;
 
     // ✅ Use optimized backend route that returns only approved orgs
-    axios
-      .get("/api/organizations/approved", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      })
+    axiosInstance
+      .get("/api/organizations/approved")
       .then((res) => {
         // Handle new API response format
         const orgs = res.data.data || res.data;

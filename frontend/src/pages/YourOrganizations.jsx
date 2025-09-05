@@ -1,7 +1,7 @@
 // src/pages/YourOrganizations.jsx
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/layout/Navbar";
 import OrganizationCard from "../components/common/OrganizationCard";
@@ -26,11 +26,7 @@ export default function YourOrganizations() {
         const user = JSON.parse(localStorage.getItem("user"));
         const token = localStorage.getItem("token");
         
-        const res = await axios.get("/api/organizations/approved", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await axiosInstance.get("/api/organizations/approved");
         // Handle new API response format
         const orgs = res.data.data || res.data;
         

@@ -1,7 +1,7 @@
 //src/pages/VolunteerEvents.jsx
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 import Navbar from "../components/layout/Navbar";
 import { formatDateTime } from "../utils/dateUtils";
 import { CalendarIcon, MapPinIcon, BuildingOfficeIcon, UserGroupIcon } from "@heroicons/react/24/outline";
@@ -211,15 +211,9 @@ export default function VolunteerEvents() {
                     className="flex-1 px-8 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                     onClick={async () => {
                       try {
-                        const res = await axios.post(
-                          `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/events/${selectedEvent._id}/register`,
-                          {},
-                          {
-                            headers: {
-                              Authorization: `Bearer ${localStorage.getItem("token")}`,
-                            },
-                            withCredentials: true,
-                          }
+                        const res = await axiosInstance.post(
+                          `/api/events/${selectedEvent._id}/register`,
+                          {}
                         );
                         showAlert.success("🎉 Registered successfully! You'll receive updates about this event.");
                         setSelectedEvent(null);

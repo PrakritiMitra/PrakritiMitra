@@ -1,7 +1,6 @@
 // src/components/layout/Navbar.jsx
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import axiosInstance from "../../api/axiosInstance";
 import { getMyOrganization } from "../../api/organization";
 import { ChevronDown, LogOut, User, Menu, X } from "react-feather";
