@@ -131,7 +131,6 @@ You can create a new account or login using any of these dummy accounts.
 - **Loading States** - Smooth loading animations and progress indicators
 - **Error Handling** - Graceful error handling throughout the application
 - **Geolocation Support** - Google Maps integration for location picking and display
-
 ### 🔒 Security & Privacy
 - **Data Encryption** - Secure data storage and transmission
 - **Input Validation** - Comprehensive input validation and sanitization
