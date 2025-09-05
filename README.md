@@ -6,8 +6,8 @@ A comprehensive NGO management platform that empowers non-governmental organizat
 
 ## 👥 Creators
 
-- **Sidhik Udaysing Thorat** - Full Stack Developer
 - **Amrut Avinash Pathane** - Full Stack Developer
+- **Sidhik Udaysing Thorat** - Full Stack Developer
 
 ## 🌐 Live Demo
 
