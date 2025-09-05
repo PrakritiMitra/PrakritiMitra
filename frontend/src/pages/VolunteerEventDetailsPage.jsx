@@ -19,7 +19,7 @@ import useEventSlots from '../hooks/useEventSlots';
 import Navbar from "../components/layout/Navbar";
 import VolunteerRegisterModal from "../components/volunteer/VolunteerRegisterModal";
 import VolunteerQuestionnaireModal from '../components/volunteer/VolunteerQuestionnaireModal';
-import EventChatBox from '../components/chat/EventChatBox';
+import EventChatbox from '../components/chat/EventChatbox';
 import StaticMap from '../components/event/StaticMap';
 import ImageCarousel from '../components/event/ImageCarousel';
 import Avatar from "../components/common/Avatar";
@@ -1860,7 +1860,7 @@ export default function VolunteerEventDetailsPage() {
       
       {/* --- MODALS & OVERLAYS --- */}
       
-      {event && <EventChatBox eventId={event._id} currentUser={user} />}
+      {event && <EventChatbox eventId={event._id} currentUser={user} />}
 
               <VolunteerRegisterModal 
           open={showRegisterModal} 
