@@ -251,7 +251,7 @@ function AppContent() {
       let errorMessage = "Sorry, something went wrong. Please try again.";
       
       if (err.response?.status === 401) {
-        errorMessage = "Please log in to ask personal questions. You can login here: https://prakritimitra.com/login";
+        errorMessage = "Please log in to ask personal questions. You can login here: https://prakritimitra.me/login";
         setIsAuthenticated(false);
       } else if (err.response?.status === 500) {
         errorMessage = "Sorry, I'm having trouble right now. Please try again later.";

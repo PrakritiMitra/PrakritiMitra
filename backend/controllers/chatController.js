@@ -35,7 +35,7 @@ const handleChat = async (req, res) => {
             .sort({ 'eventId.startDateTime': 1 });
 
             if (!nextEvent || !nextEvent.eventId) {
-              return "You don't have any upcoming events registered. Check out our events page to find opportunities: https://prakritimitra.com/events";
+              return "You don't have any upcoming events registered. Check out our events page to find opportunities: https://prakritimitra.me/events";
             }
 
             const event = nextEvent.eventId;
@@ -50,7 +50,7 @@ const handleChat = async (req, res) => {
               minute: '2-digit'
             });
 
-            return `Your next event is "${event.title}" on ${eventDate} at ${eventTime}. Location: ${event.location || 'Check event details'}. View details: https://prakritimitra.com/events/${event._id}`;
+            return `Your next event is "${event.title}" on ${eventDate} at ${eventTime}. Location: ${event.location || 'Check event details'}. View details: https://prakritimitra.me/events/${event._id}`;
           } catch (error) {
             console.error('Error fetching next event:', error);
             return "Sorry, I couldn't fetch your next event right now. Please try again later.";
@@ -67,7 +67,7 @@ const handleChat = async (req, res) => {
             });
 
             if (completedCount === 0) {
-              return "You haven't completed any events yet. Start your volunteering journey by joining an event: https://prakritimitra.com/events";
+              return "You haven't completed any events yet. Start your volunteering journey by joining an event: https://prakritimitra.me/events";
             }
 
             return `You have completed ${completedCount} event${completedCount === 1 ? '' : 's'} so far! Keep up the great work!`;
@@ -93,7 +93,7 @@ const handleChat = async (req, res) => {
               return total + event.certificates.filter(cert => cert.user.toString() === userId.toString()).length;
             }, 0);
 
-            return `You have earned ${certificateCount} certificate${certificateCount === 1 ? '' : 's'}! You can view and download them from your profile page: https://prakritimitra.com/profile`;
+            return `You have earned ${certificateCount} certificate${certificateCount === 1 ? '' : 's'}! You can view and download them from your profile page: https://prakritimitra.me/profile`;
           } catch (error) {
             console.error('Error fetching certificates:', error);
             return "Sorry, I couldn't fetch your certificates right now. Please try again later.";
@@ -123,7 +123,7 @@ const handleChat = async (req, res) => {
             const userCertificate = event.certificates.find(cert => cert.user.toString() === userId.toString());
 
             if (userCertificate) {
-              return `Yes! You received a certificate for "${event.title}". You can download it from your profile page: https://prakritimitra.com/profile`;
+              return `Yes! You received a certificate for "${event.title}". You can download it from your profile page: https://prakritimitra.me/profile`;
             } else {
               return `You completed "${event.title}" but no certificate was issued for this event. Certificates are typically awarded for special achievements or longer events.`;
             }
@@ -183,7 +183,7 @@ const handleChat = async (req, res) => {
             const validEvents = weeklyEvents.filter(reg => reg.eventId);
 
             if (validEvents.length === 0) {
-              return "You don't have any events scheduled for this week. Check out upcoming events: https://prakritimitra.com/events";
+              return "You don't have any events scheduled for this week. Check out upcoming events: https://prakritimitra.me/events";
             }
 
             const eventList = validEvents.map(reg => {
@@ -196,7 +196,7 @@ const handleChat = async (req, res) => {
               return `• ${event.title} (${eventDate})`;
             }).join('\n');
 
-            return `You have ${validEvents.length} event${validEvents.length === 1 ? '' : 's'} this week:\n${eventList}\n\nView all your events: https://prakritimitra.com/volunteer/my-events`;
+            return `You have ${validEvents.length} event${validEvents.length === 1 ? '' : 's'} this week:\n${eventList}\n\nView all your events: https://prakritimitra.me/volunteer/my-events`;
           } catch (error) {
             console.error('Error fetching weekly events:', error);
             return "Sorry, I couldn't fetch your weekly events right now. Please try again later.";
@@ -225,7 +225,7 @@ const handleChat = async (req, res) => {
             .limit(5);
 
             if (cityEvents.length === 0) {
-              return `No upcoming events found in ${cityName}. Check out all events: https://prakritimitra.com/events`;
+              return `No upcoming events found in ${cityName}. Check out all events: https://prakritimitra.me/events`;
             }
 
             const eventList = cityEvents.map(event => {
@@ -236,7 +236,7 @@ const handleChat = async (req, res) => {
               return `• ${event.title} (${eventDate})`;
             }).join('\n');
 
-            return `Found ${cityEvents.length} upcoming event${cityEvents.length === 1 ? '' : 's'} in ${cityName}:\n${eventList}\n\nView all events: https://prakritimitra.com/events`;
+            return `Found ${cityEvents.length} upcoming event${cityEvents.length === 1 ? '' : 's'} in ${cityName}:\n${eventList}\n\nView all events: https://prakritimitra.me/events`;
           } catch (error) {
             console.error('Error fetching city events:', error);
             return "Sorry, I couldn't search for events in that city right now. Please try again later.";
@@ -258,7 +258,7 @@ const handleChat = async (req, res) => {
             .sort({ 'eventId.endDateTime': -1 });
 
             if (!lastEvent || !lastEvent.eventId) {
-              return "You haven't completed any events yet. Start your volunteering journey: https://prakritimitra.com/events";
+              return "You haven't completed any events yet. Start your volunteering journey: https://prakritimitra.me/events";
             }
 
             const event = lastEvent.eventId;
@@ -269,7 +269,7 @@ const handleChat = async (req, res) => {
               day: 'numeric'
             });
 
-            return `Your last completed event was "${event.title}" on ${eventDate}. Event type: ${event.eventType || 'General volunteering'}. Location: ${event.location || 'Check event details'}. View details: https://prakritimitra.com/events/${event._id}`;
+            return `Your last completed event was "${event.title}" on ${eventDate}. Event type: ${event.eventType || 'General volunteering'}. Location: ${event.location || 'Check event details'}. View details: https://prakritimitra.me/events/${event._id}`;
           } catch (error) {
             console.error('Error fetching last event details:', error);
             return "Sorry, I couldn't fetch your last event details right now. Please try again later.";
@@ -295,7 +295,7 @@ const handleChat = async (req, res) => {
             const validEvents = registeredEvents.filter(reg => reg.eventId);
 
             if (validEvents.length === 0) {
-              return "You're not currently registered for any upcoming events. Browse and join events: https://prakritimitra.com/events";
+              return "You're not currently registered for any upcoming events. Browse and join events: https://prakritimitra.me/events";
             }
 
             const eventList = validEvents.map(reg => {
@@ -307,7 +307,7 @@ const handleChat = async (req, res) => {
               return `• ${event.title} (${eventDate})`;
             }).join('\n');
 
-            return `You're registered for ${validEvents.length} upcoming event${validEvents.length === 1 ? '' : 's'}:\n${eventList}\n\nManage your registrations: https://prakritimitra.com/volunteer/my-events`;
+            return `You're registered for ${validEvents.length} upcoming event${validEvents.length === 1 ? '' : 's'}:\n${eventList}\n\nManage your registrations: https://prakritimitra.me/volunteer/my-events`;
           } catch (error) {
             console.error('Error fetching registered events:', error);
             return "Sorry, I couldn't fetch your registered events right now. Please try again later.";
@@ -326,20 +326,20 @@ const handleChat = async (req, res) => {
 
     // Simple rule-based responses (existing functionality)
   const rules = [
-      { keywords: ["pricing", "cost", "price"], response: "https://prakritimitra.com/pricing" },
+      { keywords: ["pricing", "cost", "price"], response: "https://prakritimitra.me/pricing" },
     { keywords: ["hello", "hi", "hey"], response: "Hello! How can I assist you today?" },
-      { keywords: ["reset password", "forgot password"], response: "https://prakritimitra.com/forgot-password" },
-      { keywords: ["contact", "support"], response: "mailto:support@prakritimitra.com" },
+      { keywords: ["reset password", "forgot password"], response: "https://prakritimitra.me/forgot-password" },
+      { keywords: ["contact", "support"], response: "mailto:support@prakritimitra.me" },
     { keywords: ["features", "what can you do"], response: "I can help you with information about our platform, onboarding, and troubleshooting." },
     // New rules below:
-      { keywords: ["register", "sign up", "create account"], response: "https://prakritimitra.com/signup" },
-      { keywords: ["login", "log in", "sign in"], response: "https://prakritimitra.com/login" },
-      { keywords: ["events", "upcoming events"], response: "https://prakritimitra.com/events" },
-      { keywords: ["volunteer", "join as volunteer"], response: "https://prakritimitra.com/signup" },
-      { keywords: ["organization", "partner"], response: "https://prakritimitra.com/register-organization" },
-      { keywords: ["faq", "frequently asked questions"], response: "https://prakritimitra.com/faqs" },
+      { keywords: ["register", "sign up", "create account"], response: "https://prakritimitra.me/signup" },
+      { keywords: ["login", "log in", "sign in"], response: "https://prakritimitra.me/login" },
+      { keywords: ["events", "upcoming events"], response: "https://prakritimitra.me/events" },
+      { keywords: ["volunteer", "join as volunteer"], response: "https://prakritimitra.me/signup" },
+      { keywords: ["organization", "partner"], response: "https://prakritimitra.me/register-organization" },
+      { keywords: ["faq", "frequently asked questions"], response: "https://prakritimitra.me/faqs" },
     { keywords: ["location", "where are you based"], response: "We are based in India, but our platform is accessible globally." },
-      { keywords: ["donate", "contribute"], response: "https://prakritimitra.com/donate" },
+      { keywords: ["donate", "contribute"], response: "https://prakritimitra.me/donate" },
     // ...add more as needed
   ];
 
@@ -366,7 +366,7 @@ const handleChat = async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://prakritimitra.com', // Optional, for OpenRouter compliance
+        'HTTP-Referer': 'https://prakritimitra.me', // Optional, for OpenRouter compliance
         'X-Title': 'PrakritiMitra Assistant' // Optional, for OpenRouter compliance
       }
     });

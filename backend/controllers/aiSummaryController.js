@@ -23,7 +23,7 @@ const handleAiSummary = async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://prakritimitra.com',
+        'HTTP-Referer': 'https://prakritimitra.me',
         'X-Title': 'PrakritiMitra Event Summary'
       }
     });

@@ -63,6 +63,8 @@ app.use(express.json());
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'https://prakriti-mitra.vercel.app',
+  'https://prakritimitra.me', // Custom domain
+  'https://www.prakritimitra.me', // Custom domain with www
   /^https:\/\/prakriti-mitra.*\.vercel\.app$/, // Allow all Vercel deployment URLs
   'http://localhost:5173',
   'https://prakriti-mitra-git-main-amrut00s-projects.vercel.app', // Vercel preview URLs
