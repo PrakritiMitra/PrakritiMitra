@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "../api/axiosInstance";
+import axiosInstance from "../api/axiosInstance";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "../components/layout/Navbar";
 import {
