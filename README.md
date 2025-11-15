@@ -17,6 +17,7 @@ A comprehensive NGO management platform that empowers non-governmental organizat
 ## 🌐 Live Demo
 
 Visit our live application at: [https://prakritimitra.me](https://prakritimitra.me)
+**Note:** As the backend is deployed on Render, the first login may take about 30 to 60 seconds. This is because Render's free tier spins down services after 15 minutes of inactivity, and the first request after spin-down needs to wake up the service.
 
 ## 🧪 Test Accounts
 
