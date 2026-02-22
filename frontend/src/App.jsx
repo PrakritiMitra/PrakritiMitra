@@ -46,6 +46,9 @@ import axiosInstance from "./api/axiosInstance";
 import ChatBubble from "./components/aiChatbot/ChatBubble";
 import ChatWindow from "./components/aiChatbot/ChatWindow";
 import FAQSection from "./pages/FAQSection";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import CookiePolicyPage from "./pages/CookiePolicyPage";
 
 import NotFoundPage from "./pages/NotFoundPage";
 import { ChatProvider, useChatContext } from "./context/ChatContext";
@@ -289,6 +292,9 @@ function AppContent() {
           <Route path="/recover-account" element={<RecoverAccountPage />} />
           <Route path="/recovery-confirmation" element={<RecoveryConfirmationPage />} />
           <Route path="/faqs" element={<FAQSection />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+          <Route path="/cookie-policy" element={<CookiePolicyPage />} />
           <Route path="/test-404" element={<NotFoundPage />} />
 
           {/* Protected Routes */}
