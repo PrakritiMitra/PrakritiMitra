@@ -1,11 +1,18 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+
+const policyLinks = [
+  { to: "/privacy-policy", label: "Privacy Policy" },
+  { to: "/terms-of-service", label: "Terms of Service" },
+  { to: "/cookie-policy", label: "Cookie Policy" },
+];
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="mt-10 bg-gray-900 text-white">
+    <footer className="mt-10 bg-gray-900 text-white overflow-hidden">
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -178,21 +185,31 @@ export default function Footer() {
       {/* Bottom Bar */}
       <div className="border-t border-gray-800 bg-gray-950">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-gray-400 text-sm mb-4 md:mb-0">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-gray-400 text-sm text-center md:text-left">
               © {currentYear} PrakritiMitra. All rights reserved. | Developed by Sidhik and Amrut
             </div>
-            <div className="flex space-x-6 text-sm">
-              <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors duration-300">
-                Privacy Policy
-              </a>
-              <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors duration-300">
-                Terms of Service
-              </a>
-              <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors duration-300">
-                Cookie Policy
-              </a>
-            </div>
+            <motion.div
+              className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={{
+                visible: { transition: { staggerChildren: 0.06 } },
+                hidden: {},
+              }}
+            >
+              {policyLinks.map(({ to, label }) => (
+                <motion.span key={to} variants={{ hidden: { opacity: 0, y: 4 }, visible: { opacity: 1, y: 0 } }}>
+                  <Link
+                    to={to}
+                    className="text-gray-400 hover:text-blue-400 transition-all duration-300 hover:underline underline-offset-2 decoration-blue-400/60 inline-block hover:-translate-y-0.5"
+                  >
+                    {label}
+                  </Link>
+                </motion.span>
+              ))}
+            </motion.div>
           </div>
         </div>
       </div>
