@@ -1,4 +1,4 @@
-# 🤝 --- PrakritiMitra ---
+# 🤝 PrakritiMitra
 
 > **Empowering NGOs with Complete Digital Management Solutions**
 
