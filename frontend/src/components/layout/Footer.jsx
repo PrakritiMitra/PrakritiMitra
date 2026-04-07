@@ -187,7 +187,7 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-gray-400 text-sm text-center md:text-left">
-              © {currentYear} PrakritiMitra. All rights reserved. | Developed by Sidhik and Amrut
+              © {currentYear} PrakritiMitra. All rights reserved.
             </div>
             <motion.div
               className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm"
