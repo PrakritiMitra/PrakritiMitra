@@ -932,6 +932,34 @@ const EventCreationWrapper = forwardRef(function EventCreationWrapper({
               data.append('mapLocation[lat]', formData.mapLocation.lat || '');
               data.append('mapLocation[lng]', formData.mapLocation.lng || '');
             }
+          } else if (key === "govtApprovalLetter") {
+            if (formData.govtApprovalLetter) {
+              if (
+                formData.govtApprovalLetter.uploaded &&
+                formData.govtApprovalLetter.cloudinaryUrl
+              ) {
+                // Already uploaded to Cloudinary — send JSON metadata
+                data.append(
+                  "govtApprovalLetter",
+                  JSON.stringify({
+                    url: formData.govtApprovalLetter.cloudinaryUrl,
+                    publicId: formData.govtApprovalLetter.cloudinaryId,
+                    filename: formData.govtApprovalLetter.name,
+                    format: formData.govtApprovalLetter.type,
+                    size: formData.govtApprovalLetter.size,
+                  })
+                );
+              } else if (formData.govtApprovalLetter instanceof File) {
+                // Raw file
+                data.append("govtApprovalLetter", formData.govtApprovalLetter);
+              } else {
+                // Structured object — make sure it’s a JSON string
+                data.append(
+                  "govtApprovalLetter",
+                  JSON.stringify(formData.govtApprovalLetter)
+                );
+              }
+            }
           } else if (key === "timeSlots") {
             // Handle timeSlots as JSON string since it's a complex object
             if (formData.timeSlots && formData.timeSlots.length > 0) {

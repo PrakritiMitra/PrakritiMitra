@@ -12,9 +12,15 @@ const handleAiSummary = async (req, res) => {
     if (!OPENROUTER_API_KEY) {
       throw new Error("OpenRouter API key not set in .env");
     }
+    // Allow model override via env; default to a widely-available OpenRouter model.
+    // Some ":free" model aliases can be unavailable and return 404.
+    const model =
+      process.env.OPENROUTER_SUMMARY_MODEL ||
+      process.env.OPENROUTER_MODEL ||
+      "openai/gpt-4o-mini";
     const url = "https://openrouter.ai/api/v1/chat/completions";
     const body = {
-      model: "deepseek/deepseek-r1-distill-llama-70b:free",
+      model,
       messages: [
         { role: "user", content: prompt }
       ]
