@@ -1,10 +1,16 @@
 require('dotenv').config();
-const axios = require('axios');
+const { createChatCompletion, createChatCompletionStream } = require('../utils/openrouterClient');
+const { TtlCache } = require('../utils/ttlCache');
 const Registration = require('../models/registration');
 const Event = require('../models/event');
 const User = require('../models/user');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+const llmCache = new TtlCache({
+  maxSize: Number(process.env.CHAT_LLM_CACHE_MAX || 300),
+  defaultTtlMs: Number(process.env.CHAT_LLM_CACHE_TTL_MS || 90_000)
+});
 
 const handleChat = async (req, res) => {
   try {
@@ -349,29 +355,59 @@ const handleChat = async (req, res) => {
     }
   }
 
-    // Fallback: OpenRouter DeepSeek R1 Distill Llama 70B (existing functionality)
+    // Fallback: OpenRouter free router (fast + available free endpoints)
   try {
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     if (!OPENROUTER_API_KEY) {
       throw new Error("OpenRouter API key not set in .env");
     }
-    const url = "https://openrouter.ai/api/v1/chat/completions";
+    const model = process.env.OPENROUTER_CHAT_MODEL || "openrouter/free";
+    const cacheKey = `${model}::${message.trim()}`;
+    const cached = llmCache.get(cacheKey);
+    if (cached) {
+      return res.json({ response: cached });
+    }
     const body = {
-      model: "deepseek/deepseek-r1-distill-llama-70b:free",
+      model,
       messages: [
+        {
+          role: "system",
+          content:
+            "You are Sevak AI, the PrakritiMitra assistant. Reply with accurate, relevant, user-friendly guidance about PrakritiMitra. Keep answers concise. If you are unsure, say so and suggest the most relevant page (pricing, login, events, profile, support). Do not invent features or links."
+        },
         { role: "user", content: message }
-      ]
+      ],
+      temperature: 0.2,
+      top_p: 0.9,
+      max_tokens: 350
     };
-    const response = await axios.post(url, body, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://prakritimitra.me', // Optional, for OpenRouter compliance
-        'X-Title': 'PrakritiMitra Assistant' // Optional, for OpenRouter compliance
-      }
-    });
-    const data = response.data;
-    const openRouterReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't get a response from OpenRouter.";
+    const wantsStream = req.query?.stream === '1';
+    if (wantsStream) {
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+
+      const streamPayload = { ...body, stream: true };
+      const upstream = await createChatCompletionStream(streamPayload);
+
+      upstream.on('data', (chunk) => {
+        res.write(chunk);
+      });
+      upstream.on('end', () => {
+        res.end();
+      });
+      upstream.on('error', (e) => {
+        console.error('OpenRouter stream error:', e);
+        res.end();
+      });
+      return;
+    }
+
+    const data = await createChatCompletion(body);
+    const openRouterReply =
+      data.choices?.[0]?.message?.content ||
+      "Sorry, I couldn't get a response from OpenRouter.";
+    llmCache.set(cacheKey, openRouterReply);
     return res.json({ response: openRouterReply });
   } catch (error) {
     console.error("OpenRouter error:", error.response?.data || error.message);
