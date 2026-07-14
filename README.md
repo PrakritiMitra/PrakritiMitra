@@ -62,7 +62,8 @@ You can create a new account or login using any of these dummy accounts.
 - **JWT** - JSON Web Token authentication
 - **Razorpay** - Payment gateway integration
 - **Cloudinary** - Cloud-based file storage
-- **OpenAI** - AI-powered features
+- **OpenRouter** - AI-powered summaries and chatbot assistant
+- **GroqCloud** - AI-powered report generation
 - **Nodemailer** - Email service
 
 ### DevOps & Tools
@@ -115,7 +116,7 @@ You can create a new account or login using any of these dummy accounts.
 - **Sponsorship Analytics** - Track sponsorship impact and ROI
 
 ### 📊 Analytics & Reports
-- **AI-Powered Reports** - Automated event summaries using OpenAI
+- **AI-Powered Reports** - Automated event summaries and reports using OpenRouter and GroqCloud
 - **Impact Measurement** - Comprehensive impact tracking and analytics
 - **Certificate Generation** - Automated certificate creation for volunteers and participants
 - **Custom Awards** - Multiple certificate templates and award types
@@ -128,6 +129,11 @@ You can create a new account or login using any of these dummy accounts.
 - **File Sharing** - Secure file sharing in chat
 - **Typing Indicators** - Real-time typing status
 - **Message Pinning** - Important message pinning system
+
+### 🤖 AI Assistant
+- **AI Chatbot** - Interactive in-app assistant with an animated character for real-time user support
+- **Quick Replies** - Suggested quick-reply options for common questions
+- **FAQ Integration** - Instant answers powered by the platform's FAQ knowledge base
 
 ### 📱 User Experience
 - **Responsive Design** - Mobile-first approach with modern UI/UX
