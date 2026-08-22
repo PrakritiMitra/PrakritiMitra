@@ -16,7 +16,7 @@ A comprehensive NGO management platform that empowers non-governmental organizat
 
 ## 🌐 Live Demo
 
-Visit our live application at: [https://prakritimitra.me](https://prakritimitra.me) or [prakritimitra]([https://prakritimitra.me](https://prakriti-mitra-ehsfa6wgr-amruts-projects-9fdb7919.vercel.app/)) 
+Visit our live application at: [https://prakritimitra.me](https://prakritimitra.me) or [prakritimitra](https://prakriti-mitra-ehsfa6wgr-amruts-projects-9fdb7919.vercel.app/)
 
 ## 🧪 Test Accounts
 
